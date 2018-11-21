@@ -147,6 +147,7 @@ class ShibbolethAuthenticator:
 			logger.info("Not logged in, authentication required.")
 			await self._authenticate()
 			self._event.set()
+			self._event = None
 		else:
 			await self._event.wait()
 
@@ -160,7 +161,7 @@ class ShibbolethAuthenticator:
 
 		while True:
 			async with self._lock.read():
-				logger.info(f"Getting {url} {params}")
+				logger.debug(f"Getting {url} {params}")
 				_, text = await self._get(url, params=params)
 				soup = bs4.BeautifulSoup(text, "html.parser")
 
