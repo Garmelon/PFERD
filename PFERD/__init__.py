@@ -1,8 +1,8 @@
-from .authenticator import *
+from .IliasAuthenticators import *
 from .organizer import *
 
 __all__ = (
-	authenticator.__all__ +
+	IliasAuthenticators.__all__ +
 	organizer.__all__
 )
 

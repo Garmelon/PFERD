@@ -10,7 +10,7 @@ from .ReadWriteLock import ReadWriteLock
 
 __all__ = [
 	"OutOfTriesException",
-	"UnknownFileType",
+	"UnknownFileTypeException",
 	"ShibbolethAuthenticator",
 ]
 logger = logging.getLogger(__name__)
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class OutOfTriesException(Exception):
 	pass
 
-class UnknownFileType(Exception):
+class UnknownFileTypeException(Exception):
 	pass
 
 class ShibbolethAuthenticator:
@@ -196,7 +196,7 @@ class ShibbolethAuthenticator:
 						return False
 					else:
 						# What *did* we get?
-						raise UnknownFileType(f"Unknown file of type {resp.content_type}.")
+						raise UnknownFileTypeException(f"Unknown file of type {resp.content_type}.")
 
 			except aiohttp.client_exceptions.ServerDisconnectedError:
 				logger.debug(f"Try {t+1} out of {self.RETRY_ATTEMPTS} failed, retrying in {self.RETRY_DELAY} s")

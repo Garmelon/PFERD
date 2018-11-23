@@ -19,9 +19,12 @@ async def test_download():
 	orga.clean_temp_dir()
 
 	filename = orga.temp_file()
-	print(filename)
 	await auth.download_file("file_886544_download", filename)
 	orga.add_file(filename, pathlib.Path("test.pdf"))
+
+	filename = orga.temp_file()
+	await auth.download_file("file_886544_download", filename)
+	orga.add_file(filename, pathlib.Path("bla/test2.pdf"))
 	
 	orga.clean_sync_dir()
 	orga.clean_temp_dir()
