@@ -1,3 +1,12 @@
+# This file is called IliasAuthenticators because there are multiple mechanisms
+# for authenticating with Ilias (even though only the Shibboleth is currently
+# implemented). Most of what the ShibbolethAuthenticator currently does is
+# not Shibboleth specific; this mess would have to be cleaned up before
+# actually implementing any other authentication method.
+#
+# I think the only other method is the password prompt when clicking the log in
+# button.
+
 import aiohttp
 import asyncio
 import bs4
@@ -22,6 +31,8 @@ class UnknownFileTypeException(Exception):
 	pass
 
 class ShibbolethAuthenticator:
+
+	ILIAS_GOTO = "https://ilias.studium.kit.edu/goto.php"
 
 	RETRY_ATTEMPTS = 5
 	RETRY_DELAY = 1 # seconds
@@ -160,14 +171,16 @@ class ShibbolethAuthenticator:
 		userlog = soup.find("li", {"id": "userlog"})
 		return userlog is not None
 
-	async def get_webpage(self, ref_id):
-		url = "https://ilias.studium.kit.edu/goto.php"
-		params = {"target": f"fold_{ref_id}"}
+	async def get_webpage_refid(self, ref_id):
+		return await self.get_webpage(f"fold_{ref_id}")
+
+	async def get_webpage(self, object_id):
+		params = {"target": object_id}
 
 		while True:
 			async with self._lock.read():
 				logger.debug(f"Getting {url} {params}")
-				_, text = await self._get(url, params=params)
+				_, text = await self._get(self.ILIAS_GOTO, params=params)
 				soup = bs4.BeautifulSoup(text, "html.parser")
 
 			if self._is_logged_in(soup):
@@ -193,6 +206,10 @@ class ShibbolethAuthenticator:
 						return True
 					elif resp.content_type == "text/html":
 						# Dangit, we're probably not logged in.
+						text = await resp.text()
+						soup = bs4.BeautifulSoup(text, "html.parser")
+						if self._is_logged_in(soup):
+							raise UnknownFileTypeException(f"Attempting to download a web page (use get_webpage() instead).")
 						return False
 					else:
 						# What *did* we get?
@@ -206,12 +223,11 @@ class ShibbolethAuthenticator:
 		raise OutOfTriesException(f"Try {self.RETRY_ATTEMPTS} out of {self.RETRY_ATTEMPTS} failed.")
 
 	async def download_file(self, file_id, to_path):
-		url = "https://ilias.studium.kit.edu/goto.php"
 		params = {"target": file_id}
 
 		while True:
 			async with self._lock.read():
-				success = await self._download(url, params, to_path)
+				success = await self._download(self.ILIAS_GOTO, params, to_path)
 
 			if success:
 				return
