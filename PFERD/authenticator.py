@@ -10,6 +10,7 @@ from .ReadWriteLock import ReadWriteLock
 
 __all__ = [
 	"OutOfTriesException",
+	"UnknownFileType",
 	"ShibbolethAuthenticator",
 ]
 logger = logging.getLogger(__name__)
@@ -17,10 +18,14 @@ logger = logging.getLogger(__name__)
 class OutOfTriesException(Exception):
 	pass
 
+class UnknownFileType(Exception):
+	pass
+
 class ShibbolethAuthenticator:
 
 	RETRY_ATTEMPTS = 5
 	RETRY_DELAY = 1 # seconds
+	CHUNK_SIZE = 1024**2
 
 	def __init__(self, cookie_path=None):
 		self._cookie_path = cookie_path
@@ -55,7 +60,7 @@ class ShibbolethAuthenticator:
 				logger.debug(f"Try {t+1} out of {self.RETRY_ATTEMPTS} failed, retrying in {self.RETRY_DELAY} s")
 				await asyncio.sleep(self.RETRY_DELAY)
 
-		logger.error("Could not retrieve url")
+		logger.error(f"Could not POST {url} params:{params} data:{data}.")
 		raise OutOfTriesException(f"Try {self.RETRY_ATTEMPTS} out of {self.RETRY_ATTEMPTS} failed.")
 
 	async def _get(self, url, params=None):
@@ -68,7 +73,7 @@ class ShibbolethAuthenticator:
 				logger.debug(f"Try {t+1} out of {self.RETRY_ATTEMPTS} failed, retrying in {self.RETRY_DELAY} s")
 				await asyncio.sleep(self.RETRY_DELAY)
 
-		logger.error("Could not retrieve url")
+		logger.error(f"Could not GET {url} params:{params}.")
 		raise OutOfTriesException(f"Try {self.RETRY_ATTEMPTS} out of {self.RETRY_ATTEMPTS} failed.")
 
 	def _login_successful(self, soup):
@@ -170,6 +175,45 @@ class ShibbolethAuthenticator:
 			else:
 				await self._ensure_authenticated()
 
-	async def download_file(self, file_id):
-		async with self._lock.read():
-			pass # TODO
+	async def _stream_to_path(self, resp, to_path):
+		with open(to_path, 'wb') as fd:
+			while True:
+				chunk = await resp.content.read(self.CHUNK_SIZE)
+				if not chunk:
+					break
+				fd.write(chunk)
+
+	async def _download(self, url, params, to_path):
+		for t in range(self.RETRY_ATTEMPTS):
+			try:
+				async with self._session.get(url, params=params) as resp:
+					if resp.content_type == "application/pdf":
+						# Yay, we got the file (as long as it's a PDF)
+						await self._stream_to_path(resp, to_path)
+						return True
+					elif resp.content_type == "text/html":
+						# Dangit, we're probably not logged in.
+						return False
+					else:
+						# What *did* we get?
+						raise UnknownFileType(f"Unknown file of type {resp.content_type}.")
+
+			except aiohttp.client_exceptions.ServerDisconnectedError:
+				logger.debug(f"Try {t+1} out of {self.RETRY_ATTEMPTS} failed, retrying in {self.RETRY_DELAY} s")
+				await asyncio.sleep(self.RETRY_DELAY)
+
+		logger.error(f"Could not download {url} params:{params}.")
+		raise OutOfTriesException(f"Try {self.RETRY_ATTEMPTS} out of {self.RETRY_ATTEMPTS} failed.")
+
+	async def download_file(self, file_id, to_path):
+		url = "https://ilias.studium.kit.edu/goto.php"
+		params = {"target": file_id}
+
+		while True:
+			async with self._lock.read():
+				success = await self._download(url, params, to_path)
+
+			if success:
+				return
+			else:
+				await self._ensure_authenticated()
