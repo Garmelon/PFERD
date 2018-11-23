@@ -1,13 +1,20 @@
+import filecmp
 import logging
 import pathlib
 import shutil
 
 __all__ = [
-	"Organizer"
+	"FileNotFoundException",
+	"Organizer",
 ]
 logger = logging.getLogger(__name__)
 
+class FileNotFoundException(Exception):
+	pass
+
 class Organizer:
+	HASH_BUF_SIZE = 1024**2
+
 	def __init__(self, base_dir, sync_dir):
 		"""
 		base_dir - the .tmp directory will be created here
@@ -29,29 +36,41 @@ class Organizer:
 		if self._temp_dir.exists():
 			shutil.rmtree(self._temp_dir)
 		self._temp_dir.mkdir(exist_ok=True)
+		logger.debug(f"Cleaned temp dir: {self._temp_dir}")
 
 	def temp_file(self):
 		# generate the path to a new temp file in base_path/.tmp/
 		# make sure no two paths are the same
 		nr = self._temp_nr
 		self._temp_nr += 1
-		return pathlib.Path(self._temp_dir, f"{nr:08}.tmp").resolve()
+		temp_file =  pathlib.Path(self._temp_dir, f"{nr:08}.tmp").resolve()
+		logger.debug(f"Produced new temp file: {temp_file}")
+		return temp_file
 
 	def add_file(self, from_path, to_path):
+		if not from_path.exists():
+			raise FileNotFoundException(f"Could not add file at {from_path}")
+
 		# check if sync_dir/to_path is inside sync_dir?
 		to_path = pathlib.Path(self._sync_dir, to_path)
+
 		if to_path.exists():
-			logger.info(f"Overwriting {to_path}.")
+			if not filecmp.cmp(from_path, to_path, shallow=False):
+				logger.info(f"Changed file at {to_path}.")
+		else:
+			logger.info(f"New file at {to_path}.")
 
 		# copy the file from from_path to sync_dir/to_path
 		to_path.parent.mkdir(parents=True, exist_ok=True)
 		from_path.replace(to_path)
+		logger.debug(f"Moved {from_path} to {to_path}")
 
 		# remember path for later reference
 		self._added_files.add(to_path.resolve())
 
 	def clean_sync_dir(self):
 		self._clean_dir(self._sync_dir, remove_parent=False)
+		logger.debug(f"Cleaned sync dir: {self._sync_dir}")
 
 	def _clean_dir(self, path, remove_parent=True):
 		for child in path.iterdir():
@@ -59,8 +78,8 @@ class Organizer:
 				self._clean_dir(child, remove_parent=True)
 			elif child.resolve() not in self._added_files:
 				if self._prompt_yes_no(f"Delete {child}?", default=False):
-					logger.debug(f"Deleting {child.resolve()}")
 					child.unlink()
+					logger.debug(f"Deleted {child}")
 
 		if remove_parent:
 			try:
@@ -77,7 +96,7 @@ class Organizer:
 			prompt = "[y/n]"
 
 		text = f"{question} {prompt} "
-		wrong_reply = "Please reply with 'yes'/'y' or 'no'/'n'."
+		WRONG_REPLY = "Please reply with 'yes'/'y' or 'no'/'n'."
 
 		while True:
 			response = input(text).strip().lower()
@@ -87,11 +106,11 @@ class Organizer:
 				return False
 			elif response == "":
 				if default is None:
-					print(wrong_reply)
+					print(WRONG_REPLY)
 				else:
 					return default
 			else:
-				print(wrong_reply)
+				print(WRONG_REPLY)
 
 # How to use:
 #
