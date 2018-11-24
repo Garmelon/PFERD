@@ -3,18 +3,14 @@ import logging
 import pathlib
 import shutil
 
+from . import utils
+
 __all__ = [
-	"FileNotFoundException",
 	"Organizer",
 ]
 logger = logging.getLogger(__name__)
 
-class FileNotFoundException(Exception):
-	pass
-
 class Organizer:
-	HASH_BUF_SIZE = 1024**2
-
 	def __init__(self, base_dir, sync_dir):
 		"""
 		base_dir - the .tmp directory will be created here
@@ -49,7 +45,7 @@ class Organizer:
 
 	def add_file(self, from_path, to_path):
 		if not from_path.exists():
-			raise FileNotFoundException(f"Could not add file at {from_path}")
+			raise utils.FileNotFoundException(f"Could not add file at {from_path}")
 
 		# check if sync_dir/to_path is inside sync_dir?
 		to_path = pathlib.Path(self._sync_dir, to_path)

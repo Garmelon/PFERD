@@ -15,20 +15,13 @@ import logging
 import time
 import urllib.parse
 
-from .ReadWriteLock import ReadWriteLock
+from .read_write_lock import ReadWriteLock
+from . import utils
 
 __all__ = [
-	"OutOfTriesException",
-	"UnknownFileTypeException",
 	"ShibbolethAuthenticator",
 ]
 logger = logging.getLogger(__name__)
-
-class OutOfTriesException(Exception):
-	pass
-
-class UnknownFileTypeException(Exception):
-	pass
 
 class ShibbolethAuthenticator:
 
@@ -72,7 +65,7 @@ class ShibbolethAuthenticator:
 				await asyncio.sleep(self.RETRY_DELAY)
 
 		logger.error(f"Could not POST {url} params:{params} data:{data}.")
-		raise OutOfTriesException(f"Try {self.RETRY_ATTEMPTS} out of {self.RETRY_ATTEMPTS} failed.")
+		raise utils.OutOfTriesException(f"Try {self.RETRY_ATTEMPTS} out of {self.RETRY_ATTEMPTS} failed.")
 
 	async def _get(self, url, params=None):
 		for t in range(self.RETRY_ATTEMPTS):
@@ -85,7 +78,7 @@ class ShibbolethAuthenticator:
 				await asyncio.sleep(self.RETRY_DELAY)
 
 		logger.error(f"Could not GET {url} params:{params}.")
-		raise OutOfTriesException(f"Try {self.RETRY_ATTEMPTS} out of {self.RETRY_ATTEMPTS} failed.")
+		raise utils.OutOfTriesException(f"Try {self.RETRY_ATTEMPTS} out of {self.RETRY_ATTEMPTS} failed.")
 
 	def _login_successful(self, soup):
 		saml_response = soup.find("input", {"name": "SAMLResponse"})
@@ -188,39 +181,31 @@ class ShibbolethAuthenticator:
 			else:
 				await self._ensure_authenticated()
 
-	async def _stream_to_path(self, resp, to_path):
-		with open(to_path, 'wb') as fd:
-			while True:
-				chunk = await resp.content.read(self.CHUNK_SIZE)
-				if not chunk:
-					break
-				fd.write(chunk)
-
 	async def _download(self, url, params, to_path):
 		for t in range(self.RETRY_ATTEMPTS):
 			try:
 				async with self._session.get(url, params=params) as resp:
 					if resp.content_type == "application/pdf":
 						# Yay, we got the file (as long as it's a PDF)
-						await self._stream_to_path(resp, to_path)
+						await utils.stream_to_path(resp, to_path)
 						return True
 					elif resp.content_type == "text/html":
 						# Dangit, we're probably not logged in.
 						text = await resp.text()
 						soup = bs4.BeautifulSoup(text, "html.parser")
 						if self._is_logged_in(soup):
-							raise UnknownFileTypeException(f"Attempting to download a web page (use get_webpage() instead).")
+							raise utils.UnknownFileTypeException(f"Attempting to download a web page (use get_webpage() instead).")
 						return False
 					else:
 						# What *did* we get?
-						raise UnknownFileTypeException(f"Unknown file of type {resp.content_type}.")
+						raise utils.UnknownFileTypeException(f"Unknown file of type {resp.content_type}.")
 
 			except aiohttp.client_exceptions.ServerDisconnectedError:
 				logger.debug(f"Try {t+1} out of {self.RETRY_ATTEMPTS} failed, retrying in {self.RETRY_DELAY} s")
 				await asyncio.sleep(self.RETRY_DELAY)
 
 		logger.error(f"Could not download {url} params:{params}.")
-		raise OutOfTriesException(f"Try {self.RETRY_ATTEMPTS} out of {self.RETRY_ATTEMPTS} failed.")
+		raise utils.OutOfTriesException(f"Try {self.RETRY_ATTEMPTS} out of {self.RETRY_ATTEMPTS} failed.")
 
 	async def download_file(self, file_id, to_path):
 		params = {"target": file_id}
