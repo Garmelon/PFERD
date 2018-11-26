@@ -59,7 +59,7 @@ class Organizer:
 				# No further action needed, especially not overwriting symlinks...
 				return
 			else:
-				logger.info(f"Changed file at {to_path}")
+				logger.info(f"Different file at {to_path}")
 		else:
 			logger.info(f"New file at {to_path}")
 
