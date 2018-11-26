@@ -1,12 +1,10 @@
 from .ffm import *
-from .ilias_authenticators import *
-from .organizer import *
+from .ilias import *
 from .utils import *
 
 __all__ = (
 	ffm.__all__ +
-	ilias_authenticators.__all__ +
-	organizer.__all__ +
+	ilias.__all__ +
 	utils.__all__ +
 	[]
 )

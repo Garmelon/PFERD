@@ -1,4 +1,5 @@
 import os
+import pathlib
 
 __all__ = [
 	"get_base_dir",
@@ -9,7 +10,7 @@ __all__ = [
 ]
 
 def get_base_dir(script_file):
-	return os.path.dirname(os.path.abspath(script_file))
+	return pathlib.Path(os.path.dirname(os.path.abspath(script_file)))
 
 async def stream_to_path(resp, to_path, chunk_size=1024**2):
 	with open(to_path, 'wb') as fd:

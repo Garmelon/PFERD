@@ -86,7 +86,7 @@ class ShibbolethAuthenticator:
 		return saml_response is not None and relay_state is not None
 
 	def _save_cookies(self):
-		logger.info(f"Saving cookies to {self._cookie_path!r}")
+		logger.info(f"Saving cookies to {self._cookie_path}")
 		if self._cookie_path is not None:
 			self._session.cookie_jar.save(self._cookie_path)
 
@@ -172,7 +172,7 @@ class ShibbolethAuthenticator:
 
 		while True:
 			async with self._lock.read():
-				logger.debug(f"Getting {url} {params}")
+				logger.debug(f"Getting {self.ILIAS_GOTO} {params}")
 				_, text = await self._get(self.ILIAS_GOTO, params=params)
 				soup = bs4.BeautifulSoup(text, "html.parser")
 
