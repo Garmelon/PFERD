@@ -26,7 +26,7 @@ class ILIAS:
 		self._auth = ShibbolethAuthenticator(base_path / cookie_file)
 
 	async def synchronize(self, ref_id, to_dir, transform=lambda x: x, filter=lambda x: True):
-		logging.info(f"Synchronizing {ref_id} to {to_dir} using the ILIAS synchronizer.")
+		logging.info(f"    Synchronizing ref_id {ref_id} to {to_dir} using the ILIAS synchronizer.")
 
 		sync_path = pathlib.Path(self.base_path, to_dir)
 		orga = Organizer(self.base_path, sync_path)
@@ -67,7 +67,7 @@ class ILIAS:
 		return found_files
 
 	async def _download(self, orga, files, transform):
-		for (path, file_id) in files:
+		for (path, file_id) in sorted(files):
 			to_path = transform(path)
 			if to_path is not None:
 				temp_path = orga.temp_file()
@@ -79,11 +79,9 @@ class ILIAS:
 
 		found = soup.find_all("a", {"class": "il_ContainerItemTitle", "href": self.FILE_RE})
 		for element in found:
-			file_stem = element.string
-			file_id = re.search(self.FILE_RE, element.get("href")).group(1)
-
-			# find out file type
+			file_stem = element.string.strip()
 			file_type = element.parent.parent.parent.find("div", {"class": "il_ItemProperties"}).find("span").string.strip()
+			file_id = re.search(self.FILE_RE, element.get("href")).group(1)
 
 			file_name = f"{file_stem}.{file_type}"
 			files.append((file_name, file_id))
@@ -95,7 +93,7 @@ class ILIAS:
 
 		found = soup.find_all("a", {"class": "il_ContainerItemTitle", "href": self.DIR_RE})
 		for element in found:
-			dir_name = element.string
+			dir_name = element.string.strip()
 			ref_id = re.search(self.DIR_RE, element.get("href")).group(1)
 			dir_id = f"fold_{ref_id}"
 			dirs.append((dir_name, dir_id))

@@ -185,7 +185,7 @@ class ShibbolethAuthenticator:
 		for t in range(self.RETRY_ATTEMPTS):
 			try:
 				async with self._session.get(url, params=params) as resp:
-					if resp.content_type == "application/pdf":
+					if resp.content_type in ["application/pdf", "application/zip", "text/xml"]:
 						# Yay, we got the file (as long as it's a PDF)
 						await utils.stream_to_path(resp, to_path)
 						return True

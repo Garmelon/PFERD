@@ -55,7 +55,7 @@ class Organizer:
 
 		if to_path.exists():
 			if filecmp.cmp(from_path, to_path, shallow=False):
-				logger.info(f"Done nothing at {to_path}")
+				logger.info(f"Ignored {to_path}")
 				# No further action needed, especially not overwriting symlinks...
 				return
 			else:

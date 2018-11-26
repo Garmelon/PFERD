@@ -28,7 +28,7 @@ class FfM:
 		self._session = aiohttp.ClientSession()
 
 	async def synchronize(self, urlpart, to_dir, transform=lambda x: x):
-		logging.info(f"Synchronizing {urlpart} to {to_dir} using the FfM synchronizer.")
+		logging.info(f"    Synchronizing {urlpart} to {to_dir} using the FfM synchronizer.")
 
 		sync_path = pathlib.Path(self.base_path, to_dir)
 		orga = Organizer(self.base_path, sync_path)
