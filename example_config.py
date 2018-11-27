@@ -1,3 +1,5 @@
+#!/bin/env python3
+
 import PFERD
 import asyncio
 import logging
@@ -11,123 +13,124 @@ base_dir = PFERD.get_base_dir(__file__)
 
 def gbi_filter(path):
 	# Tutorien rausfiltern
-	if path.match("Tutoriumsfolien/Tutorium 15"): return True
-	if path.match("Tutoriumsfolien/Tutorium 15/*"): return True
-	if path.match("Tutoriumsfolien/*"): return False
+	if path.parts[:1] == ("Tutoriumsfolien",):
+		if path.parts[1:] == (): return True
+		if path.parts[1:2] == ("Tutorium 15",): return True
+		return False
 
 	return True
 
 def gbi_transform(path):
 	# Übungsblätter in Blätter/blatt_xx.pdf
-	if path.match("Übungsblätter/*"):
-		new_folder = pathlib.PurePath("Blätter")
+	new_path = PFERD.move(path, ("Übungsblätter",), ("Blätter",))
+	if new_path is not None:
 
-		match = re.match(r"(\d+).aufgaben.pdf", path.name)
+		match = re.match(r"(\d+).aufgaben.pdf", new_path.name)
 		if match:
 			number = int(match.group(1))
-			name = f"blatt_{number:02}.pdf"
-			return new_folder / name
+			return PFERD.rename(new_path, f"blatt_{number:02}.pdf")
 
-		match = re.match(r"(\d+).loesungen.pdf", path.name)
+		match = re.match(r"(\d+).loesungen.pdf", new_path.name)
 		if match:
 			number = int(match.group(1))
-			name = f"loesung_{number:02}.pdf"
-			return new_folder / name
+			return PFERD.rename(new_path, f"loesung_{number:02}.pdf")
 
-		return pathlib.Path(new_folder, *path.parts[1:])
+		return new_path
 
 	# Folien in Folien/*
-	if path.match("Vorlesung: Folien/*"):
-		return pathlib.Path("Folien", *path.parts[1:])
+	new_path = PFERD.move(path, ("Vorlesung: Folien",), ("Folien",))
+	if new_path is not None: return new_path
 
 	# Skripte in Skripte/*
-	if path.match("Vorlesung: Skript/*"):
-		return pathlib.Path("Skripte", *path.parts[1:])
+	new_path = PFERD.move(path, ("Vorlesung: Skript",), ("Skripte",))
+	if new_path is not None: return new_path
 
 	# Übungsfolien in Übung/*
-	if path.match("große Übung: Folien/*"):
-		return pathlib.Path("Übung", *path.parts[1:])
+	new_path = PFERD.move(path, ("große Übung: Folien",), ("Übung",))
+	if new_path is not None: return new_path
 
 	# Tutoriumsfolien in Tutorium/*
-	if path.match("Tutoriumsfolien/Tutorium 15/GBI_Tut_2 (1).pdf"):
-		return pathlib.Path("Tutorium", "GBI_Tut_2.pdf")
-	if path.match("Tutoriumsfolien/Tutorium 15/*"):
-		return pathlib.Path("Tutorium", *path.parts[2:])
+	new_path = PFERD.move(path, ("Tutoriumsfolien","Tutorium 15"), ("Tutorium",))
+	if new_path is not None:
+		if new_path.name == "GBI_Tut_2 (1).pdf":
+			return PFERD.rename(new_path, "GBI_Tut_2.pdf")
+
+		return new_path
 
 	return path
 
 def hm1_transform(path):
 	if path.match("blatt*.pdf"):
-		new_folder = pathlib.PurePath("Blätter")
+		new_path = PFERD.move(path, (), ("Blätter",))
 
-		match = re.match(r"blatt(\d+).pdf", path.name)
+		match = re.match(r"blatt(\d+).pdf", new_path.name)
 		if match:
 			number = int(match.group(1))
-			name = f"blatt_{number:02}.pdf"
-			return new_folder / name
+			return PFERD.rename(new_path, f"blatt_{number:02}.pdf")
 
-		match = re.match(r"blatt(\d+).loesungen.pdf", path.name)
+		match = re.match(r"blatt(\d+).loesungen.pdf", new_path.name)
 		if match:
 			number = int(match.group(1))
-			name = f"loesung_{number:02}.pdf"
-			return new_folder / name
+			return PFERD.rename(new_path, f"loesung_{number:02}.pdf")
 
-		return pathlib.PurePath(new_folder, *path.parts[1:])
+		return new_path
 
 	return path
 
 def la1_filter(path):
 	# Tutorien rausfitern
-	if path.match("Tutorien/Tutorium 03 - Philipp Faller"): return True
-	if path.match("Tutorien/Tutorium 03 - Philipp Faller/*"): return True
-	if path.match("Tutorien/*"): return False
+	if path.parts[:1] == ("Tutorien",):
+		if path.parts[1:] == (): return True
+		if path.parts[1:2] == ("Tutorium 03 - Philipp Faller",): return True
+		return False
 
 	return True
 
 def la1_transform(path):
 	# Alle Übungsblätter in Blätter/blatt_xx.pdf
 	# Alles andere Übungsmaterial in Blätter/*
-	if path.match("Übungen/*"):
-		new_folder = pathlib.PurePath("Blätter")
+	new_path = PFERD.move(path, ("Übungen",), ("Blätter",))
+	if new_path is not None:
 
-		match = re.match(r"Blatt(\d+).pdf", path.name)
+		match = re.match(r"Blatt(\d+).pdf", new_path.name)
 		if match:
 			number = int(match.group(1))
-			name = f"blatt_{number:02}.pdf"
-			return new_folder / name
+			return PFERD.rename(new_path, f"blatt_{number:02}.pdf")
 
-		return pathlib.PurePath(new_folder, *path.parts[1:])
+		return new_path
 
 	# Alles Tutoriengedöns in Tutorium/*
-	if path.match("Tutorien/Tutorium 03 - Philipp Faller/tut2.pdf"):
-		return pathlib.PurePath("Tutorium", "Tut2.pdf")
-	if path.match("Tutorien/Tutorium 03 - Philipp Faller/*"):
-		return pathlib.PurePath("Tutorium", *path.parts[2:])
+	new_path = PFERD.move(path, ("Tutorien","Tutorium 03 - Philipp Faller"), ("Tutorium",))
+	if new_path is not None:
+		if new_path.name == "tut2.pdf":
+			return PFERD.rename(new_path, "Tut2.pdf")
+
+		return new_path
 
 	# Übungs-Gedöns in Übung/*
 	if path.match("Informatikervorlesung/Übung_*"):
 		return pathlib.PurePath("Übung", *path.parts[1:])
 
 	# Vorlesungsfolien-Gedöns in Folien/*
-	if path.match("Informatikervorlesung/*"):
-		return pathlib.PurePath("Folien", *path.parts[1:])
+	new_path = PFERD.move(path, ("Informatikervorlesung",), ("Folien",))
+	if new_path is not None: return new_path
 
 	return path
 
 def prog_filter(path):
 	# Tutorien rausfiltern
-	if path.match("Tutorien"): return False
+	if path.parts[:1] == ("Tutorien",): return False
 
 	return True
 
 def prog_transform(path):
 	# Übungsblätter in Blätter/*
-	if path.match("Übungen/*"):
-		return pathlib.PurePath("Blätter", *path.parts[1:])
+	new_path = PFERD.move(path, ("Übungen",), ("Blätter",))
+	if new_path is not None: return new_path
 
 	# Folien in Folien/*
-	if path.match("Vorlesungsmaterial/*"):
-		return pathlib.PurePath("Folien", *path.parts[1:])
+	new_path = PFERD.move(path, ("Vorlesungsmaterial",), ("Folien",))
+	if new_path is not None: return new_path
 
 	return path
 
