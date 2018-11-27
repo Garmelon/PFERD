@@ -31,6 +31,15 @@ class ShibbolethAuthenticator:
 	RETRY_DELAY = 1 # seconds
 	CHUNK_SIZE = 1024**2
 
+	ALLOWED_CONTENT_TYPES = [
+		"application/pdf",
+		"application/zip",
+		"text/xml",
+		"text/plain",
+		"image/jpeg",
+		"image/png",
+	]
+
 	def __init__(self, cookie_path=None):
 		self._cookie_path = cookie_path
 
@@ -185,7 +194,7 @@ class ShibbolethAuthenticator:
 		for t in range(self.RETRY_ATTEMPTS):
 			try:
 				async with self._session.get(url, params=params) as resp:
-					if resp.content_type in ["application/pdf", "application/zip", "text/xml"]:
+					if resp.content_type in self.ALLOWED_CONTENT_TYPES:
 						# Yay, we got the file (as long as it's a PDF)
 						await utils.stream_to_path(resp, to_path)
 						return True
