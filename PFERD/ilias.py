@@ -91,6 +91,10 @@ class ILIAS:
 	def _find_dirs(self, soup):
 		dirs = []
 
+		found = soup.find_all("div", {"class": "alert", "role": "alert"})
+		if found:
+			return []
+
 		found = soup.find_all("a", {"class": "il_ContainerItemTitle", "href": self.DIR_RE})
 		for element in found:
 			dir_name = element.string.strip()
