@@ -76,6 +76,7 @@ class ILIAS:
 
 	def _find_files(self, soup):
 		files = []
+		file_names = set()
 
 		found = soup.find_all("a", {"class": "il_ContainerItemTitle", "href": self.FILE_RE})
 		for element in found:
@@ -84,7 +85,17 @@ class ILIAS:
 			file_id = re.search(self.FILE_RE, element.get("href")).group(1)
 
 			file_name = f"{file_stem}.{file_type}"
+			if file_name in file_names:
+				counter = 1
+				while True:
+					file_name = f"{file_stem} (duplicate {counter}).{file_type}"
+					if file_name in file_names:
+						counter += 1
+					else:
+						break
+
 			files.append((file_name, file_id))
+			file_names.add(file_name)
 
 		return files
 
