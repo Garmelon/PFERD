@@ -130,7 +130,15 @@ def prog_transform(path):
 
 	# Folien in Folien/*
 	new_path = PFERD.move(path, ("Vorlesungsmaterial",), ("Folien",))
-	if new_path is not None: return new_path
+	if new_path is not None:
+		if new_path.name == "00.1_Begruessung.pdf":
+			return PFERD.rename(new_path, "00-01_Begruessung.pdf")
+		if new_path.name == "00.2_Organisatorisches.pdf":
+			return PFERD.rename(new_path, "00-02_Organisatorisches.pdf")
+		if new_path.name == "01-01_ Einfache-Programme.pdf":
+			return PFERD.rename(new_path, "01-01_Einfache_Programme.pdf")
+
+		return new_path
 
 	return path
 
