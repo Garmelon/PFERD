@@ -50,12 +50,15 @@ class Organizer:
 		# check if sync_dir/to_path is inside sync_dir?
 		to_path = pathlib.Path(self._sync_dir, to_path)
 
-		# remember path for later reference
-		self._added_files.add(to_path.resolve())
 
 		if to_path.exists():
 			if filecmp.cmp(from_path, to_path, shallow=False):
 				logger.info(f"Ignored {to_path}")
+
+				# remember path for later reference
+				self._added_files.add(to_path.resolve())
+				logger.debug(f"Added file {to_path.resolve()}")
+
 				# No further action needed, especially not overwriting symlinks...
 				return
 			else:
@@ -64,9 +67,16 @@ class Organizer:
 			logger.info(f"New file at {to_path}")
 
 		# copy the file from from_path to sync_dir/to_path
+		# If the file being replaced was a symlink, the link itself is overwritten,
+		# not the file the link points to.
 		to_path.parent.mkdir(parents=True, exist_ok=True)
 		from_path.replace(to_path)
 		logger.debug(f"Moved {from_path} to {to_path}")
+
+		# remember path for later reference, after the new file was written
+		# This is necessary here because otherwise, resolve() would resolve the symlink too.
+		self._added_files.add(to_path.resolve())
+		logger.debug(f"Added file {to_path.resolve()}")
 
 	def clean_sync_dir(self):
 		self._clean_dir(self._sync_dir, remove_parent=False)
@@ -74,6 +84,7 @@ class Organizer:
 
 	def _clean_dir(self, path, remove_parent=True):
 		for child in sorted(path.iterdir()):
+			logger.debug(f"Looking at {child.resolve()}")
 			if child.is_dir():
 				self._clean_dir(child, remove_parent=True)
 			elif child.resolve() not in self._added_files:
