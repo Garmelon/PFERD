@@ -34,6 +34,13 @@ class Organizer:
 		self._temp_dir.mkdir(exist_ok=True)
 		logger.debug(f"Cleaned temp dir: {self._temp_dir}")
 
+	def temp_dir(self):
+		nr = self._temp_nr
+		self._temp_nr += 1
+		temp_dir = pathlib.Path(self._temp_dir, f"{nr:08}").resolve()
+		logger.debug(f"Produced new temp dir: {temp_dir}")
+		return temp_dir
+
 	def temp_file(self):
 		# generate the path to a new temp file in base_path/.tmp/
 		# make sure no two paths are the same
@@ -50,6 +57,12 @@ class Organizer:
 		# check if sync_dir/to_path is inside sync_dir?
 		to_path = pathlib.Path(self._sync_dir, to_path)
 
+		if to_path.exists() and to_path.is_dir():
+			if self._prompt_yes_no(f"Overwrite folder {to_path} with file?", default=False):
+				shutil.rmtree(to_path)
+			else:
+				logger.warn(f"Could not add file {to_path}")
+				return
 
 		if to_path.exists():
 			if filecmp.cmp(from_path, to_path, shallow=False):

@@ -147,6 +147,7 @@ async def main(args):
 
 	ffm = PFERD.FfM(base_dir)
 	ilias = PFERD.ILIAS(base_dir, "cookie_jar")
+	norbert = PFERD.Norbert(base_dir)
 
 	if not args or "gbi" in args:
 		await ilias.synchronize("855240", "GBI", transform=gbi_transform, filter=gbi_filter)
@@ -156,9 +157,12 @@ async def main(args):
 		await ilias.synchronize("874938", "LA1", transform=la1_transform, filter=la1_filter)
 	if not args or "prog" in args:
 		await ilias.synchronize("851237", "Prog", transform=prog_transform, filter=prog_filter)
+	if not args or "norbert" in args:
+		await norbert.synchronize("Prog-Tut")
 
 	await ffm.close()
 	await ilias.close()
+	await norbert.close()
 
 if __name__ == "__main__":
 	args = sys.argv[1:]
