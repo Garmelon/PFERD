@@ -54,6 +54,8 @@ def gbi_transform(path):
 	if new_path is not None:
 		if new_path.name == "GBI_Tut_2 (1).pdf":
 			return PFERD.rename(new_path, "GBI_Tut_2.pdf")
+		if new_path.name == "GBI_Tut_7 (1).pdf":
+			return PFERD.rename(new_path, "GBI_Tut_7.pdf")
 
 		return new_path
 
@@ -96,6 +98,9 @@ def la1_transform(path):
 		if match:
 			number = int(match.group(1))
 			return PFERD.rename(new_path, f"blatt_{number:02}.pdf")
+
+		if new_path.name == "Lösungen zu Blatt 1, Aufgabe 1 und Blatt 2, Aufgabe 4..pdf":
+			return PFERD.rename(new_path, "Lösungen zu Blatt 1, Aufgabe 1 und Blatt 2, Aufgabe 4.pdf")
 
 		return new_path
 
