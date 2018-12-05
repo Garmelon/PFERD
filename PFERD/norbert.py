@@ -69,7 +69,7 @@ class Norbert:
 		return files
 
 	async def _download(self, orga, files, transform, unzip):
-		for path, url in files:
+		for path, url in sorted(files):
 			# Yes, we want the zip file contents
 			if unzip(path):
 				logger.debug(f"Downloading and unzipping {path}")
