@@ -113,12 +113,19 @@ def la1_transform(path):
 		return new_path
 
 	# Übungs-Gedöns in Übung/*
-	if path.match("Informatikervorlesung/Übung_*"):
-		return pathlib.PurePath("Übung", *path.parts[1:])
+	new_path = PFERD.move(path, ("Informatikervorlesung", "Übungsfolien"), ("Übung",))
+	if new_path is not None:
+		return new_path
 
 	# Vorlesungsfolien-Gedöns in Folien/*
-	new_path = PFERD.move(path, ("Informatikervorlesung",), ("Folien",))
-	if new_path is not None: return new_path
+	new_path = PFERD.move(path, ("Informatikervorlesung", "Folien.Notizen"), ("Folien",))
+	if new_path is not None:
+		return new_path
+
+	# Rest in Hauptverzeichnis
+	new_path = PFERD.move(path, ("Informatikervorlesung",), ())
+	if new_path is not None:
+		return new_path
 
 	return path
 
