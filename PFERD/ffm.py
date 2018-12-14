@@ -51,7 +51,7 @@ class FfM:
 
 		for found in soup.find_all("a", href=self.LINK_RE):
 			url = found["href"]
-			filename = re.match(self.LINK_RE, url).group(1)
+			filename = re.match(self.LINK_RE, url).group(1).replace("/", ".")
 			logger.debug(f"Found file {filename} at {url}")
 
 			old_path = pathlib.PurePath(filename)

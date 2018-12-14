@@ -80,7 +80,7 @@ class ILIAS:
 
 		found = soup.find_all("a", {"class": "il_ContainerItemTitle", "href": self.FILE_RE})
 		for element in found:
-			file_stem = element.string.strip()
+			file_stem = element.string.strip().replace("/", ".")
 			file_type = element.parent.parent.parent.find("div", {"class": "il_ItemProperties"}).find("span").string.strip()
 			file_id = re.search(self.FILE_RE, element.get("href")).group(1)
 
@@ -108,7 +108,7 @@ class ILIAS:
 
 		found = soup.find_all("a", {"class": "il_ContainerItemTitle", "href": self.DIR_RE})
 		for element in found:
-			dir_name = element.string.strip()
+			dir_name = element.string.strip().replace("/", ".")
 			ref_id = re.search(self.DIR_RE, element.get("href")).group(1)
 			dir_id = f"fold_{ref_id}"
 			dirs.append((dir_name, dir_id))
