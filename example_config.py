@@ -62,20 +62,17 @@ def gbi_transform(path):
 	return path
 
 def hm1_transform(path):
-	if path.match("blatt*.pdf"):
+	match = re.match(r"blatt(\d+).pdf", path.name)
+	if match:
 		new_path = PFERD.move(path, (), ("Blätter",))
+		number = int(match.group(1))
+		return PFERD.rename(new_path, f"blatt_{number:02}.pdf")
 
-		match = re.match(r"blatt(\d+).pdf", new_path.name)
-		if match:
-			number = int(match.group(1))
-			return PFERD.rename(new_path, f"blatt_{number:02}.pdf")
-
-		match = re.match(r"blatt(\d+).loesungen.pdf", new_path.name)
-		if match:
-			number = int(match.group(1))
-			return PFERD.rename(new_path, f"loesung_{number:02}.pdf")
-
-		return new_path
+	match = re.match(r"blatt(\d+).loesungen.pdf", path.name)
+	if match:
+		new_path = PFERD.move(path, (), ("Blätter",))
+		number = int(match.group(1))
+		return PFERD.rename(new_path, f"loesung_{number:02}.pdf")
 
 	return path
 
@@ -84,6 +81,7 @@ def la1_filter(path):
 	if path.parts[:1] == ("Tutorien",):
 		if path.parts[1:] == (): return True
 		if path.parts[1:2] == ("Tutorium 03 - Philipp Faller",): return True
+		if path.parts[1:2] == ("Tutorium 23 - Sebastian Faller",): return True
 		return False
 
 	return True
@@ -104,12 +102,46 @@ def la1_transform(path):
 
 		return new_path
 
-	# Alles Tutoriengedöns in Tutorium/*
-	new_path = PFERD.move(path, ("Tutorien","Tutorium 03 - Philipp Faller"), ("Tutorium",))
+	# Alles Tutoriengedöns von Philipp in Tutorium/Philipp/*
+	new_path = PFERD.move(path, ("Tutorien","Tutorium 03 - Philipp Faller"), ("Tutorium","Philipp"))
 	if new_path is not None:
 		if new_path.name == "tut2.pdf":
 			return PFERD.rename(new_path, "Tut2.pdf")
 
+		return new_path
+
+	# Alles Tutoriengedöns von Sebastian in Tutorium/Sebastian/*
+	new_path = PFERD.move(path, ("Tutorien","Tutorium 23 - Sebastian Faller", "Tutorium 1"), ("Tutorium","Sebastian", "tut01"))
+	if new_path is not None: return new_path
+
+	new_path = PFERD.move(path, ("Tutorien","Tutorium 23 - Sebastian Faller", "Tutorium 2", "aufgaben.pdf"), ("Tutorium","Sebastian", "tut02.pdf"))
+	if new_path is not None: return new_path
+
+	new_path = PFERD.move(path, ("Tutorien","Tutorium 23 - Sebastian Faller", "Tutorium 3", "aufgaben.pdf"), ("Tutorium","Sebastian", "tut03.pdf"))
+	if new_path is not None: return new_path
+
+	new_path = PFERD.move(path, ("Tutorien","Tutorium 23 - Sebastian Faller", "Tutorium 4", "aufgaben.pdf"), ("Tutorium","Sebastian", "tut04.pdf"))
+	if new_path is not None: return new_path
+
+	new_path = PFERD.move(path, ("Tutorien","Tutorium 23 - Sebastian Faller", "Tutorium 5", "aufgaben.pdf"), ("Tutorium","Sebastian", "tut05.pdf"))
+	if new_path is not None: return new_path
+
+	new_path = PFERD.move(path, ("Tutorien","Tutorium 23 - Sebastian Faller", "Tutorium 6", "aufgaben.pdf"), ("Tutorium","Sebastian", "tut06.pdf"))
+	if new_path is not None: return new_path
+
+	new_path = PFERD.move(path, ("Tutorien","Tutorium 23 - Sebastian Faller", "Tutorium 7", "tut7.pdf"), ("Tutorium","Sebastian", "tut07.pdf"))
+	if new_path is not None: return new_path
+
+	new_path = PFERD.move(path, ("Tutorien","Tutorium 23 - Sebastian Faller", "Tutorium 8", "tut8.pdf"), ("Tutorium","Sebastian", "tut08.pdf"))
+	if new_path is not None: return new_path
+
+	new_path = PFERD.move(path, ("Tutorien","Tutorium 23 - Sebastian Faller", "Tutorium 9", "tut9.pdf"), ("Tutorium","Sebastian", "tut09.pdf"))
+	if new_path is not None: return new_path
+
+	if path.parts == ("Tutorien","Tutorium 23 - Sebastian Faller", "Tutorium 10", "tut10.pdf"): return None
+
+	new_path = PFERD.move(path, ("Tutorien","Tutorium 23 - Sebastian Faller"), ("Tutorium","Sebastian"))
+	if new_path is not None:
 		return new_path
 
 	# Übungs-Gedöns in Übung/*
@@ -125,6 +157,12 @@ def la1_transform(path):
 	# Rest in Hauptverzeichnis
 	new_path = PFERD.move(path, ("Informatikervorlesung",), ())
 	if new_path is not None:
+		# Rename filenames that are invalid on FAT systems
+		if new_path.name == "Evaluationsergebnisse: Übung.pdf":
+			return PFERD.rename(new_path, "Evaluationsergebnisse_Übung.pdf")
+		if new_path.name == "Skript \"Lineare Algebra\" von Stefan Kühnlein.pdf":
+			return PFERD.rename(new_path, "Skript Lineare Algebra von Stefan kühnlein.pdf")
+
 		return new_path
 
 	return path
@@ -138,7 +176,11 @@ def prog_filter(path):
 def prog_transform(path):
 	# Übungsblätter in Blätter/*
 	new_path = PFERD.move(path, ("Übungen",), ("Blätter",))
-	if new_path is not None: return new_path
+	if new_path is not None:
+		if new_path.name == "assignmen04.pdf":
+			return PFERD.rename(new_path, "assignment04.pdf")
+
+		return new_path
 
 	# Folien in Folien/*
 	new_path = PFERD.move(path, ("Vorlesungsmaterial",), ("Folien",))
