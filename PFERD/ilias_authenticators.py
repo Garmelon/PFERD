@@ -34,6 +34,7 @@ class ShibbolethAuthenticator:
     ALLOWED_CONTENT_TYPES = [
         "application/pdf",
         "application/zip",
+        "application/msword",
         "text/xml",
         "text/plain",
         "image/jpeg",
