@@ -19,5 +19,5 @@ $ python3 -m venv .
 $ . bin/activate
 $ pip install git+https://github.com/Garmelon/PFERD@v1.0.0
 $ curl -O https://raw.githubusercontent.com/Garmelon/PFERD/master/example_config.py
-$ python example_config.py
+$ python3 example_config.py
 ```
