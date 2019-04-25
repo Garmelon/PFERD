@@ -22,4 +22,13 @@ $ . bin/activate
 $ pip install git+https://github.com/Garmelon/PFERD@v1.0.0
 $ curl -O https://raw.githubusercontent.com/Garmelon/PFERD/master/example_config.py
 $ python3 example_config.py
+$ deactivate
+```
+
+Subsequent runs of the program might look like:
+```
+$ cd Vorlesungen
+$ . bin/activate
+$ python3 example_config.py
+$ deactivate
 ```
