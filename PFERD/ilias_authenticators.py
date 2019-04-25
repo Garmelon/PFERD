@@ -69,8 +69,8 @@ class ShibbolethAuthenticator:
                 "target": "/shib_login.php",
                 "home_organization_selection": "Mit KIT-Account anmelden",
         }
-        response = self._session.post(url, data=data)
-        soup = bs4.BeautifulSoup(response.text, "html.parser")
+        r = self._session.post(url, data=data)
+        soup = bs4.BeautifulSoup(r.text, "html.parser")
 
         # Attempt to login using credentials, if necessary
         while not self._login_successful(soup):
@@ -92,8 +92,8 @@ class ShibbolethAuthenticator:
                     "j_username": username,
                     "j_password": password,
             }
-            response = self._session.post(url, data=data)
-            soup = bs4.BeautifulSoup(response.text, "html.parser")
+            r = self._session.post(url, data=data)
+            soup = bs4.BeautifulSoup(r.text, "html.parser")
 
             if not self._login_successful(soup):
                 print("Incorrect credentials.")
@@ -132,8 +132,8 @@ class ShibbolethAuthenticator:
 
         while True:
             logger.debug(f"Getting {self.ILIAS_GOTO} {params}")
-            response = self._session.get(self.ILIAS_GOTO, params=params)
-            soup = bs4.BeautifulSoup(response.text, "html.parser")
+            r = self._session.get(self.ILIAS_GOTO, params=params)
+            soup = bs4.BeautifulSoup(r.text, "html.parser")
 
             if self._is_logged_in(soup):
                 return soup
@@ -145,16 +145,16 @@ class ShibbolethAuthenticator:
         return self.get_webpage(f"fold_{ref_id}")
 
     def _download(self, url, params, to_path):
-        with self._session.get(url, params=params, stream=True) as response:
-            content_type = response.headers["content-type"]
+        with self._session.get(url, params=params, stream=True) as r:
+            content_type = r.headers["content-type"]
 
             if content_type in self.ALLOWED_CONTENT_TYPES:
                 # Yay, we got the file :)
-                stream_to_path(response, to_path)
+                stream_to_path(r, to_path)
                 return True
             elif content_type == "text/html":
                 # Dangit, we're probably not logged in.
-                soup = bs4.BeautifulSoup(response.text, "html.parser")
+                soup = bs4.BeautifulSoup(r.text, "html.parser")
                 if self._is_logged_in(soup):
                     raise ContentTypeException(
                             "Attempting to download a web page, not a file")

@@ -5,9 +5,7 @@ import shutil
 
 from . import utils
 
-__all__ = [
-    "Organizer",
-]
+__all__ = ["Organizer"]
 logger = logging.getLogger(__name__)
 
 class Organizer:
