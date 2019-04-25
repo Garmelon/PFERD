@@ -1,8 +1,12 @@
-**/__pycache__/
-.tmp/
+# python stuff
+__pycache__/
+
+# venv stuff
 bin/
 include/
 lib/
 lib64
-pip-selfcheck.json
 pyvenv.cfg
+
+.tmp/
+pip-selfcheck.json
