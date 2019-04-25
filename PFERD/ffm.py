@@ -56,5 +56,5 @@ class FfM:
             orga.add_file(temp_path, new_path)
 
     def _download(self, url, to_path):
-        with self._session.get(url) as r:
+        with self._session.get(url, stream=True) as r:
             stream_to_path(r, to_path)

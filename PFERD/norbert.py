@@ -1,15 +1,15 @@
 # Norberts Prog-Tuts
 
-import aiohttp
-import asyncio
-import bs4
 import logging
 import pathlib
 import re
 import zipfile
 
+import bs4
+import requests
+
 from .organizer import Organizer
-from . import utils
+from .utils import rename, stream_to_path
 
 __all__ = [
     "Norbert",
@@ -20,15 +20,12 @@ class Norbert:
     BASE_URL = "https://studwww.informatik.kit.edu/~s_blueml/"
     LINK_RE = re.compile(r"^progtut/.*/(.*\.zip)$")
 
-    RETRY_ATTEMPTS = 5
-    RETRY_DELAY = 1 # seconds
-
     def __init__(self, base_path):
         self.base_path = base_path
 
-        self._session = aiohttp.ClientSession()
+        self._session = requests.Session()
 
-    async def synchronize(self, to_dir, transform=lambda x: x, unzip=lambda _: True):
+    def synchronize(self, to_dir, transform=lambda x: x, unzip=lambda _: True):
         logging.info(f"    Synchronizing to {to_dir} using the Norbert synchronizer.")
 
         sync_path = pathlib.Path(self.base_path, to_dir)
@@ -36,21 +33,20 @@ class Norbert:
 
         orga.clean_temp_dir()
 
-        files = await self._crawl()
-        await self._download(orga, files, transform, unzip)
+        files = self._crawl()
+        self._download(orga, files, transform, unzip)
 
         orga.clean_sync_dir()
         orga.clean_temp_dir()
 
-    async def close(self):
-        await self._session.close()
-
-    async def _crawl(self):
+    def _crawl(self):
         url = self.BASE_URL
-        async with self._session.get(url) as resp:
-            raw = await resp.read()
-            # replace undecodeable characters with a placeholder
-            text = raw.decode("utf-8", "replace")
+        r = self._session.get(url)
+
+        # replace undecodeable characters with a placeholder
+        #text = r.raw.decode("utf-8", "replace")
+
+        text = r.text
         soup = bs4.BeautifulSoup(text, "html.parser")
 
         files = []
@@ -63,21 +59,20 @@ class Norbert:
             path = pathlib.PurePath(filename)
 
             logger.debug(f"Found zip file {filename} at {full_url}")
-
             files.append((path, full_url))
 
         return files
 
-    async def _download(self, orga, files, transform, unzip):
+    def _download(self, orga, files, transform, unzip):
         for path, url in sorted(files):
             # Yes, we want the zip file contents
             if unzip(path):
                 logger.debug(f"Downloading and unzipping {path}")
-                zip_path = utils.rename(path, path.stem)
+                zip_path = rename(path, path.stem)
 
                 # Download zip file
                 temp_file = orga.temp_file()
-                await self._download_zip(url, temp_file)
+                self._download_zip(url, temp_file)
 
                 # Search the zip file for files to extract
                 temp_dir = orga.temp_dir()
@@ -106,19 +101,9 @@ class Norbert:
                 new_path = transform(path)
                 if new_path is not None:
                     temp_file = orga.temp_file()
-                    await self._download_zip(url, temp_file)
+                    self._download_zip(url, temp_file)
                     orga.add_file(temp_file, new_path)
 
-    async def _download_zip(self, url, to_path):
-        for t in range(self.RETRY_ATTEMPTS):
-            try:
-                async with self._session.get(url) as resp:
-                    await utils.stream_to_path(resp, to_path)
-            except aiohttp.client_exceptions.ServerDisconnectedError:
-                logger.debug(f"Try {t+1} out of {self.RETRY_ATTEMPTS} failed, retrying in {self.RETRY_DELAY} s")
-                await asyncio.sleep(self.RETRY_DELAY)
-            else:
-                return
-        else:
-            logger.error(f"Could not download {url}")
-            raise utils.OutOfTriesException(f"Try {self.RETRY_ATTEMPTS} out of {self.RETRY_ATTEMPTS} failed.")
+    def _download_zip(self, url, to_path):
+        with self._session.get(url, stream=True) as r:
+            stream_to_path(r, to_path)

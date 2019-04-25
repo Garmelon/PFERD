@@ -22,7 +22,6 @@ logger = logging.getLogger(__name__)
 
 class ShibbolethAuthenticator:
     ILIAS_GOTO = "https://ilias.studium.kit.edu/goto.php"
-    CHUNK_SIZE = 1024**2
 
     ALLOWED_CONTENT_TYPES = [
         "application/pdf",
