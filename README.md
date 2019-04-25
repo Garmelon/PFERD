@@ -1,4 +1,6 @@
-# PFERD (**P**rogramm **F**ür's **E**infache **R**unterladen von **D**ateien)
+# PFERD
+
+**P**rogramm zum **F**lotten, **E**infachen **R**unterladen von **D**ateien
 
 ## Installation
 
