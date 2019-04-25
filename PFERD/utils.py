@@ -6,8 +6,7 @@ __all__ = [
     "move",
     "rename",
     "stream_to_path",
-    "OutOfTriesException",
-    "UnknownFileTypeException",
+    "ContentTypeException",
     "FileNotFoundException",
 ]
 
@@ -22,18 +21,12 @@ def move(path, from_folders, to_folders):
 def rename(path, to_name):
     return pathlib.PurePath(*path.parts[:-1], to_name)
 
-async def stream_to_path(resp, to_path, chunk_size=1024**2):
+def stream_to_path(response, to_path, chunk_size=1024**2):
     with open(to_path, 'wb') as fd:
-        while True:
-            chunk = await resp.content.read(chunk_size)
-            if not chunk:
-                break
+        for chunk in response.iter_content(chunk_size=chunk_size):
             fd.write(chunk)
 
-class OutOfTriesException(Exception):
-    pass
-
-class UnknownFileTypeException(Exception):
+class ContentTypeException(Exception):
     pass
 
 class FileNotFoundException(Exception):
