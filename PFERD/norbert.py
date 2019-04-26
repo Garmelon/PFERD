@@ -11,9 +11,7 @@ import requests
 from .organizer import Organizer
 from .utils import rename, stream_to_path
 
-__all__ = [
-    "Norbert",
-]
+__all__ = ["Norbert"]
 logger = logging.getLogger(__name__)
 
 class Norbert:
