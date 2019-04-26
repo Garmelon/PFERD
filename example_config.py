@@ -295,7 +295,7 @@ def main(args):
     args = [arg.lower() for arg in args]
 
     ffm = PFERD.FfM(base_dir)
-    ilias = PFERD.ILIAS(base_dir, "cookie_jar")
+    ilias = PFERD.Ilias(base_dir, "cookie_jar")
     norbert = PFERD.Norbert(base_dir)
 
     # Semester 1

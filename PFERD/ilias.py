@@ -9,10 +9,10 @@ import bs4
 from .ilias_authenticators import ShibbolethAuthenticator
 from .organizer import Organizer
 
-__all__ = ["ILIAS"]
+__all__ = ["Ilias"]
 logger = logging.getLogger(__name__)
 
-class ILIAS:
+class Ilias:
     FILE_RE = re.compile(r"goto\.php\?target=(file_\d+_download)")
     DIR_RE = re.compile(r"ilias\.php\?ref_id=(\d+)")
 
@@ -22,7 +22,7 @@ class ILIAS:
         self._auth = ShibbolethAuthenticator(base_path / cookie_file)
 
     def synchronize(self, ref_id, to_dir, transform=lambda x: x, filter=lambda x: True):
-        logger.info(f"    Synchronizing ref_id {ref_id} to {to_dir} using the ILIAS synchronizer.")
+        logger.info(f"    Synchronizing ref_id {ref_id} to {to_dir} using the Ilias synchronizer.")
 
         sync_path = pathlib.Path(self.base_path, to_dir)
         orga = Organizer(self.base_path, sync_path)
