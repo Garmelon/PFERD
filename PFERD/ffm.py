@@ -23,7 +23,7 @@ class FfM:
         self._session = requests.Session()
 
     def synchronize(self, urlpart, to_dir, transform=lambda x: x):
-        logging.info(f"    Synchronizing {urlpart} to {to_dir} using the FfM synchronizer.")
+        logger.info(f"    Synchronizing {urlpart} to {to_dir} using the FfM synchronizer.")
 
         sync_path = pathlib.Path(self.base_path, to_dir)
 

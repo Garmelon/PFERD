@@ -22,7 +22,7 @@ class ILIAS:
         self._auth = ShibbolethAuthenticator(base_path / cookie_file)
 
     def synchronize(self, ref_id, to_dir, transform=lambda x: x, filter=lambda x: True):
-        logging.info(f"    Synchronizing ref_id {ref_id} to {to_dir} using the ILIAS synchronizer.")
+        logger.info(f"    Synchronizing ref_id {ref_id} to {to_dir} using the ILIAS synchronizer.")
 
         sync_path = pathlib.Path(self.base_path, to_dir)
         orga = Organizer(self.base_path, sync_path)

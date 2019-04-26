@@ -26,7 +26,7 @@ class Norbert:
         self._session = requests.Session()
 
     def synchronize(self, to_dir, transform=lambda x: x, unzip=lambda _: True):
-        logging.info(f"    Synchronizing to {to_dir} using the Norbert synchronizer.")
+        logger.info(f"    Synchronizing to {to_dir} using the Norbert synchronizer.")
 
         sync_path = pathlib.Path(self.base_path, to_dir)
         orga = Organizer(self.base_path, sync_path)
