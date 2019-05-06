@@ -3,6 +3,7 @@ import logging
 from .ffm import *
 from .ilias import *
 from .norbert import *
+from .ti import *
 from .utils import *
 
 __all__ = ["STYLE", "FORMAT", "DATE_FORMAT", "FORMATTER", "enable_logging"]
@@ -10,6 +11,7 @@ __all__ = ["STYLE", "FORMAT", "DATE_FORMAT", "FORMATTER", "enable_logging"]
 __all__ += ffm.__all__
 __all__ += ilias.__all__
 __all__ += norbert.__all__
+__all__ += ti.__all__
 __all__ += utils.__all__
 
 STYLE = "{"
