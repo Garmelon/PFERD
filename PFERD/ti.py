@@ -105,6 +105,12 @@ class Ti:
         self._credentials = None
 
     def _download(self, url, to_path):
-        username, password = self._get_credentials()
-        with self._session.get(url, stream=True, auth=(username, password)) as r:
-            stream_to_path(r, to_path)
+        while True:
+            username, password = self._get_credentials()
+            with self._session.get(url, stream=True, auth=(username, password)) as r:
+                if r.ok:
+                    stream_to_path(r, to_path)
+                    return
+                else:
+                    print("Incorrect credentials.")
+                    self._reset_credentials()
