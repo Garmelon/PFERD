@@ -37,21 +37,12 @@ class Ti:
 
         available = self._find_available(urlpart)
 
-        if "Folien" in available:
-            path = pathlib.PurePath("Folien")
+        for name, address in sorted(available.items()):
+            path = pathlib.PurePath(name)
             if filter(path):
-                self._crawl(urlpart + available["Folien"], path, orga,
-                        transform)
+                self._crawl(urlpart + address, path, orga, transform)
             else:
-                logger.info("Skipping Folien/")
-
-        if "Blätter" in available:
-            path = pathlib.PurePath("Blätter")
-            if filter(path):
-                self._crawl(urlpart + available["Blätter"], path, orga,
-                        transform)
-            else:
-                logger.info("Skipping Blätter/")
+                loggwe.info(f"Skipping {name}/")
 
         orga.clean_sync_dir()
         orga.clean_temp_dir()
@@ -71,6 +62,9 @@ class Ti:
         if soup.find(href="./Uebungen/Uebungen.php"):
             logger.info("Found Blätter/")
             available["Blätter"] = "/Uebungen/"
+        if soup.find(href="./Tutorien/Tutorien.php"):
+            logger.info("Found Tutorien/")
+            available["Tutorien"] = "/Tutorien/"
 
         return available
 
