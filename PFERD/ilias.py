@@ -4,13 +4,13 @@ import logging
 import pathlib
 import re
 
-import bs4
-
 from .ilias_authenticators import ShibbolethAuthenticator
 from .organizer import Organizer
+from .utils import PrettyLogger
 
 __all__ = ["Ilias"]
 logger = logging.getLogger(__name__)
+pretty = PrettyLogger(logger)
 
 class Ilias:
     FILE_RE = re.compile(r"goto\.php\?target=(file_\d+_download)")
@@ -22,7 +22,7 @@ class Ilias:
         self._auth = ShibbolethAuthenticator(base_path / cookie_file)
 
     def synchronize(self, ref_id, to_dir, transform=lambda x: x, filter=lambda x: True):
-        logger.info(f"    Synchronizing ref_id {ref_id} to {to_dir} using the Ilias synchronizer.")
+        pretty.starting_synchronizer(to_dir, "ILIAS", f"ref_id {ref_id}")
 
         sync_path = pathlib.Path(self.base_path, to_dir)
         orga = Organizer(self.base_path, sync_path)

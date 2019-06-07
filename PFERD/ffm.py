@@ -8,10 +8,11 @@ import bs4
 import requests
 
 from .organizer import Organizer
-from .utils import stream_to_path
+from .utils import stream_to_path, PrettyLogger
 
 __all__ = ["FfM"]
 logger = logging.getLogger(__name__)
+pretty = PrettyLogger(logger)
 
 class FfM:
     BASE_URL = "http://www.math.kit.edu/"
@@ -23,7 +24,7 @@ class FfM:
         self._session = requests.Session()
 
     def synchronize(self, urlpart, to_dir, transform=lambda x: x):
-        logger.info(f"    Synchronizing {urlpart} to {to_dir} using the FfM synchronizer.")
+        pretty.starting_synchronizer(to_dir, "FfM", urlpart)
 
         sync_path = pathlib.Path(self.base_path, to_dir)
 

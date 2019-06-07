@@ -9,10 +9,11 @@ import bs4
 import requests
 
 from .organizer import Organizer
-from .utils import stream_to_path
+from .utils import stream_to_path, PrettyLogger
 
 __all__ = ["Ti"]
 logger = logging.getLogger(__name__)
+pretty = PrettyLogger(logger)
 
 class Ti:
     BASE_URL = "http://ti.ira.uka.de/"
@@ -26,7 +27,7 @@ class Ti:
 
     def synchronize(self, urlpart, to_dir, transform=lambda x: x,
             filter=lambda x: True):
-        logger.info(f"    Synchronizing {urlpart} to {to_dir} using the Ti synchronizer.")
+        pretty.starting_synchronizer(to_dir, "Ti", urlpart)
 
         sync_path = pathlib.Path(self.base_path, to_dir)
 

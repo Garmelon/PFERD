@@ -9,10 +9,11 @@ import bs4
 import requests
 
 from .organizer import Organizer
-from .utils import rename, stream_to_path
+from .utils import rename, stream_to_path, PrettyLogger
 
 __all__ = ["Norbert"]
 logger = logging.getLogger(__name__)
+pretty = PrettyLogger(logger)
 
 class Norbert:
     BASE_URL = "https://studwww.informatik.kit.edu/~s_blueml/"
@@ -24,7 +25,7 @@ class Norbert:
         self._session = requests.Session()
 
     def synchronize(self, to_dir, transform=lambda x: x, unzip=lambda _: True):
-        logger.info(f"    Synchronizing to {to_dir} using the Norbert synchronizer.")
+        pretty.starting_synchronizer(to_dir, "Norbert")
 
         sync_path = pathlib.Path(self.base_path, to_dir)
         orga = Organizer(self.base_path, sync_path)

@@ -7,6 +7,7 @@ setup(
         install_requires=[
             "requests>=2.21.0",
             "beautifulsoup4>=4.7.1",
+            "colorama>=0.4.1"
         ],
 )
 

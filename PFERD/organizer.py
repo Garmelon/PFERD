@@ -7,6 +7,7 @@ from . import utils
 
 __all__ = ["Organizer"]
 logger = logging.getLogger(__name__)
+pretty = utils.PrettyLogger(logger)
 
 class Organizer:
     def __init__(self, base_dir, sync_dir):
@@ -64,7 +65,7 @@ class Organizer:
 
         if to_path.exists():
             if filecmp.cmp(from_path, to_path, shallow=False):
-                logger.info(f"Ignored {to_path}")
+                pretty.ignored_file(to_path)
 
                 # remember path for later reference
                 self._added_files.add(to_path.resolve())
@@ -73,9 +74,9 @@ class Organizer:
                 # No further action needed, especially not overwriting symlinks...
                 return
             else:
-                logger.info(f"Different file at {to_path}")
+                pretty.modified_file(to_path)
         else:
-            logger.info(f"New file at {to_path}")
+            pretty.new_file(to_path)
 
         # copy the file from from_path to sync_dir/to_path
         # If the file being replaced was a symlink, the link itself is overwritten,
