@@ -27,6 +27,7 @@ class ShibbolethAuthenticator:
         "application/pdf",
         "application/zip",
         "application/msword",
+        "application/vnd.wolfram.nb",
         "text/xml",
         "text/plain",
         "image/jpeg",
