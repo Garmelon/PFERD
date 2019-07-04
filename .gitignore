@@ -10,3 +10,4 @@ pyvenv.cfg
 
 .tmp/
 pip-selfcheck.json
+.mypy_cache/
