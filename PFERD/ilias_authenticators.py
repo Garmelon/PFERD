@@ -33,6 +33,7 @@ class ShibbolethAuthenticator:
         "text/xml",
         "text/xml;charset=UTF-8",
         "text/plain",
+        "text/plain;charset=UTF-8",
         "image/jpeg",
         "image/png",
     ]
