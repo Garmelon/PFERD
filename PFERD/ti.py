@@ -4,6 +4,7 @@ import getpass
 import logging
 import pathlib
 import re
+from urllib.parse import urljoin
 
 import bs4
 import requests
@@ -43,7 +44,7 @@ class Ti:
             if filter(path):
                 self._crawl(urlpart + address, path, orga, transform)
             else:
-                loggwe.info(f"Skipping {name}/")
+                logger.info(f"Skipping {name}/")
 
         orga.clean_sync_dir()
         orga.clean_temp_dir()
@@ -76,7 +77,7 @@ class Ti:
 
         for filelink in soup.find_all("a", href=self.FILE_RE):
             filepath = path / filelink["href"]
-            fileurl = url + "/" + filelink["href"]
+            fileurl = urljoin(url, filelink["href"])
 
             new_path = transform(filepath)
             if new_path is None:
