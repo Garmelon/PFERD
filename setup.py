@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
         name="PFERD",
-        version="1.1.6",
+        version="1.1.7",
         packages=["PFERD"],
         install_requires=[
             "requests>=2.21.0",
