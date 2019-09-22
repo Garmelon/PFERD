@@ -23,21 +23,6 @@ logger = logging.getLogger(__name__)
 class ShibbolethAuthenticator:
     ILIAS_GOTO = "https://ilias.studium.kit.edu/goto.php"
 
-    ALLOWED_CONTENT_TYPES = [
-        "application/pdf",
-        "application/zip",
-        "application/msword",
-        "application/vnd.wolfram.nb",
-        "application/octet-stream",
-        "application/excel",
-        "text/xml",
-        "text/xml;charset=UTF-8",
-        "text/plain",
-        "text/plain;charset=UTF-8",
-        "image/jpeg",
-        "image/png",
-    ]
-
     def __init__(self, cookie_file) -> None:
         # Because LWPCookieJar insists on the path being str-like instead of
         # Path-like.
@@ -152,11 +137,7 @@ class ShibbolethAuthenticator:
         with self._session.get(url, params=params, stream=True) as r:
             content_type = r.headers["content-type"]
 
-            if content_type in self.ALLOWED_CONTENT_TYPES:
-                # Yay, we got the file :)
-                stream_to_path(r, to_path)
-                return True
-            elif content_type == "text/html":
+            if content_type.startswith("text/html"):
                 # Dangit, we're probably not logged in.
                 soup = bs4.BeautifulSoup(r.text, "html.parser")
                 if self._is_logged_in(soup):
@@ -164,9 +145,9 @@ class ShibbolethAuthenticator:
                             "Attempting to download a web page, not a file")
                 return False
             else:
-                # What *did* we get?
-                raise ContentTypeException(
-                        f"Unknown file of type {content_type}")
+                # Yay, we got the file :)
+                stream_to_path(r, to_path)
+                return True
 
     def download_file(self, file_id, to_path):
         params = {"target": file_id}
