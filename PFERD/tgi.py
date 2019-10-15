@@ -16,14 +16,15 @@ logger = logging.getLogger(__name__)
 pretty = PrettyLogger(logger)
 
 class TGI:
-    CRAWL_URL = "https://i11www.iti.kit.edu/teaching/winter2019/tgi/index"
+    CRAWL_URL = "https://i11www.iti.kit.edu/teaching/{year}/tgi/index"
     BASE_URL = "https://i11www.iti.kit.edu"
     LINK_RE = re.compile(r"^/_media/teaching/.*?/(tgi-\d+-\d+-)([^/]*\.pdf)$")
 
-    def __init__(self, base_path):
+    def __init__(self, base_path, year="winter2019"):
         self.base_path = base_path
 
         self._session = requests.Session()
+        self.year = year
 
     def synchronize(self, to_dir, transform=lambda x: x):
         pretty.starting_synchronizer(to_dir, "TGI")
@@ -40,7 +41,7 @@ class TGI:
         orga.clean_temp_dir()
 
     def _crawl(self):
-        url = self.CRAWL_URL
+        url = self.CRAWL_URL.replace("{year}", self.year)
         r = self._session.get(url)
 
         text = r.text
