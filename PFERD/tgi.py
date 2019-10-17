@@ -18,7 +18,6 @@ pretty = PrettyLogger(logger)
 class TGI:
     CRAWL_URL = "https://i11www.iti.kit.edu/teaching/{year}/tgi/index"
     BASE_URL = "https://i11www.iti.kit.edu"
-    LINK_RE = re.compile(r"^/_media/teaching/.*?/(tgi-\d+-\d+-)([^/]*\.pdf)$")
 
     def __init__(self, base_path, year="winter2019"):
         self.base_path = base_path
@@ -49,11 +48,11 @@ class TGI:
 
         files = []
 
-        for found in soup.find_all("a", href=self.LINK_RE):
+        for found in soup.select("a.mediafile.mf_pdf"):
             url = found["href"]
             full_url = self.BASE_URL + url
 
-            filename = re.search(self.LINK_RE, url).group(2)
+            filename = re.search(r"\d+(/tgi)?/(.+.pdf)", url).group(2)
             path = pathlib.PurePath(filename)
 
             logger.debug(f"Found file {filename} at {full_url}")
