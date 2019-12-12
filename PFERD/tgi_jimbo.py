@@ -17,7 +17,7 @@ pretty = PrettyLogger(logger)
 
 
 class TGI_Tut:
-    CRAWL_URL = "https://tgitut.jimdo.com"
+    CRAWL_URL = "https://tgitut.jimdofree.com/"
 
     def __init__(self, base_path, year="winter2019"):
         self.base_path = base_path
