@@ -67,6 +67,9 @@ class Ti:
         if soup.find(href="./Tutorien/Tutorien.php"):
             logger.info("Found Tutorien/")
             available["Tutorien"] = "/Tutorien/"
+        if soup.find(href="./AlteKlausuren/AlteKlausuren.php"):
+            logger.info("Found AlteKlausuren/")
+            available["AltKlausuren"] = "/AlteKlausuren/"
 
         return available
 

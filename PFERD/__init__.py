@@ -6,6 +6,7 @@ from .norbert import *
 from .tgi import *
 from .tgi_jimbo import *
 from .ti import *
+from .os_exams import *
 from .utils import *
 
 __all__ = ["STYLE", "FORMAT", "DATE_FORMAT", "FORMATTER", "enable_logging"]
@@ -17,6 +18,7 @@ __all__ += tgi.__all__
 __all__ += tgi_jimbo.__all__
 __all__ += ti.__all__
 __all__ += utils.__all__
+__all__ += os_exams.__all__
 
 STYLE = "{"
 FORMAT = "[{levelname:<7}] {message}"
