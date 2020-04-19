@@ -4,19 +4,6 @@ import pathlib
 from colorama import Style
 from colorama import Fore
 
-__all__ = [
-    "get_base_dir",
-    "move",
-    "rename",
-    "stream_to_path",
-    "ContentTypeException",
-    "FileNotFoundException",
-    "PrettyLogger",
-]
-
-def get_base_dir(script_file):
-    return pathlib.Path(os.path.dirname(os.path.abspath(script_file)))
-
 def move(path, from_folders, to_folders):
     l = len(from_folders)
     if path.parts[:l] == from_folders:
@@ -29,17 +16,6 @@ def stream_to_path(response, to_path, chunk_size=1024**2):
     with open(to_path, 'wb') as fd:
         for chunk in response.iter_content(chunk_size=chunk_size):
             fd.write(chunk)
-
-def isOutputPipe():
-    """Returns whether this program's output is attached to a pipe.
-    """
-    return sys.stdout.isatty
-
-class ContentTypeException(Exception):
-    pass
-
-class FileNotFoundException(Exception):
-    pass
 
 class PrettyLogger:
 
