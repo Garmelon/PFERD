@@ -1,13 +1,4 @@
-# python stuff
 __pycache__/
-
-# venv stuff
-bin/
-include/
-lib/
-lib64
-pyvenv.cfg
-
-.tmp/
-pip-selfcheck.json
+.venv/
 .mypy_cache/
+.tmp/
