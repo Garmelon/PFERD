@@ -1,9 +1,12 @@
 """Helper functions and classes for temporary folders."""
 
+import logging
 import shutil
 from pathlib import Path
 from types import TracebackType
 from typing import Optional, Type
+
+logger = logging.getLogger(__name__)
 
 
 class TmpDir():
@@ -38,6 +41,9 @@ class TmpDir():
     def new_file(self, prefix: Optional[str] = None) -> Path:
         """Return a unique path inside the folder, but don't create a file."""
         name = f"{prefix if prefix else 'tmp'}-{self._inc_and_get_counter():03}"
+
+        logger.debug(f"Creating temp file '{name}'")
+
         return self.path.joinpath(name)
 
     def new_folder(self, prefix: Optional[str] = None) -> 'TmpDir':
@@ -47,10 +53,14 @@ class TmpDir():
         sub_path = self.path.joinpath(name)
         sub_path.mkdir(parents=True)
 
+        logger.debug(f"Creating temp dir '{name}' at {sub_path}")
+
         return TmpDir(sub_path)
 
     def cleanup(self) -> None:
         """Delete this folder and all contained files."""
+        logger.debug(f"Deleting temp folder {self.path}")
+
         shutil.rmtree(self.path.absolute())
 
     def _inc_and_get_counter(self) -> int:
