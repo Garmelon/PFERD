@@ -13,6 +13,7 @@ from .tmp_dir import TmpDir
 from .utils import stream_to_path
 
 
+# pylint: disable=too-few-public-methods
 class HttpDownloader():
     """A HTTP downloader that can handle HTTP basic auth."""
 

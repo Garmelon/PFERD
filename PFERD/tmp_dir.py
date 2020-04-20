@@ -6,19 +6,19 @@ from pathlib import Path
 from types import TracebackType
 from typing import Optional, Type
 
-from .utils import resolve_path
+from .utils import Location
 
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 
-class TmpDir():
+class TmpDir(Location):
     """A temporary folder that can create files or nested temp folders."""
 
     def __init__(self, path: Path):
         """Create a new temporary folder for the given path."""
+        super().__init__(path)
         self._counter = 0
-        self._path = path
-        self._path.mkdir(parents=True, exist_ok=True)
+        self.path.mkdir(parents=True, exist_ok=True)
 
     def __str__(self) -> str:
         """Format the folder as a string."""
@@ -28,31 +28,22 @@ class TmpDir():
         """Context manager entry function."""
         return self
 
-    def __exit__(self,
-                 type: Optional[Type[BaseException]],
-                 value: Optional[BaseException],
-                 traceback: Optional[TracebackType]) -> Optional[bool]:
+    # pylint: disable=useless-return
+    def __exit__(
+            self,
+            exc_type: Optional[Type[BaseException]],
+            exc_value: Optional[BaseException],
+            traceback: Optional[TracebackType],
+    ) -> Optional[bool]:
         """Context manager exit function. Calls cleanup()."""
         self.cleanup()
         return None
-
-    @property
-    def path(self) -> Path:
-        """Return the path of this folder."""
-        return self._path
-
-    def resolve(self, target_file: Path) -> Path:
-        """Resolve a file relative to this folder.
-
-        Raises a [ResolveException] if the path is outside the folder.
-        """
-        return resolve_path(self.path, target_file)
 
     def new_file(self, prefix: Optional[str] = None) -> Path:
         """Return a unique path inside the folder, but don't create a file."""
         name = f"{prefix if prefix else 'tmp'}-{self._inc_and_get_counter():03}"
 
-        logger.debug(f"Creating temp file '{name}'")
+        LOGGER.debug("Creating temp file %s", name)
 
         return self.resolve(Path(name))
 
@@ -63,13 +54,13 @@ class TmpDir():
         sub_path = self.resolve(Path(name))
         sub_path.mkdir(parents=True)
 
-        logger.debug(f"Creating temp dir '{name}' at {sub_path}")
+        LOGGER.debug("Creating temp dir %s at %s", name, sub_path)
 
         return TmpDir(sub_path)
 
     def cleanup(self) -> None:
         """Delete this folder and all contained files."""
-        logger.debug(f"Deleting temp folder {self.path}")
+        LOGGER.debug("Deleting temp folder %s", self.path)
 
         shutil.rmtree(self.path.resolve())
 

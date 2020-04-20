@@ -35,12 +35,12 @@ class CookieJar:
             return
 
         try:
-            LOGGER.info(f"Loading old cookies from {self._cookies.filename}")
+            LOGGER.info("Loading old cookies from %s", self._cookies.filename)
             self._cookies.load(ignore_discard=True)
         except (FileNotFoundError, LoadError):
             LOGGER.warning(
-                f"No valid cookie file found at {self._cookies.filename}, "
-                "continuing with no cookies"
+                "No valid cookie file found at %s, continuing with no cookies",
+                self._cookies.filename
             )
 
     def save_cookies(self, reason: Optional[str] = None) -> None:
@@ -51,7 +51,7 @@ class CookieJar:
         if reason is None:
             LOGGER.info("Saving cookies")
         else:
-            LOGGER.info(f"Saving cookies ({reason})")
+            LOGGER.info("Saving cookies (%s)", reason)
 
         # TODO figure out why ignore_discard is set
         # TODO possibly catch a few more exceptions

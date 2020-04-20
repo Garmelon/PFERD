@@ -9,41 +9,26 @@ import shutil
 from pathlib import Path
 from typing import List, Set
 
-from .utils import PrettyLogger, prompt_yes_no, resolve_path
+from .utils import Location, PrettyLogger, prompt_yes_no
 
-logger = logging.getLogger(__name__)
-pretty_logger = PrettyLogger(logger)
+LOGGER = logging.getLogger(__name__)
+PRETTY = PrettyLogger(LOGGER)
 
 
 class FileAcceptException(Exception):
     """An exception while accepting a file."""
 
-    def __init__(self, message: str):
-        """Create a new exception."""
-        super().__init__(message)
 
-
-class Organizer():
+class Organizer(Location):
     """A helper for managing downloaded files."""
 
     def __init__(self, path: Path):
         """Create a new organizer for a given path."""
-        self._path = path
+        super().__init__(path)
         self._known_files: Set[Path] = set()
+
         # Keep the root dir
         self.mark(path)
-
-    @property
-    def path(self) -> Path:
-        """Return the path for this organizer."""
-        return self._path
-
-    def resolve(self, target_file: Path) -> Path:
-        """Resolve a file relative to the path of this organizer.
-
-        Raises an exception if the file is outside the given directory.
-        """
-        return resolve_path(self.path, target_file)
 
     def accept_file(self, src: Path, dst: Path) -> None:
         """Move a file to this organizer and mark it."""
@@ -56,28 +41,27 @@ class Organizer():
         if not src_absolute.is_file():
             raise FileAcceptException("Source is a directory")
 
-        logger.debug(f"Copying '{src_absolute}' to '{dst_absolute}")
+        LOGGER.debug("Copying %s to %s", src_absolute, dst_absolute)
 
         # Destination file is directory
         if dst_absolute.exists() and dst_absolute.is_dir():
             if prompt_yes_no(f"Overwrite folder {dst_absolute} with file?", default=False):
                 shutil.rmtree(dst_absolute)
             else:
-                logger.warn(f"Could not add file {dst_absolute}")
+                LOGGER.warning("Could not add file %s", dst_absolute)
                 return
 
         # Destination file exists
         if dst_absolute.exists() and dst_absolute.is_file():
             if filecmp.cmp(str(src_absolute), str(dst_absolute), shallow=False):
-                pretty_logger.ignored_file(dst_absolute)
-
                 # Bail out, nothing more to do
+                PRETTY.ignored_file(dst_absolute)
                 self.mark(dst)
                 return
-            else:
-                pretty_logger.modified_file(dst_absolute)
+
+            PRETTY.modified_file(dst_absolute)
         else:
-            pretty_logger.new_file(dst_absolute)
+            PRETTY.new_file(dst_absolute)
 
         # Create parent dir if needed
         dst_parent_dir: Path = dst_absolute.parent
@@ -92,11 +76,11 @@ class Organizer():
         """Mark a file as used so it will not get cleaned up."""
         absolute_path = self.path.joinpath(path).resolve()
         self._known_files.add(absolute_path)
-        logger.debug(f"Tracked {absolute_path}")
+        LOGGER.debug("Tracked %s", absolute_path)
 
     def cleanup(self) -> None:
         """Remove all untracked files in the organizer's dir."""
-        logger.debug("Deleting all untracked files...")
+        LOGGER.debug("Deleting all untracked files...")
 
         self._cleanup(self.path)
 
@@ -116,7 +100,8 @@ class Organizer():
         if start_dir.resolve() not in self._known_files and dir_empty:
             start_dir.rmdir()
 
-    def _delete_file_if_confirmed(self, path: Path) -> None:
+    @staticmethod
+    def _delete_file_if_confirmed(path: Path) -> None:
         prompt = f"Do you want to delete {path}"
 
         if prompt_yes_no(prompt, False):

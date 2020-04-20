@@ -32,6 +32,10 @@ def rename(path: PurePath, to_name: str) -> PurePath:
 
 
 def soupify(response: requests.Response) -> bs4.BeautifulSoup:
+    """
+    Wrap a requests response in a bs4 object.
+    """
+
     return bs4.BeautifulSoup(response.text, "html.parser")
 
 
@@ -42,9 +46,10 @@ def stream_to_path(response: requests.Response, to_path: Path, chunk_size: int =
     chunk_size is in bytes.
     """
 
-    with open(to_path, 'wb') as file_descriptor:
-        for chunk in response.iter_content(chunk_size=chunk_size):
-            file_descriptor.write(chunk)
+    with response:
+        with open(to_path, 'wb') as file_descriptor:
+            for chunk in response.iter_content(chunk_size=chunk_size):
+                file_descriptor.write(chunk)
 
 
 def prompt_yes_no(question: str, default: Optional[bool] = None) -> bool:
@@ -77,19 +82,35 @@ class ResolveException(Exception):
     """An exception while resolving a file."""
 
 
-def resolve_path(directory: Path, target_file: Path) -> Path:
-    """Resolve a file relative to the path of this organizer.
-
-    Raises a [ResolveException] if the file is outside the given directory.
+class Location:
     """
-    absolute_path = directory.joinpath(target_file).resolve()
+    An object that has an inherent path.
+    """
 
-    if directory not in absolute_path.parents:
-        raise ResolveException(
-            f"Path resolved to file outside folder ({absolute_path})"
-        )
+    def __init__(self, path: Path):
+        self._path = path
 
-    return absolute_path
+    @property
+    def path(self) -> Path:
+        """
+        This object's location.
+        """
+
+        return self._path
+
+    def resolve(self, target: Path) -> Path:
+        """
+        Resolve a file relative to the path of this location.
+
+        Raises a [ResolveException] if the file is outside the given directory.
+        """
+        absolute_path = self.path.joinpath(target).resolve()
+
+        # TODO Make this less inefficient
+        if self.path not in absolute_path.parents:
+            raise ResolveException(f"Path {target} is not inside directory {self.path}")
+
+        return absolute_path
 
 
 class PrettyLogger:

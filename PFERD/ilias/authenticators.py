@@ -16,6 +16,8 @@ LOGGER = logging.getLogger(__name__)
 
 
 class IliasAuthenticator(abc.ABC):
+    # pylint: disable=too-few-public-methods
+
     """
     An authenticator that logs an existing requests session into an ILIAS
     account.
@@ -29,6 +31,8 @@ class IliasAuthenticator(abc.ABC):
 
 
 class KitShibbolethAuthenticator(IliasAuthenticator):
+    # pylint: disable=too-few-public-methods
+
     """
     Authenticate via KIT's shibboleth system.
     """
