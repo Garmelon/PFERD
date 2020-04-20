@@ -7,7 +7,7 @@ from typing import Any, Dict, Optional
 import requests
 import requests.auth
 
-from .new_organizer import Organizer
+from .organizer import Organizer
 from .tmp_dir import TmpDir
 from .utils import stream_to_path
 

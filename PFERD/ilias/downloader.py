@@ -6,7 +6,7 @@ from typing import Any, Dict
 import bs4
 import requests
 
-from ..new_organizer import Organizer
+from ..organizer import Organizer
 from ..tmp_dir import TmpDir
 from ..utils import soupify, stream_to_path
 from .authenticators import IliasAuthenticator
