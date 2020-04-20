@@ -52,6 +52,29 @@ def prompt_yes_no(question: str, default: Optional[bool] = None) -> bool:
             print(WRONG_REPLY)
 
 
+class ResolveException(Exception):
+    """An exception while resolving a file."""
+
+    def __init__(self, message: str):
+        """Create a new exception."""
+        super().__init__(message)
+
+
+def resolve_path(directory: Path, target_file: Path) -> Path:
+    """Resolve a file relative to the path of this organizer.
+
+    Raises a [ResolveException] if the file is outside the given directory.
+    """
+    absolute_path = directory.joinpath(target_file).resolve()
+
+    if not str(absolute_path).startswith(str(directory.resolve())):
+        raise ResolveException(
+            f"Path resolved to file outside folder ({absolute_path})"
+        )
+
+    return absolute_path
+
+
 class PrettyLogger:
 
     def __init__(self, logger: logging.Logger) -> None:
