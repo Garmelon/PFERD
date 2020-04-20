@@ -2,8 +2,9 @@
 General downloaders useful in many situations
 """
 
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import requests
 import requests.auth
@@ -13,8 +14,18 @@ from .tmp_dir import TmpDir
 from .utils import stream_to_path
 
 
-# pylint: disable=too-few-public-methods
-class HttpDownloader():
+@dataclass
+class HttpDownloadInfo:
+    """
+    This class describes a single file to be downloaded.
+    """
+
+    path: Path
+    url: str
+    parameters: Dict[str, Any] = field(default_factory=dict)
+
+
+class HttpDownloader:
     """A HTTP downloader that can handle HTTP basic auth."""
 
     def __init__(
@@ -39,20 +50,26 @@ class HttpDownloader():
             )
         return session
 
-    def download(
-            self,
-            url: str,
-            target_path: Path,
-            parameters: Optional[Dict[str, Any]] = None,
-    ) -> None:
-        """Download a given url to a given path, optionally with some get parameters."""
-        parameters = parameters if parameters else {}
-        with self._session.get(url, params=parameters, stream=True) as response:
+
+    def download_all(self, infos: List[HttpDownloadInfo]) -> None:
+        """
+        Download multiple files one after the other.
+        """
+
+        for info in infos:
+            self.download(info)
+
+
+    def download(self, info: HttpDownloadInfo) -> None:
+        """
+        Download a single file.
+        """
+
+        with self._session.get(info.url, params=info.parameters, stream=True) as response:
             if response.status_code == 200:
                 tmp_file = self._tmp_dir.new_file()
                 stream_to_path(response, tmp_file)
-                self._organizer.accept_file(tmp_file, target_path)
+                self._organizer.accept_file(tmp_file, info.path)
             else:
-                raise Exception(
-                    f"Could not download file, got response {response.status_code}"
-                )
+                # TODO use proper exception
+                raise Exception(f"Could not download file, got response {response.status_code}")
