@@ -7,7 +7,7 @@ from typing import Optional
 
 import requests
 
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 
 class CookieJar:
@@ -35,10 +35,10 @@ class CookieJar:
             return
 
         try:
-            logger.info(f"Loading old cookies from {self._cookies.filename}")
+            LOGGER.info(f"Loading old cookies from {self._cookies.filename}")
             self._cookies.load(ignore_discard=True)
         except (FileNotFoundError, LoadError):
-            logger.warn(
+            LOGGER.warning(
                 f"No valid cookie file found at {self._cookies.filename}, "
                 "continuing with no cookies"
             )
@@ -49,9 +49,9 @@ class CookieJar:
             return
 
         if reason is None:
-            logger.info("Saving cookies")
+            LOGGER.info("Saving cookies")
         else:
-            logger.info(f"Saving cookies ({reason})")
+            LOGGER.info(f"Saving cookies ({reason})")
 
         # TODO figure out why ignore_discard is set
         # TODO possibly catch a few more exceptions

@@ -1,3 +1,8 @@
+"""
+This module exports only what you need for a basic configuration. If you want a
+more complex configuration, you need to import the other submodules manually.
+"""
+
 import logging
 
 STYLE = "{"
@@ -12,6 +17,10 @@ FORMATTER = logging.Formatter(
 
 
 def enable_logging(name: str = "PFERD", level: int = logging.INFO) -> None:
+    """
+    Enable and configure logging via the logging module.
+    """
+
     handler = logging.StreamHandler()
     handler.setFormatter(FORMATTER)
 
