@@ -6,6 +6,7 @@ import logging
 from pathlib import Path, PurePath
 from typing import Optional, Tuple
 
+import bs4
 import requests
 from colorama import Fore, Style
 
@@ -28,6 +29,10 @@ def rename(path: PurePath, to_name: str) -> PurePath:
     """
 
     return PurePath(*path.parts[:-1], to_name)
+
+
+def soupify(response: requests.Response) -> bs4.BeautifulSoup:
+    return bs4.BeautifulSoup(response.text, "html.parser")
 
 
 def stream_to_path(response: requests.Response, to_path: Path, chunk_size: int = 1024 ** 2) -> None:

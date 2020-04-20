@@ -10,6 +10,7 @@ import bs4
 import requests
 
 from ..authenticators import UserPassAuthenticator
+from ..utils import soupify
 
 LOGGER = logging.getLogger(__name__)
 
@@ -55,7 +56,7 @@ class KitShibbolethAuthenticator(IliasAuthenticator):
             "target": "/shib_login.php",
             "home_organization_selection": "Mit KIT-Account anmelden",
         }
-        soup = bs4.BeautifulSoup(sess.post(url, data=data))
+        soup = soupify(sess.post(url, data=data))
 
         # Attempt to login using credentials, if necessary
         while not self._login_successful(soup):
@@ -73,7 +74,7 @@ class KitShibbolethAuthenticator(IliasAuthenticator):
                 "j_username": self._auth.username,
                 "j_password": self._auth.password,
             }
-            soup = bs4.BeautifulSoup(sess.post(url, data=data))
+            soup = soupify(sess.post(url, data=data))
 
             if not self._login_successful(soup):
                 print("Incorrect credentials.")
