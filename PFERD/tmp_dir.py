@@ -18,6 +18,7 @@ class TmpDir():
         """Create a new temporary folder for the given path."""
         self._counter = 0
         self._path = path
+        self._path.mkdir(parents=True, exist_ok=True)
 
     def __str__(self) -> str:
         """Format the folder as a string."""
