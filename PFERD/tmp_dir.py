@@ -6,6 +6,8 @@ from pathlib import Path
 from types import TracebackType
 from typing import Optional, Type
 
+from .utils import resolve_path
+
 logger = logging.getLogger(__name__)
 
 
@@ -38,19 +40,26 @@ class TmpDir():
         """Return the path of this folder."""
         return self._path
 
+    def resolve(self, target_file: Path) -> Path:
+        """Resolve a file relative to this folder.
+
+        Raises a [ResolveException] if the path is outside the folder.
+        """
+        return resolve_path(self.path, target_file)
+
     def new_file(self, prefix: Optional[str] = None) -> Path:
         """Return a unique path inside the folder, but don't create a file."""
         name = f"{prefix if prefix else 'tmp'}-{self._inc_and_get_counter():03}"
 
         logger.debug(f"Creating temp file '{name}'")
 
-        return self.path.joinpath(name)
+        return self.resolve(Path(name))
 
     def new_folder(self, prefix: Optional[str] = None) -> 'TmpDir':
         """Create a new nested temporary folder and return its path."""
         name = f"{prefix if prefix else 'tmp'}-{self._inc_and_get_counter():03}"
 
-        sub_path = self.path.joinpath(name)
+        sub_path = self.resolve(Path(name))
         sub_path.mkdir(parents=True)
 
         logger.debug(f"Creating temp dir '{name}' at {sub_path}")
@@ -61,7 +70,7 @@ class TmpDir():
         """Delete this folder and all contained files."""
         logger.debug(f"Deleting temp folder {self.path}")
 
-        shutil.rmtree(self.path.absolute())
+        shutil.rmtree(self.path.resolve())
 
     def _inc_and_get_counter(self) -> int:
         """Get and increment the counter by one."""
