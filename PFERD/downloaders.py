@@ -39,7 +39,12 @@ class HttpDownloader():
             )
         return session
 
-    def download(self, url: str, target_path: Path, parameters: Optional[Dict[str, Any]] = None) -> None:
+    def download(
+            self,
+            url: str,
+            target_path: Path,
+            parameters: Optional[Dict[str, Any]] = None,
+    ) -> None:
         """Download a given url to a given path, optionally with some get parameters."""
         parameters = parameters if parameters else {}
         with self._session.get(url, params=parameters, stream=True) as response:
