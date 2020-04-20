@@ -39,9 +39,10 @@ class HttpDownloader():
             )
         return session
 
-    def download(self, url: str, target_path: Path, parameters: Dict[str, Any] = {}) -> None:
+    def download(self, url: str, target_path: Path, parameters: Optional[Dict[str, Any]] = None) -> None:
         """Download a given url to a given path, optionally with some get parameters."""
-        with self._session.get(url, params=parameters) as response:
+        parameters = parameters if parameters else {}
+        with self._session.get(url, params=parameters, stream=True) as response:
             if response.status_code == 200:
                 tmp_file = self._tmp_dir.new_file()
                 stream_to_path(response, tmp_file)
