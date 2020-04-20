@@ -67,7 +67,7 @@ def resolve_path(directory: Path, target_file: Path) -> Path:
     """
     absolute_path = directory.joinpath(target_file).resolve()
 
-    if not str(absolute_path).startswith(str(directory.resolve())):
+    if directory not in absolute_path.parents:
         raise ResolveException(
             f"Path resolved to file outside folder ({absolute_path})"
         )
