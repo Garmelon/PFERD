@@ -1,6 +1,7 @@
-"""Contains a simple HTTP downloader that can handle HTTP basic auth."""
+"""
+General downloaders useful in many situations
+"""
 
-import logging
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -15,7 +16,13 @@ from .utils import stream_to_path
 class HttpDownloader():
     """A HTTP downloader that can handle HTTP basic auth."""
 
-    def __init__(self, tmp_dir: TmpDir, organizer: Organizer, username: Optional[str], password: Optional[str]):
+    def __init__(
+            self,
+            tmp_dir: TmpDir,
+            organizer: Organizer,
+            username: Optional[str],
+            password: Optional[str],
+    ):
         """Create a new http downloader."""
         self._organizer = organizer
         self._tmp_dir = tmp_dir
