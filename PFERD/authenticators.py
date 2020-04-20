@@ -1,21 +1,41 @@
+"""
+General authenticators useful in many situations
+"""
+
 import getpass
 from typing import Optional, Tuple
 
 
 class UserPassAuthenticator:
+    """
+    An authenticator for username-password combinations that prompts the user
+    for missing information.
+    """
 
-    def __init__(self, username: Optional[str] = None, password: Optional[str] = None) -> None:
+    def __init__(
+            self,
+            reason: str,
+            username: Optional[str] = None,
+            password: Optional[str] = None,
+    ) -> None:
+        """
+        reason   - what the credentials are used for
+        username - the username (if already known)
+        password - the password (if already known)
+        """
+
+        self._reason = reason
+
         self._given_username = username
         self._given_password = password
 
         self._username = username
         self._password = password
 
-    def get_credentials(self, reason: str) -> Tuple[str, str]:
+    def get_credentials(self) -> Tuple[str, str]:
         """
         Returns a tuple (username, password). Prompts user for username or
-        password when necessary. Must be called with a "reason" that will be
-        displayed in the credentials prompt.
+        password when necessary.
         """
 
         if self._username is None and self._given_username is not None:
@@ -25,7 +45,7 @@ class UserPassAuthenticator:
             self._password = self._given_password
 
         if self._username is None or self._password is None:
-            print(f"Enter credentials ({reason})")
+            print(f"Enter credentials ({self._reason})")
 
         username: str
         if self._username is None:
@@ -60,7 +80,7 @@ class UserPassAuthenticator:
         prompt the user.
         """
 
-        (_, path) = self.get_credentials()
+        (_, password) = self.get_credentials()
         return password
 
     def invalidate_credentials(self) -> None:
