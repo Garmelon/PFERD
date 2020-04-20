@@ -33,13 +33,12 @@ class HttpDownloader():
 
     def download(self, url: str, target_path: Path, parameters: Dict[str, Any] = {}) -> None:
         """Download a given url to a given path, optionally with some get parameters."""
-        response = self._session.get(url, params=parameters)
-
-        if response.status_code == 200:
-            tmp_file = self._tmp_dir.new_file()
-            stream_to_path(response, tmp_file)
-            self._organizer.accept_file(tmp_file, target_path)
-        else:
-            raise Exception(
-                f"Could not download file, got response {response.status_code}"
-            )
+        with self._session.get(url, params=parameters) as response:
+            if response.status_code == 200:
+                tmp_file = self._tmp_dir.new_file()
+                stream_to_path(response, tmp_file)
+                self._organizer.accept_file(tmp_file, target_path)
+            else:
+                raise Exception(
+                    f"Could not download file, got response {response.status_code}"
+                )
