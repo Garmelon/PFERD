@@ -1,5 +1,6 @@
 """Contains a downloader for ILIAS."""
 
+import datetime
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List
@@ -25,7 +26,8 @@ class IliasDownloadInfo:
 
     path: Path
     url: str
-    parameters: Dict[str, Any] = field(default_factory=dict)
+    modification_date: datetime.datetime
+    # parameters: Dict[str, Any] = field(default_factory=dict)
 
 
 class IliasDownloader:
@@ -61,7 +63,7 @@ class IliasDownloader:
         self._organizer.accept_file(tmp_file, info.path)
 
     def _try_download(self, info: IliasDownloadInfo, target: Path) -> bool:
-        with self._session.get(info.url, params=info.parameters, stream=True) as response:
+        with self._session.get(info.url, stream=True) as response:
             content_type = response.headers["content-type"]
 
             if content_type.startswith("text/html"):
