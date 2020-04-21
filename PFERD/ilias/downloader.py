@@ -1,9 +1,9 @@
 """Contains a downloader for ILIAS."""
 
 import datetime
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import List
 
 import bs4
 import requests

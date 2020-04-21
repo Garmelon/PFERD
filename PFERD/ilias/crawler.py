@@ -147,14 +147,14 @@ class IliasCrawler:
 
         if "opencast" in str(img_tag["alt"]).lower():
             LOGGER.debug("Found video site: %r", url)
-            return self._crawl_video(path, url)
+            return self._crawl_video_directory(path, url)
 
         # Assume it is a folder
         folder_name = link_element.getText()
         folder_path = Path(path, folder_name)
         return self._crawl_folder(folder_path, self._abs_url_from_link(link_element))
 
-    def _crawl_video(self, path: Path, url: str) -> List[IliasDownloadInfo]:
+    def _crawl_video_directory(self, path: Path, url: str) -> List[IliasDownloadInfo]:
         initial_soup = self._get_page(url, {})
         content_link: bs4.Tag = initial_soup.select_one("#tab_series a")
         video_list_soup = self._get_page(
@@ -169,36 +169,37 @@ class IliasCrawler:
         results: List[IliasDownloadInfo] = []
 
         for link in video_links:
-            video_page_url = self._abs_url_from_link(link)
-
-            modification_string = link.parent.parent.parent.select_one(
-                "td.std:nth-child(6)"
-            ).getText().strip()
-            modification_time = datetime.datetime.strptime(modification_string, "%d.%m.%Y - %H:%M")
-
-            title = link.parent.parent.parent.select_one(
-                "td.std:nth-child(3)"
-            ).getText().strip()
-
-            video_page_soup = self._get_page(video_page_url, {})
-            regex: re.Pattern = re.compile(
-                r"({\"streams\"[\s\S]+?),\s*{\"paella_config_file", re.IGNORECASE
-            )
-            json_match = regex.search(str(video_page_soup))
-
-            if json_match is None:
-                LOGGER.warning("Could not find json stream info for %r", url)
-                return []
-            json_str = json_match.group(1)
-
-            json_object = json.loads(json_str)
-            video_url = json_object["streams"][0]["sources"]["mp4"][0]["src"]
-
-            results.append(IliasDownloadInfo(
-                Path(path, title), video_url, modification_time
-            ))
+            results += self._crawl_single_video(path, link)
 
         return results
+
+    def _crawl_single_video(self, path: Path, link: bs4.Tag) -> List[IliasDownloadInfo]:
+        video_page_url = self._abs_url_from_link(link)
+
+        modification_string = link.parent.parent.parent.select_one(
+            "td.std:nth-child(6)"
+        ).getText().strip()
+        modification_time = datetime.datetime.strptime(modification_string, "%d.%m.%Y - %H:%M")
+
+        title = link.parent.parent.parent.select_one(
+            "td.std:nth-child(3)"
+        ).getText().strip()
+
+        video_page_soup = self._get_page(video_page_url, {})
+        regex: re.Pattern = re.compile(
+            r"({\"streams\"[\s\S]+?),\s*{\"paella_config_file", re.IGNORECASE
+        )
+        json_match = regex.search(str(video_page_soup))
+
+        if json_match is None:
+            LOGGER.warning("Could not find json stream info for %r", video_page_url)
+            return []
+        json_str = json_match.group(1)
+
+        json_object = json.loads(json_str)
+        video_url = json_object["streams"][0]["sources"]["mp4"][0]["src"]
+
+        return [IliasDownloadInfo(Path(path, title), video_url, modification_time)]
 
     def _crawl_folder(self, path: Path, url: str) -> List[IliasDownloadInfo]:
         soup = self._get_page(url, {})
