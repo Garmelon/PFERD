@@ -90,7 +90,7 @@ class KitShibbolethAuthenticator(IliasAuthenticator):
         relay_state = soup.find("input", {"name": "RelayState"})
         saml_response = soup.find("input", {"name": "SAMLResponse"})
         url = "https://ilias.studium.kit.edu/Shibboleth.sso/SAML2/POST"
-        data = { # using the info obtained in the while loop above
+        data = {  # using the info obtained in the while loop above
             "RelayState": relay_state["value"],
             "SAMLResponse": saml_response["value"],
         }
