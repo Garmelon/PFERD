@@ -3,6 +3,7 @@ Contains an ILIAS crawler alongside helper functions.
 """
 
 import datetime
+import json
 import logging
 import re
 from pathlib import Path
@@ -11,7 +12,6 @@ from urllib.parse import (parse_qs, urlencode, urljoin, urlparse, urlsplit,
                           urlunsplit)
 
 import bs4
-import requests
 
 from ..cookie_jar import CookieJar
 from ..utils import soupify
@@ -74,21 +74,21 @@ class IliasCrawler:
         Decides which sub crawler to use for a given top level element.
         """
         parsed_url = urlparse(url)
-        LOGGER.debug("Parsed url: %s", repr(parsed_url))
+        LOGGER.debug("Parsed url: %r", parsed_url)
 
         if "target=file_" in parsed_url.query:
             return self._crawl_file(path, link_element, url)
 
         # Skip forums
         if "cmd=showThreads" in parsed_url.query:
-            LOGGER.debug("Skipping forum %s", repr(url))
+            LOGGER.debug("Skipping forum %r", url)
             return []
 
         if "ref_id=" in parsed_url.query:
             LOGGER.debug("Processing folder-like...")
             return self._switch_on_folder_like(path, link_element, url)
 
-        LOGGER.warning("Got unknown type, %s, %s, %s", repr(path), repr(link_element), repr(url))
+        LOGGER.warning("Got unknown type, %r, %r, %r", path, link_element, url)
         # TODO: Other types
         raise Exception("Implement me!")
 
@@ -113,7 +113,7 @@ class IliasCrawler:
         match_result = re.match(r".+target=file_(\d+).+", url)
 
         if match_result is None:
-            LOGGER.warning("Could not download file %s", repr(url))
+            LOGGER.warning("Could not download file %r", url)
             return []
 
         return [IliasDownloadInfo(full_path, url, modifcation_date)]
@@ -132,23 +132,73 @@ class IliasCrawler:
                 break
 
         if found_parent is None:
-            LOGGER.warning("Could not find element icon for %s", repr(url))
+            LOGGER.warning("Could not find element icon for %r", url)
             return []
 
         img_tag: Optional[bs4.Tag] = found_parent.select_one("img.ilListItemIcon")
 
         if img_tag is None:
-            LOGGER.warning("Could not find image tag for %s", repr(url))
+            LOGGER.warning("Could not find image tag for %r", url)
             return []
 
         if str(img_tag["src"]).endswith("frm.svg"):
-            LOGGER.debug("Skipping forum at %s", repr(url))
+            LOGGER.debug("Skipping forum at %r", url)
             return []
+
+        if "opencast" in str(img_tag["alt"]).lower():
+            LOGGER.debug("Found video site: %r", url)
+            return self._crawl_video(path, url)
 
         # Assume it is a folder
         folder_name = link_element.getText()
         folder_path = Path(path, folder_name)
         return self._crawl_folder(folder_path, self._abs_url_from_link(link_element))
+
+    def _crawl_video(self, path: Path, url: str) -> List[IliasDownloadInfo]:
+        initial_soup = self._get_page(url, {})
+        content_link: bs4.Tag = initial_soup.select_one("#tab_series a")
+        video_list_soup = self._get_page(
+            self._abs_url_from_link(content_link),
+            {"limit": 800, "cmd": "asyncGetTableGUI", "cmdMode": "asynch"}
+        )
+
+        video_links: List[bs4.Tag] = video_list_soup.findAll(
+            name="a", text=re.compile(r"\s*Abspielen\s*")
+        )
+
+        results: List[IliasDownloadInfo] = []
+
+        for link in video_links:
+            video_page_url = self._abs_url_from_link(link)
+
+            modification_string = link.parent.parent.parent.select_one(
+                "td.std:nth-child(6)"
+            ).getText().strip()
+            modification_time = datetime.datetime.strptime(modification_string, "%d.%m.%Y - %H:%M")
+
+            title = link.parent.parent.parent.select_one(
+                "td.std:nth-child(3)"
+            ).getText().strip()
+
+            video_page_soup = self._get_page(video_page_url, {})
+            regex: re.Pattern = re.compile(
+                r"({\"streams\"[\s\S]+?),\s*{\"paella_config_file", re.IGNORECASE
+            )
+            json_match = regex.search(str(video_page_soup))
+
+            if json_match is None:
+                LOGGER.warning("Could not find json stream info for %r", url)
+                return []
+            json_str = json_match.group(1)
+
+            json_object = json.loads(json_str)
+            video_url = json_object["streams"][0]["sources"]["mp4"][0]["src"]
+
+            results.append(IliasDownloadInfo(
+                Path(path, title), video_url, modification_time
+            ))
+
+        return results
 
     def _crawl_folder(self, path: Path, url: str) -> List[IliasDownloadInfo]:
         soup = self._get_page(url, {})
@@ -166,7 +216,7 @@ class IliasCrawler:
         """
         Fetches a page from ILIAS, authenticating when needed.
         """
-        print("Fetching", url)
+        LOGGER.debug("Fetching %r", url)
 
         response = self._session.get(url, params=params)
         content_type = response.headers["content-type"]
@@ -191,7 +241,22 @@ class IliasCrawler:
     @staticmethod
     def _is_logged_in(soup: bs4.BeautifulSoup) -> bool:
         userlog = soup.find("li", {"id": "userlog"})
-        return userlog is not None
+        if userlog is not None:
+            print("Found userlog")
+            return True
+        video_table = soup.find(
+            recursive=True,
+            name="table",
+            attrs={"id": lambda x: x is not None and x.startswith("tbl_xoct")}
+        )
+        if video_table is not None:
+            print("Found video")
+            return True
+        if soup.select_one("#playerContainer") is not None:
+            print("Found player")
+            return True
+        print("Ooops: ", soup)
+        return False
 
 
 def run_as_test(ilias_url: str, course_id: int) -> List[IliasDownloadInfo]:
