@@ -11,16 +11,16 @@ import requests.auth
 
 from .organizer import Organizer
 from .tmp_dir import TmpDir
+from .transform import Transformable
 from .utils import stream_to_path
 
 
 @dataclass
-class HttpDownloadInfo:
+class HttpDownloadInfo(Transformable):
     """
     This class describes a single file to be downloaded.
     """
 
-    path: Path
     url: str
     parameters: Dict[str, Any] = field(default_factory=dict)
 

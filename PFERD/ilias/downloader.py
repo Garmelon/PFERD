@@ -10,6 +10,7 @@ import requests
 
 from ..organizer import Organizer
 from ..tmp_dir import TmpDir
+from ..transform import Transformable
 from ..utils import soupify, stream_to_path
 from .authenticators import IliasAuthenticator
 
@@ -19,12 +20,11 @@ class ContentTypeException(Exception):
 
 
 @dataclass
-class IliasDownloadInfo:
+class IliasDownloadInfo(Transformable):
     """
     This class describes a single file to be downloaded.
     """
 
-    path: Path
     url: str
     modification_date: datetime.datetime
     # parameters: Dict[str, Any] = field(default_factory=dict)
