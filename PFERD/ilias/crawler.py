@@ -78,6 +78,7 @@ class IliasCrawler:
         LOGGER.debug("Parsed url: %r", parsed_url)
 
         if "target=file_" in parsed_url.query:
+            LOGGER.debug("Interpreted as file.")
             return self._crawl_file(path, link_element, url)
 
         # Skip forums
@@ -153,14 +154,18 @@ class IliasCrawler:
             LOGGER.debug("Skipping forum at %r", url)
             return []
 
+        element_path = Path(path, link_element.getText().strip())
+
+        if str(img_tag["src"]).endswith("icon_exc.svg"):
+            LOGGER.debug("Crawling exercises at %r", url)
+            return self._crawl_exercises(element_path, url)
+
         if "opencast" in str(img_tag["alt"]).lower():
             LOGGER.debug("Found video site: %r", url)
-            return self._crawl_video_directory(path, url)
+            return self._crawl_video_directory(element_path, url)
 
         # Assume it is a folder
-        folder_name = link_element.getText()
-        folder_path = Path(path, folder_name)
-        return self._crawl_folder(folder_path, self._abs_url_from_link(link_element))
+        return self._crawl_folder(element_path, self._abs_url_from_link(link_element))
 
     def _crawl_video_directory(self, path: Path, url: str) -> List[IliasDownloadInfo]:
         initial_soup = self._get_page(url, {})
@@ -209,6 +214,43 @@ class IliasCrawler:
         video_url = json_object["streams"][0]["sources"]["mp4"][0]["src"]
 
         return [IliasDownloadInfo(Path(path, title), video_url, modification_time)]
+
+    def _crawl_exercises(self, element_path: Path, url: str) -> List[IliasDownloadInfo]:
+        soup = self._get_page(url, {})
+
+        results: List[IliasDownloadInfo] = []
+
+        assignment_containers: List[bs4.Tag] = soup.select(".il_VAccordionInnerContainer")
+
+        for container in assignment_containers:
+            container_name = container.select_one(".ilAssignmentHeader").getText().strip()
+            files: List[bs4.Tag] = container.findAll(
+                name="a",
+                attrs={"href": lambda x: x and "cmdClass=ilexsubmissiongui" in x},
+                text="Download"
+            )
+
+            LOGGER.debug("Found exercise container %r", container_name)
+
+            end_date: datetime.datetime = datetime.datetime.now()
+            end_date_header: bs4.Tag = container.find(name="div", text="Abgabetermin")
+            if end_date_header is not None:
+                end_date_text = end_date_header.findNext("div").getText().strip()
+                end_date = demangle_date(end_date_text)
+
+            for file_link in files:
+                file_name = file_link.parent.findPrevious(name="div").getText().strip()
+                url = self._abs_url_from_link(file_link)
+
+                LOGGER.debug("Found file %r at %r", file_name, url)
+
+                results.append(IliasDownloadInfo(
+                    Path(element_path, container_name, file_name),
+                    url,
+                    end_date
+                ))
+
+        return results
 
     def _crawl_folder(self, path: Path, url: str) -> List[IliasDownloadInfo]:
         soup = self._get_page(url, {})
