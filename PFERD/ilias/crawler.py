@@ -16,6 +16,7 @@ import bs4
 from ..cookie_jar import CookieJar
 from ..utils import soupify
 from .authenticators import IliasAuthenticator
+from .date_demangler import demangle_date
 from .downloader import IliasDownloadInfo
 
 LOGGER = logging.getLogger(__name__)
@@ -102,10 +103,17 @@ class IliasCrawler:
         ).select_one(".il_ItemProperties")
         file_type = properties_parent.select_one("span.il_ItemProperty").getText().strip()
 
-        modifcation_date = datetime.datetime.now()
         all_properties_text = properties_parent.getText().strip()
-        print("Property text is", all_properties_text)
-        # todo demangle date from text above
+        modification_date_match = re.search(
+            r"(((\d+\. \w+ \d+)|(Gestern)|(Heute)), \d+:\d+)",
+            all_properties_text
+        )
+        if modification_date_match is None:
+            modification_date = datetime.datetime.now()
+            LOGGER.warning("Could not extract start date from %r", all_properties_text)
+        else:
+            modification_date_str = modification_date_match.group(1)
+            modification_date = demangle_date(modification_date_str)
 
         name = link_element.getText()
         full_path = Path(path, name + "." + file_type)
@@ -116,7 +124,7 @@ class IliasCrawler:
             LOGGER.warning("Could not download file %r", url)
             return []
 
-        return [IliasDownloadInfo(full_path, url, modifcation_date)]
+        return [IliasDownloadInfo(full_path, url, modification_date)]
 
     def _switch_on_folder_like(
             self,
@@ -184,6 +192,7 @@ class IliasCrawler:
         title = link.parent.parent.parent.select_one(
             "td.std:nth-child(3)"
         ).getText().strip()
+        title += ".mp4"
 
         video_page_soup = self._get_page(video_page_url, {})
         regex: re.Pattern = re.compile(
@@ -243,7 +252,7 @@ class IliasCrawler:
     def _is_logged_in(soup: bs4.BeautifulSoup) -> bool:
         userlog = soup.find("li", {"id": "userlog"})
         if userlog is not None:
-            print("Found userlog")
+            LOGGER.debug("Auth: Found #userlog")
             return True
         video_table = soup.find(
             recursive=True,
@@ -251,19 +260,17 @@ class IliasCrawler:
             attrs={"id": lambda x: x is not None and x.startswith("tbl_xoct")}
         )
         if video_table is not None:
-            print("Found video")
+            LOGGER.debug("Auth: Found #tbl_xoct.+")
             return True
         if soup.select_one("#playerContainer") is not None:
-            print("Found player")
+            LOGGER.debug("Auth: Found #playerContainer")
             return True
-        print("Ooops: ", soup)
         return False
 
 
 def run_as_test(ilias_url: str, course_id: int) -> List[IliasDownloadInfo]:
     from ..organizer import Organizer
     from .authenticators import KitShibbolethAuthenticator
-    organizer = Organizer(Path("/tmp/test/inner"))
 
     crawler = IliasCrawler(KitShibbolethAuthenticator(), ilias_url, str(course_id))
     return crawler.crawl()
