@@ -225,6 +225,10 @@ class IliasCrawler:
             {"limit": 800, "cmd": "asyncGetTableGUI", "cmdMode": "asynch"}
         )
 
+        direct_download_links: List[bs4.Tag] = video_list_soup.findAll(
+            name="a", text=re.compile(r"\s*Download\s*")
+        )
+
         # Video start links are marked with an "Abspielen" link
         video_links: List[bs4.Tag] = video_list_soup.findAll(
             name="a", text=re.compile(r"\s*Abspielen\s*")
@@ -232,17 +236,25 @@ class IliasCrawler:
 
         results: List[IliasDownloadInfo] = []
 
-        for link in video_links:
-            results += self._crawl_single_video(video_dir_path, link)
+        # We can download everything directly!
+        if len(direct_download_links) == len(video_links):
+            for link in direct_download_links:
+                results += self._crawl_single_video(video_dir_path, link, True)
+        else:
+            for link in video_links:
+                results += self._crawl_single_video(video_dir_path, link, False)
 
         return results
 
-    def _crawl_single_video(self, parent_path: Path, link: bs4.Tag) -> List[IliasDownloadInfo]:
+    def _crawl_single_video(
+            self,
+            parent_path: Path,
+            link: bs4.Tag,
+            direct_download: bool
+    ) -> List[IliasDownloadInfo]:
         """
         Crawl a single video based on its "Abspielen" link from the video listing.
         """
-        video_page_url = self._abs_url_from_link(link)
-
         # The link is part of a table with multiple columns, describing metadata.
         # 6th child (1 indexed) is the modification time string
         modification_string = link.parent.parent.parent.select_one(
@@ -255,11 +267,23 @@ class IliasCrawler:
         ).getText().strip()
         title += ".mp4"
 
+        video_path: Path = Path(parent_path, title)
+
+        # The video had a direct download button we can use instead
+        if direct_download:
+            LOGGER.debug("Using direct download for video %r", str(video_path))
+            return [IliasDownloadInfo(
+                video_path,
+                self._abs_url_from_link(link),
+                modification_time
+            )]
+
         # Fetch the actual video page. This is a small wrapper page initializing a javscript
         # player. Sadly we can not execute that JS. The actual video stream url is nowhere
         # on the page, but defined in a JS object inside a script tag, passed to the player
         # library.
         # We do the impossible and RegEx the stream JSON object out of the page's HTML source
+        video_page_url = self._abs_url_from_link(link)
         video_page_soup = self._get_page(video_page_url, {})
         regex: re.Pattern = re.compile(
             r"({\"streams\"[\s\S]+?),\s*{\"paella_config_file", re.IGNORECASE
@@ -276,7 +300,7 @@ class IliasCrawler:
         # and fetch the video url!
         video_url = json_object["streams"][0]["sources"]["mp4"][0]["src"]
 
-        return [IliasDownloadInfo(Path(parent_path, title), video_url, modification_time)]
+        return [IliasDownloadInfo(video_path, video_url, modification_time)]
 
     def _crawl_exercises(self, element_path: Path, url: str) -> List[IliasDownloadInfo]:
         """
