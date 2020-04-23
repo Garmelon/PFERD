@@ -7,6 +7,8 @@ more complex configuration, you need to import the other submodules manually.
 
 import logging
 
+from .pferd import Pferd
+
 STYLE = "{"
 FORMAT = "[{levelname:<7}] {message}"
 DATE_FORMAT = "%F %T"

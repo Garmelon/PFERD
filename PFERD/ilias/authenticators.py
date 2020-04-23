@@ -15,6 +15,9 @@ from ..utils import soupify
 LOGGER = logging.getLogger(__name__)
 
 
+# TODO save cookies whenever we know they're good
+
+
 class IliasAuthenticator(abc.ABC):
     # pylint: disable=too-few-public-methods
 

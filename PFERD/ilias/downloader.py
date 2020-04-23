@@ -33,12 +33,21 @@ class IliasDownloadInfo(Transformable):
 class IliasDownloader:
     """A downloader for ILIAS."""
 
-    def __init__(self, tmp_dir: TmpDir, organizer: Organizer, authenticator: IliasAuthenticator):
-        """Create a new IliasDownloader."""
-        self._authenticator = authenticator
-        self._session = requests.Session()
+    def __init__(
+            self,
+            tmp_dir: TmpDir,
+            organizer: Organizer,
+            session: requests.Session,
+            authenticator: IliasAuthenticator,
+    ):
+        """
+        Create a new IliasDownloader.
+        """
+
         self._tmp_dir = tmp_dir
         self._organizer = organizer
+        self._session = session
+        self._authenticator = authenticator
 
     def download_all(self, infos: List[IliasDownloadInfo]) -> None:
         """
@@ -55,7 +64,7 @@ class IliasDownloader:
         Retries authentication until eternity if it could not fetch the file.
         """
 
-        tmp_file = self._tmp_dir.new_file()
+        tmp_file = self._tmp_dir.new_path()
 
         while not self._try_download(info, tmp_file):
             self._authenticator.authenticate(self._session)

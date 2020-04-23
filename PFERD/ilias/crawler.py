@@ -7,11 +7,12 @@ import json
 import logging
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 from urllib.parse import (parse_qs, urlencode, urljoin, urlparse, urlsplit,
                           urlunsplit)
 
 import bs4
+import requests
 
 from ..cookie_jar import CookieJar
 from ..utils import soupify
@@ -22,23 +23,36 @@ from .downloader import IliasDownloadInfo
 LOGGER = logging.getLogger(__name__)
 
 
+IliasFilter = Callable[[Path], bool]
+
+
 class IliasCrawler:
     # pylint: disable=too-few-public-methods
+
+    # TODO use the filter as appropriate
+    # TODO log the things that were discovered to the console on INFO
+
     """
     A crawler for ILIAS.
     """
 
-    def __init__(self, authenticator: IliasAuthenticator, base_url: str, course_id: str):
+    def __init__(
+            self,
+            base_url: str,
+            course_id: str,
+            session: requests.Session,
+            authenticator: IliasAuthenticator,
+            filter_: IliasFilter
+    ):
         """
         Create a new ILIAS crawler.
         """
-        self._cookie_jar = CookieJar(Path("/tmp/test/cookies"))
-        self._cookie_jar.load_cookies()
 
         self._base_url = base_url
         self._course_id = course_id
-        self._session = self._cookie_jar.create_session()
+        self._session = session
         self._authenticator = authenticator
+        self._filter = filter_
 
     def _abs_url_from_link(self, link_tag: bs4.Tag) -> str:
         """
@@ -342,8 +356,6 @@ class IliasCrawler:
 
         self._authenticator.authenticate(self._session)
 
-        self._cookie_jar.save_cookies("Authed")
-
         return self._get_page(url, params)
 
     @staticmethod
@@ -369,11 +381,3 @@ class IliasCrawler:
             LOGGER.debug("Auth: Found #playerContainer")
             return True
         return False
-
-
-def run_as_test(ilias_url: str, course_id: int) -> List[IliasDownloadInfo]:
-    from ..organizer import Organizer
-    from .authenticators import KitShibbolethAuthenticator
-
-    crawler = IliasCrawler(KitShibbolethAuthenticator(), ilias_url, str(course_id))
-    return crawler.crawl()

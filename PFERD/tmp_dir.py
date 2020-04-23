@@ -39,18 +39,24 @@ class TmpDir(Location):
         self.cleanup()
         return None
 
-    def new_file(self, prefix: Optional[str] = None) -> Path:
-        """Return a unique path inside the folder, but don't create a file."""
+    def new_path(self, prefix: Optional[str] = None) -> Path:
+        """
+        Return a unique path inside the directory. Doesn't create a file or
+        directory.
+        """
+
         name = f"{prefix if prefix else 'tmp'}-{self._inc_and_get_counter():03}"
 
         LOGGER.debug("Creating temp file %s", name)
 
         return self.resolve(Path(name))
 
-    def new_folder(self, prefix: Optional[str] = None) -> 'TmpDir':
-        """Create a new nested temporary folder and return its path."""
-        name = f"{prefix if prefix else 'tmp'}-{self._inc_and_get_counter():03}"
+    def new_subdir(self, prefix: Optional[str] = None) -> 'TmpDir':
+        """
+        Create a new nested temporary folder and return it.
+        """
 
+        name = f"{prefix if prefix else 'tmp'}-{self._inc_and_get_counter():03}"
         sub_path = self.resolve(Path(name))
         sub_path.mkdir(parents=True)
 

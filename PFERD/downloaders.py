@@ -3,7 +3,6 @@ General downloaders useful in many situations
 """
 
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import requests
@@ -67,7 +66,7 @@ class HttpDownloader:
 
         with self._session.get(info.url, params=info.parameters, stream=True) as response:
             if response.status_code == 200:
-                tmp_file = self._tmp_dir.new_file()
+                tmp_file = self._tmp_dir.new_path()
                 stream_to_path(response, tmp_file)
                 self._organizer.accept_file(tmp_file, info.path)
             else:
