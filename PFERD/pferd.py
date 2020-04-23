@@ -2,9 +2,9 @@ from pathlib import Path
 from typing import Optional
 
 from .cookie_jar import CookieJar
-from .download_strategies import DownloadEverythingStrategy, DownloadStrategy
 from .ilias import (IliasAuthenticator, IliasCrawler, IliasDirectoryFilter,
                     IliasDownloader, KitShibbolethAuthenticator)
+from .ilias.download_strategies import DownloadStrategy, download_everything
 from .organizer import Organizer
 from .tmp_dir import TmpDir
 from .transform import Transform, apply_transform
@@ -47,7 +47,7 @@ class Pferd(Location):
         downloader.download_all(
             [
                 info for info in apply_transform(transform, info)
-                if download_strategy.should_download(organizer, info)
+                if download_strategy(organizer, info)
             ]
         )
         cookie_jar.save_cookies()
@@ -61,7 +61,7 @@ class Pferd(Location):
             cookies: Optional[Path] = None,
             username: Optional[str] = None,
             password: Optional[str] = None,
-            download_strategy: DownloadStrategy = DownloadEverythingStrategy(),
+            download_strategy: DownloadStrategy = download_everything,
     ) -> None:
         # This authenticator only works with the KIT ilias instance.
         authenticator = KitShibbolethAuthenticator(username=username, password=password)
