@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from typing import Optional
 
@@ -9,9 +10,13 @@ from .location import Location
 from .organizer import Organizer
 from .tmp_dir import TmpDir
 from .transform import Transform, apply_transform
+from .utils import PrettyLogger
 
 # TODO save known-good cookies as soon as possible
-# TODO print synchronizer name before beginning synchronization
+
+
+LOGGER = logging.getLogger(__name__)
+PRETTY = PrettyLogger(LOGGER)
 
 
 class Pferd(Location):
@@ -65,6 +70,7 @@ class Pferd(Location):
     ) -> None:
         # This authenticator only works with the KIT ilias instance.
         authenticator = KitShibbolethAuthenticator(username=username, password=password)
+        PRETTY.starting_synchronizer(target, "ILIAS", course_id)
         self._ilias(
             target=target,
             base_url="https://ilias.studium.kit.edu/",
