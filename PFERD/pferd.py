@@ -10,6 +10,10 @@ from .transform import Transform, apply_transform
 from .utils import Location
 
 
+# TODO save known-good cookies as soon as possible
+# TODO print synchronizer name before beginning synchronization
+
+
 class Pferd(Location):
     # pylint: disable=too-many-arguments
 
