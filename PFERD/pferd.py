@@ -5,10 +5,10 @@ from .cookie_jar import CookieJar
 from .ilias import (IliasAuthenticator, IliasCrawler, IliasDirectoryFilter,
                     IliasDownloader, KitShibbolethAuthenticator)
 from .ilias.download_strategies import DownloadStrategy, download_everything
+from .location import Location
 from .organizer import Organizer
 from .tmp_dir import TmpDir
 from .transform import Transform, apply_transform
-from .utils import Location
 
 # TODO save known-good cookies as soon as possible
 # TODO print synchronizer name before beginning synchronization

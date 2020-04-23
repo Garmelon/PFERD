@@ -9,7 +9,8 @@ import shutil
 from pathlib import Path
 from typing import List, Set
 
-from .utils import Location, PrettyLogger, prompt_yes_no
+from .location import Location
+from .utils import PrettyLogger, prompt_yes_no
 
 LOGGER = logging.getLogger(__name__)
 PRETTY = PrettyLogger(LOGGER)

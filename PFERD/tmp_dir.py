@@ -6,7 +6,7 @@ from pathlib import Path
 from types import TracebackType
 from typing import Optional, Type
 
-from .utils import Location
+from .location import Location
 
 LOGGER = logging.getLogger(__name__)
 
