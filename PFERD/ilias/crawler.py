@@ -14,7 +14,6 @@ from urllib.parse import (parse_qs, urlencode, urljoin, urlparse, urlsplit,
 import bs4
 import requests
 
-from ..cookie_jar import CookieJar
 from ..utils import PrettyLogger, soupify
 from .authenticators import IliasAuthenticator
 from .date_demangler import demangle_date
@@ -28,9 +27,6 @@ IliasDirectoryFilter = Callable[[Path], bool]
 
 class IliasCrawler:
     # pylint: disable=too-few-public-methods
-
-    # TODO use the filter as appropriate
-    # TODO log the things that were discovered to the console on INFO
 
     """
     A crawler for ILIAS.
