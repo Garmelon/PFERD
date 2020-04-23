@@ -1,3 +1,7 @@
+"""
+Convenience functions for using PFERD.
+"""
+
 import logging
 from pathlib import Path
 from typing import Optional
@@ -21,6 +25,10 @@ PRETTY = PrettyLogger(LOGGER)
 
 class Pferd(Location):
     # pylint: disable=too-many-arguments
+    """
+    The main entrypoint in your Pferd usage: This class combines a number of
+    useful shortcuts for running synchronizers in a single interface.
+    """
 
     def __init__(self, base_dir: Path, tmp_dir: Path = Path(".tmp")):
         super().__init__(Path(base_dir))
@@ -38,6 +46,7 @@ class Pferd(Location):
             transform: Transform,
             download_strategy: DownloadStrategy,
     ) -> None:
+        # pylint: disable=too-many-locals
         cookie_jar = CookieJar(cookies)
         session = cookie_jar.create_session()
         tmp_dir = self._tmp_dir.new_subdir()
@@ -68,6 +77,30 @@ class Pferd(Location):
             password: Optional[str] = None,
             download_strategy: DownloadStrategy = download_everything,
     ) -> None:
+        """
+        Synchronizes a folder with the ILIAS instance of the KIT.
+
+        Arguments:
+            target {Path} -- the target path to write the data to
+            course_id {str} -- the id of the main course page (found in the URL after ref_id
+                when opening the course homepage)
+
+        Keyword Arguments:
+            dir_filter {IliasDirectoryFilter} -- A filter for directories. Will be applied on the
+                crawler level, these directories and all of their content is skipped.
+                (default: {lambdax:True})
+            transform {Transform} -- A transformation function for the output paths. Return None
+                to ignore a file. (default: {lambdax:x})
+            cookies {Optional[Path]} -- The path to store and load cookies from.
+                (default: {None})
+            username {Optional[str]} -- The SCC username. If none is given, it will prompt
+                the user. (default: {None})
+            password {Optional[str]} -- The SCC password. If none is given, it will prompt
+                the user. (default: {None})
+            download_strategy {DownloadStrategy} -- A function to determine which files need to
+                be downloaded. Can save bandwidth and reduce the number of requests.
+                (default: {download_everything})
+        """
         # This authenticator only works with the KIT ilias instance.
         authenticator = KitShibbolethAuthenticator(username=username, password=password)
         PRETTY.starting_synchronizer(target, "ILIAS", course_id)

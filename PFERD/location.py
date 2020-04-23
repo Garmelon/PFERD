@@ -1,3 +1,7 @@
+"""
+Contains a Location class for objects with an inherent path.
+"""
+
 from pathlib import Path, PurePath
 
 
