@@ -29,7 +29,7 @@ class Organizer(Location):
         self._known_files: Set[Path] = set()
 
         # Keep the root dir
-        self.mark(path)
+        self._known_files.add(path.resolve())
 
     def accept_file(self, src: Path, dst: PurePath) -> None:
         """Move a file to this organizer and mark it."""
