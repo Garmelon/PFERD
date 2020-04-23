@@ -4,3 +4,4 @@ __pycache__/
 .tmp/
 .env
 .vscode
+ilias_cookies.txt
