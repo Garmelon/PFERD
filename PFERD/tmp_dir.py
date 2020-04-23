@@ -18,6 +18,7 @@ class TmpDir(Location):
         """Create a new temporary folder for the given path."""
         super().__init__(path)
         self._counter = 0
+        self.cleanup()
         self.path.mkdir(parents=True, exist_ok=True)
 
     def __str__(self) -> str:

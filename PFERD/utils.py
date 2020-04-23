@@ -88,7 +88,7 @@ class Location:
     """
 
     def __init__(self, path: Path):
-        self._path = path
+        self._path = path.resolve()
 
     @property
     def path(self) -> Path:
