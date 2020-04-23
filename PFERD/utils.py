@@ -127,7 +127,8 @@ class PrettyLogger:
         """
 
         self.logger.info(
-            f"{Fore.MAGENTA}{Style.BRIGHT}Modified {file_name}.{Style.RESET_ALL}")
+            f"{Fore.MAGENTA}{Style.BRIGHT}Modified {str(file_name)!r}.{Style.RESET_ALL}"
+        )
 
     def new_file(self, file_name: Path) -> None:
         """
@@ -135,14 +136,23 @@ class PrettyLogger:
         """
 
         self.logger.info(
-            f"{Fore.GREEN}{Style.BRIGHT}Created {file_name}.{Style.RESET_ALL}")
+            f"{Fore.GREEN}{Style.BRIGHT}Created {str(file_name)!r}.{Style.RESET_ALL}")
 
     def ignored_file(self, file_name: Path) -> None:
         """
-        Nothing in particular happened to this file.
+        Nothing in particular happened to this file or directory.
         """
 
-        self.logger.info(f"{Style.DIM}Ignored {file_name}.{Style.RESET_ALL}")
+        self.logger.info(f"{Style.DIM}Ignored {str(file_name)!r}.{Style.RESET_ALL}")
+
+    def filtered_path(self, path: Path) -> None:
+        """
+        A crawler filter rejected the given path.
+        """
+
+        self.logger.info(
+            f"{Style.DIM}Not considering {str(path)!r} due to filter rules.{Style.RESET_ALL}"
+        )
 
     def starting_synchronizer(
             self,
@@ -157,6 +167,6 @@ class PrettyLogger:
         subject_str = f"{subject} " if subject else ""
         self.logger.info("")
         self.logger.info((
-            f"{Fore.CYAN}{Style.BRIGHT}Synchronizing {subject_str}to {target_directory}"
+            f"{Fore.CYAN}{Style.BRIGHT}Synchronizing {subject_str}to {str(target_directory)!r}"
             f" using the {synchronizer_name} synchronizer.{Style.RESET_ALL}"
         ))

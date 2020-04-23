@@ -2,8 +2,8 @@ from pathlib import Path
 from typing import Optional
 
 from .cookie_jar import CookieJar
-from .ilias import (IliasAuthenticator, IliasCrawler, IliasDownloader,
-                    IliasFilter, KitShibbolethAuthenticator)
+from .ilias import (IliasAuthenticator, IliasCrawler, IliasDirectoryFilter,
+                    IliasDownloader, KitShibbolethAuthenticator)
 from .organizer import Organizer
 from .tmp_dir import TmpDir
 from .transform import Transform, apply_transform
@@ -25,7 +25,7 @@ class Pferd(Location):
             course_id: str,
             authenticator: IliasAuthenticator,
             cookies: Optional[Path],
-            filter_: IliasFilter,
+            dir_filter: IliasDirectoryFilter,
             transform: Transform,
     ) -> None:
         cookie_jar = CookieJar(cookies)
@@ -33,7 +33,7 @@ class Pferd(Location):
         tmp_dir = self._tmp_dir.new_subdir()
         organizer = Organizer(self.resolve(target))
 
-        crawler = IliasCrawler(base_url, course_id, session, authenticator, filter_)
+        crawler = IliasCrawler(base_url, course_id, session, authenticator, dir_filter)
         downloader = IliasDownloader(tmp_dir, organizer, session, authenticator)
 
         cookie_jar.load_cookies()
@@ -46,7 +46,7 @@ class Pferd(Location):
             self,
             target: Path,
             course_id: str,
-            filter_: IliasFilter = lambda x: True,
+            dir_filter: IliasDirectoryFilter = lambda x: True,
             transform: Transform = lambda x: x,
             cookies: Optional[Path] = None,
             username: Optional[str] = None,
@@ -60,6 +60,6 @@ class Pferd(Location):
             course_id=course_id,
             authenticator=authenticator,
             cookies=cookies,
-            filter_=filter_,
+            dir_filter=dir_filter,
             transform=transform,
         )

@@ -15,15 +15,15 @@ import bs4
 import requests
 
 from ..cookie_jar import CookieJar
-from ..utils import soupify
+from ..utils import PrettyLogger, soupify
 from .authenticators import IliasAuthenticator
 from .date_demangler import demangle_date
 from .downloader import IliasDownloadInfo
 
 LOGGER = logging.getLogger(__name__)
+PRETTY = PrettyLogger(LOGGER)
 
-
-IliasFilter = Callable[[Path], bool]
+IliasDirectoryFilter = Callable[[Path], bool]
 
 
 class IliasCrawler:
@@ -36,13 +36,14 @@ class IliasCrawler:
     A crawler for ILIAS.
     """
 
+    # pylint: disable=too-many-arguments
     def __init__(
             self,
             base_url: str,
             course_id: str,
             session: requests.Session,
             authenticator: IliasAuthenticator,
-            filter_: IliasFilter
+            dir_filter: IliasDirectoryFilter
     ):
         """
         Create a new ILIAS crawler.
@@ -52,7 +53,7 @@ class IliasCrawler:
         self._course_id = course_id
         self._session = session
         self._authenticator = authenticator
-        self._filter = filter_
+        self.dir_filter = dir_filter
 
     def _abs_url_from_link(self, link_tag: bs4.Tag) -> str:
         """
@@ -153,13 +154,23 @@ class IliasCrawler:
 
     def _switch_on_folder_like(
             self,
-            path: Path,
+            parent_path: Path,
             link_element: bs4.Tag,
             url: str
     ) -> List[IliasDownloadInfo]:
         """
         Try crawling something that looks like a folder.
         """
+        # pylint: disable=too-many-return-statements
+
+        element_path = Path(parent_path, link_element.getText().strip())
+
+        if not self.dir_filter(element_path):
+            PRETTY.filtered_path(element_path)
+            return []
+
+        LOGGER.info("Searching %r", str(element_path))
+
         found_parent: Optional[bs4.Tag] = None
 
         # We look for the outer div of our inner link, to find information around it
@@ -185,8 +196,6 @@ class IliasCrawler:
             LOGGER.debug("Skipping forum at %r", url)
             return []
 
-        element_path = Path(path, link_element.getText().strip())
-
         # An exercise
         if str(img_tag["src"]).endswith("icon_exc.svg"):
             LOGGER.debug("Crawling exercises at %r", url)
@@ -200,7 +209,7 @@ class IliasCrawler:
         # Assume it is a folder
         return self._crawl_folder(element_path, self._abs_url_from_link(link_element))
 
-    def _crawl_video_directory(self, path: Path, url: str) -> List[IliasDownloadInfo]:
+    def _crawl_video_directory(self, video_dir_path: Path, url: str) -> List[IliasDownloadInfo]:
         """
         Crawl the video overview site.
         """
@@ -224,11 +233,11 @@ class IliasCrawler:
         results: List[IliasDownloadInfo] = []
 
         for link in video_links:
-            results += self._crawl_single_video(path, link)
+            results += self._crawl_single_video(video_dir_path, link)
 
         return results
 
-    def _crawl_single_video(self, path: Path, link: bs4.Tag) -> List[IliasDownloadInfo]:
+    def _crawl_single_video(self, parent_path: Path, link: bs4.Tag) -> List[IliasDownloadInfo]:
         """
         Crawl a single video based on its "Abspielen" link from the video listing.
         """
@@ -267,7 +276,7 @@ class IliasCrawler:
         # and fetch the video url!
         video_url = json_object["streams"][0]["sources"]["mp4"][0]["src"]
 
-        return [IliasDownloadInfo(Path(path, title), video_url, modification_time)]
+        return [IliasDownloadInfo(Path(parent_path, title), video_url, modification_time)]
 
     def _crawl_exercises(self, element_path: Path, url: str) -> List[IliasDownloadInfo]:
         """
@@ -318,7 +327,7 @@ class IliasCrawler:
 
         return results
 
-    def _crawl_folder(self, path: Path, url: str) -> List[IliasDownloadInfo]:
+    def _crawl_folder(self, folder_path: Path, url: str) -> List[IliasDownloadInfo]:
         """
         Crawl all files in a folder-like element.
         """
@@ -330,7 +339,7 @@ class IliasCrawler:
         links: List[bs4.Tag] = soup.select("a.il_ContainerItemTitle")
         for link in links:
             abs_url = self._abs_url_from_link(link)
-            result += self._switch_on_crawled_type(path, link, abs_url)
+            result += self._switch_on_crawled_type(folder_path, link, abs_url)
 
         return result
 
