@@ -3,7 +3,7 @@
 import datetime
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import bs4
 import requests
@@ -26,7 +26,7 @@ class IliasDownloadInfo(Transformable):
     """
 
     url: str
-    modification_date: datetime.datetime
+    modification_date: Optional[datetime.datetime]
     # parameters: Dict[str, Any] = field(default_factory=dict)
 
 

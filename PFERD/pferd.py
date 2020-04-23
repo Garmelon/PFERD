@@ -2,13 +2,13 @@ from pathlib import Path
 from typing import Optional
 
 from .cookie_jar import CookieJar
+from .download_strategies import DownloadEverythingStrategy, DownloadStrategy
 from .ilias import (IliasAuthenticator, IliasCrawler, IliasDirectoryFilter,
                     IliasDownloader, KitShibbolethAuthenticator)
 from .organizer import Organizer
 from .tmp_dir import TmpDir
 from .transform import Transform, apply_transform
 from .utils import Location
-
 
 # TODO save known-good cookies as soon as possible
 # TODO print synchronizer name before beginning synchronization
@@ -31,6 +31,7 @@ class Pferd(Location):
             cookies: Optional[Path],
             dir_filter: IliasDirectoryFilter,
             transform: Transform,
+            download_strategy: DownloadStrategy,
     ) -> None:
         cookie_jar = CookieJar(cookies)
         session = cookie_jar.create_session()
@@ -43,7 +44,12 @@ class Pferd(Location):
         cookie_jar.load_cookies()
         info = crawler.crawl()
         cookie_jar.save_cookies()
-        downloader.download_all(apply_transform(transform, info))
+        downloader.download_all(
+            [
+                info for info in apply_transform(transform, info)
+                if download_strategy.should_download(organizer, info)
+            ]
+        )
         cookie_jar.save_cookies()
 
     def ilias_kit(
@@ -55,6 +61,7 @@ class Pferd(Location):
             cookies: Optional[Path] = None,
             username: Optional[str] = None,
             password: Optional[str] = None,
+            download_strategy: DownloadStrategy = DownloadEverythingStrategy(),
     ) -> None:
         # This authenticator only works with the KIT ilias instance.
         authenticator = KitShibbolethAuthenticator(username=username, password=password)
@@ -66,4 +73,5 @@ class Pferd(Location):
             cookies=cookies,
             dir_filter=dir_filter,
             transform=transform,
+            download_strategy=download_strategy,
         )

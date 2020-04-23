@@ -7,6 +7,7 @@ more complex configuration, you need to import the other submodules manually.
 
 import logging
 
+from .download_strategies import *
 from .pferd import Pferd
 
 STYLE = "{"
