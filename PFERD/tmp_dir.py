@@ -69,7 +69,8 @@ class TmpDir(Location):
         """Delete this folder and all contained files."""
         LOGGER.debug("Deleting temp folder %s", self.path)
 
-        shutil.rmtree(self.path.resolve())
+        if self.path.resolve().exists():
+            shutil.rmtree(self.path.resolve())
 
     def _inc_and_get_counter(self) -> int:
         """Get and increment the counter by one."""
