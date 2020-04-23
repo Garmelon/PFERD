@@ -86,7 +86,7 @@ class PrettyLogger:
     def __init__(self, logger: logging.Logger) -> None:
         self.logger = logger
 
-    def modified_file(self, file_name: Path) -> None:
+    def modified_file(self, file_name: PurePath) -> None:
         """
         An existing file has changed.
         """
@@ -95,7 +95,7 @@ class PrettyLogger:
             f"{Fore.MAGENTA}{Style.BRIGHT}Modified {str(file_name)!r}.{Style.RESET_ALL}"
         )
 
-    def new_file(self, file_name: Path) -> None:
+    def new_file(self, file_name: PurePath) -> None:
         """
         A new file has been downloaded.
         """
@@ -103,14 +103,14 @@ class PrettyLogger:
         self.logger.info(
             f"{Fore.GREEN}{Style.BRIGHT}Created {str(file_name)!r}.{Style.RESET_ALL}")
 
-    def ignored_file(self, file_name: Path) -> None:
+    def ignored_file(self, file_name: PurePath) -> None:
         """
         Nothing in particular happened to this file or directory.
         """
 
         self.logger.info(f"{Style.DIM}Ignored {str(file_name)!r}.{Style.RESET_ALL}")
 
-    def filtered_path(self, path: Path, reason: str) -> None:
+    def filtered_path(self, path: PurePath, reason: str) -> None:
         """
         A crawler filter rejected the given path.
         """

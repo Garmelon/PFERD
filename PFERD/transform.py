@@ -6,11 +6,10 @@ scheme to another.
 """
 
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import PurePath
 from typing import Callable, List, Optional, TypeVar
 
-
-Transform = Callable[[Path], Optional[Path]]
+Transform = Callable[[PurePath], Optional[PurePath]]
 
 
 @dataclass
@@ -19,14 +18,14 @@ class Transformable:
     An object that can be transformed by a Transform.
     """
 
-    path: Path
+    path: PurePath
 
 
 TF = TypeVar("TF", bound=Transformable)
 
 
 def apply_transform(
-        transform: Callable[[Path], Optional[Path]],
+        transform: Transform,
         transformables: List[TF],
 ) -> List[TF]:
     """

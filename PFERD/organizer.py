@@ -6,7 +6,7 @@ A organizer is bound to a single directory.
 import filecmp
 import logging
 import shutil
-from pathlib import Path
+from pathlib import Path, PurePath
 from typing import List, Set
 
 from .location import Location
@@ -31,7 +31,7 @@ class Organizer(Location):
         # Keep the root dir
         self.mark(path)
 
-    def accept_file(self, src: Path, dst: Path) -> None:
+    def accept_file(self, src: Path, dst: PurePath) -> None:
         """Move a file to this organizer and mark it."""
         src_absolute = src.resolve()
         dst_absolute = self.resolve(dst)
@@ -73,9 +73,9 @@ class Organizer(Location):
 
         self.mark(dst)
 
-    def mark(self, path: Path) -> None:
+    def mark(self, path: PurePath) -> None:
         """Mark a file as used so it will not get cleaned up."""
-        absolute_path = self.path.joinpath(path).resolve()
+        absolute_path = self.resolve(path)
         self._known_files.add(absolute_path)
         LOGGER.debug("Tracked %s", absolute_path)
 
