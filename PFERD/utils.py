@@ -145,13 +145,15 @@ class PrettyLogger:
 
         self.logger.info(f"{Style.DIM}Ignored {str(file_name)!r}.{Style.RESET_ALL}")
 
-    def filtered_path(self, path: Path) -> None:
+    def filtered_path(self, path: Path, reason: str) -> None:
         """
         A crawler filter rejected the given path.
         """
 
         self.logger.info(
-            f"{Style.DIM}Not considering {str(path)!r} due to filter rules.{Style.RESET_ALL}"
+            f"{Style.DIM}Not considering {str(path)!r} due to filter rules"
+            f" ({Style.NORMAL}{reason}{Style.DIM})."
+            f"{Style.RESET_ALL}"
         )
 
     def starting_synchronizer(

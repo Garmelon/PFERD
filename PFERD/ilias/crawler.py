@@ -162,7 +162,7 @@ class IliasCrawler:
         element_path = Path(parent_path, link_element.getText().strip())
 
         if not self.dir_filter(element_path):
-            PRETTY.filtered_path(element_path)
+            PRETTY.filtered_path(element_path, "user filter")
             return []
 
         LOGGER.info("Searching %r", str(element_path))
@@ -190,12 +190,18 @@ class IliasCrawler:
         # A forum
         if str(img_tag["src"]).endswith("frm.svg"):
             LOGGER.debug("Skipping forum at %r", url)
+            PRETTY.filtered_path(element_path, "forum")
             return []
 
         # An exercise
         if str(img_tag["src"]).endswith("icon_exc.svg"):
             LOGGER.debug("Crawling exercises at %r", url)
             return self._crawl_exercises(element_path, url)
+
+        if str(img_tag["src"]).endswith("icon_webr.svg"):
+            LOGGER.debug("Skipping external link at %r", url)
+            PRETTY.filtered_path(element_path, "external link")
+            return []
 
         # Match the opencast video plugin
         if "opencast" in str(img_tag["alt"]).lower():
