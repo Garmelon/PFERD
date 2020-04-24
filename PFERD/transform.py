@@ -59,6 +59,8 @@ def _pattern(regex: Regex) -> re.Pattern:
 
 # Transform combinators
 
+keep = lambda path: path
+
 def attempt(*args: Transform) -> Transform:
     def inner(path: PurePath) -> Optional[PurePath]:
         for transform in args:
@@ -133,6 +135,7 @@ def re_rename(regex: Regex, target: str) -> Transform:
             return path.with_name(target.format(*groups))
         return None
     return inner
+
 
 # def match(regex: Union[str, re.Pattern]) -> Transform:
 #     pattern: re.Pattern

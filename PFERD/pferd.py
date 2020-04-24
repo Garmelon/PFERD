@@ -4,7 +4,7 @@ Convenience functions for using PFERD.
 
 import logging
 from pathlib import Path
-from typing import Optional, Union
+from typing import List, Optional, Union
 
 from .cookie_jar import CookieJar
 from .ilias import (IliasAuthenticator, IliasCrawler, IliasDirectoryFilter,
@@ -13,7 +13,7 @@ from .ilias import (IliasAuthenticator, IliasCrawler, IliasDirectoryFilter,
 from .location import Location
 from .organizer import Organizer
 from .tmp_dir import TmpDir
-from .transform import Transform, apply_transform
+from .transform import Transform, Transformable, apply_transform
 from .utils import PrettyLogger
 
 # TODO save known-good cookies as soon as possible
@@ -30,10 +30,22 @@ class Pferd(Location):
     useful shortcuts for running synchronizers in a single interface.
     """
 
-    def __init__(self, base_dir: Path, tmp_dir: Path = Path(".tmp")):
+    def __init__(
+            self,
+            base_dir: Path,
+            tmp_dir: Path = Path(".tmp"),
+            test_run: bool = False
+    ):
         super().__init__(Path(base_dir))
 
         self._tmp_dir = TmpDir(self.resolve(tmp_dir))
+        self._test_run = test_run
+
+    def _print_transformables(self, transformables: List[Transformable]) -> None:
+        LOGGER.info("")
+        LOGGER.info("Results of the test run:")
+        for transformable in transformables:
+            LOGGER.info(transformable.path)
 
     def _ilias(
             self,
@@ -58,7 +70,13 @@ class Pferd(Location):
         cookie_jar.load_cookies()
         info = crawler.crawl()
         cookie_jar.save_cookies()
-        downloader.download_all(apply_transform(transform, info))
+
+        transformed = apply_transform(transform, info)
+        if self._test_run:
+            self._print_transformables(transformed)
+            return
+
+        downloader.download_all(transformed)
         cookie_jar.save_cookies()
         organizer.cleanup()
 
