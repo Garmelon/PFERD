@@ -9,7 +9,8 @@ from typing import Optional
 from .cookie_jar import CookieJar
 from .ilias import (IliasAuthenticator, IliasCrawler, IliasDirectoryFilter,
                     IliasDownloader, KitShibbolethAuthenticator)
-from .ilias.download_strategies import DownloadStrategy, download_everything
+from .ilias.download_strategies import (DownloadStrategy,
+                                        download_modified_or_new)
 from .location import Location
 from .organizer import Organizer
 from .tmp_dir import TmpDir
@@ -75,7 +76,7 @@ class Pferd(Location):
             cookies: Optional[Path] = None,
             username: Optional[str] = None,
             password: Optional[str] = None,
-            download_strategy: DownloadStrategy = download_everything,
+            download_strategy: DownloadStrategy = download_modified_or_new,
     ) -> None:
         """
         Synchronizes a folder with the ILIAS instance of the KIT.
@@ -99,7 +100,7 @@ class Pferd(Location):
                 the user. (default: {None})
             download_strategy {DownloadStrategy} -- A function to determine which files need to
                 be downloaded. Can save bandwidth and reduce the number of requests.
-                (default: {download_everything})
+                (default: {download_modified_or_new})
         """
         # This authenticator only works with the KIT ilias instance.
         authenticator = KitShibbolethAuthenticator(username=username, password=password)
