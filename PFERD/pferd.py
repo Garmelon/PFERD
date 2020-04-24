@@ -66,6 +66,7 @@ class Pferd(Location):
             ]
         )
         cookie_jar.save_cookies()
+        organizer.cleanup()
 
     def ilias_kit(
             self,
