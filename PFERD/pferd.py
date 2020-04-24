@@ -13,7 +13,7 @@ from .ilias import (IliasAuthenticator, IliasCrawler, IliasDirectoryFilter,
 from .location import Location
 from .organizer import Organizer
 from .tmp_dir import TmpDir
-from .transform import Transform, Transformable, apply_transform
+from .transform import TF, Transform, apply_transform
 from .utils import PrettyLogger
 
 # TODO save known-good cookies as soon as possible
@@ -41,7 +41,8 @@ class Pferd(Location):
         self._tmp_dir = TmpDir(self.resolve(tmp_dir))
         self._test_run = test_run
 
-    def _print_transformables(self, transformables: List[Transformable]) -> None:
+    @staticmethod
+    def _print_transformables(transformables: List[TF]) -> None:
         LOGGER.info("")
         LOGGER.info("Results of the test run:")
         for transformable in transformables:

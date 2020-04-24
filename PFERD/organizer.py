@@ -15,6 +15,8 @@ from .utils import PrettyLogger, prompt_yes_no
 LOGGER = logging.getLogger(__name__)
 PRETTY = PrettyLogger(LOGGER)
 
+# TODO prevent overwriting an already marked file
+
 
 class FileAcceptException(Exception):
     """An exception while accepting a file."""
