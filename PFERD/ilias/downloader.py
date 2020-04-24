@@ -1,9 +1,10 @@
 """Contains a downloader for ILIAS."""
 
 import datetime
+import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional
+from typing import Callable, List, Optional
 
 import bs4
 import requests
@@ -11,8 +12,11 @@ import requests
 from ..organizer import Organizer
 from ..tmp_dir import TmpDir
 from ..transform import Transformable
-from ..utils import soupify, stream_to_path
+from ..utils import PrettyLogger, soupify, stream_to_path
 from .authenticators import IliasAuthenticator
+
+LOGGER = logging.getLogger(__name__)
+PRETTY = PrettyLogger(LOGGER)
 
 
 class ContentTypeException(Exception):
@@ -30,7 +34,36 @@ class IliasDownloadInfo(Transformable):
     # parameters: Dict[str, Any] = field(default_factory=dict)
 
 
+IliasDownloadStrategy = Callable[[Organizer, IliasDownloadInfo], bool]
+
+
+def download_everything(organizer: Organizer, info: IliasDownloadInfo) -> bool:
+    # pylint: disable=unused-argument
+    """
+    Accepts everything.
+    """
+    return True
+
+
+def download_modified_or_new(organizer: Organizer, info: IliasDownloadInfo) -> bool:
+    """
+    Accepts new files or files with a more recent modification date.
+    """
+    resolved_file = organizer.resolve(info.path)
+    if not resolved_file.exists() or info.modification_date is None:
+        return True
+    resolved_mod_time_seconds = resolved_file.stat().st_mtime
+
+    # Download if the info is newer
+    if info.modification_date.timestamp() > resolved_mod_time_seconds:
+        return True
+
+    PRETTY.filtered_path(info.path, "Local file had newer or equal modification time")
+    return False
+
+
 class IliasDownloader:
+    # pylint: disable=too-many-arguments
     """A downloader for ILIAS."""
 
     def __init__(
@@ -39,6 +72,7 @@ class IliasDownloader:
             organizer: Organizer,
             session: requests.Session,
             authenticator: IliasAuthenticator,
+            strategy: IliasDownloadStrategy,
     ):
         """
         Create a new IliasDownloader.
@@ -48,6 +82,7 @@ class IliasDownloader:
         self._organizer = organizer
         self._session = session
         self._authenticator = authenticator
+        self._strategy = strategy
 
     def download_all(self, infos: List[IliasDownloadInfo]) -> None:
         """
@@ -63,6 +98,10 @@ class IliasDownloader:
 
         Retries authentication until eternity if it could not fetch the file.
         """
+
+        if not self._strategy(self._organizer, info):
+            self._organizer.mark(info.path)
+            return
 
         tmp_file = self._tmp_dir.new_path()
 

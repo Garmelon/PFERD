@@ -8,9 +8,8 @@ from typing import Optional, Union
 
 from .cookie_jar import CookieJar
 from .ilias import (IliasAuthenticator, IliasCrawler, IliasDirectoryFilter,
-                    IliasDownloader, KitShibbolethAuthenticator)
-from .ilias.download_strategies import (DownloadStrategy,
-                                        download_modified_or_new)
+                    IliasDownloader, IliasDownloadStrategy,
+                    KitShibbolethAuthenticator, download_modified_or_new)
 from .location import Location
 from .organizer import Organizer
 from .tmp_dir import TmpDir
@@ -45,7 +44,7 @@ class Pferd(Location):
             cookies: Optional[Path],
             dir_filter: IliasDirectoryFilter,
             transform: Transform,
-            download_strategy: DownloadStrategy,
+            download_strategy: IliasDownloadStrategy,
     ) -> None:
         # pylint: disable=too-many-locals
         cookie_jar = CookieJar(cookies)
@@ -54,17 +53,12 @@ class Pferd(Location):
         organizer = Organizer(self.resolve(Path(target)))
 
         crawler = IliasCrawler(base_url, course_id, session, authenticator, dir_filter)
-        downloader = IliasDownloader(tmp_dir, organizer, session, authenticator)
+        downloader = IliasDownloader(tmp_dir, organizer, session, authenticator, download_strategy)
 
         cookie_jar.load_cookies()
         info = crawler.crawl()
         cookie_jar.save_cookies()
-        downloader.download_all(
-            [
-                info for info in apply_transform(transform, info)
-                if download_strategy(organizer, info)
-            ]
-        )
+        downloader.download_all(apply_transform(transform, info))
         cookie_jar.save_cookies()
         organizer.cleanup()
 
@@ -77,7 +71,7 @@ class Pferd(Location):
             cookies: Optional[Path] = None,
             username: Optional[str] = None,
             password: Optional[str] = None,
-            download_strategy: DownloadStrategy = download_modified_or_new,
+            download_strategy: IliasDownloadStrategy = download_modified_or_new,
     ) -> None:
         """
         Synchronizes a folder with the ILIAS instance of the KIT.
