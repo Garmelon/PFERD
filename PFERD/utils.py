@@ -4,7 +4,7 @@ A few utility bobs and bits.
 
 import logging
 from pathlib import Path, PurePath
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 import bs4
 import requests
@@ -123,7 +123,7 @@ class PrettyLogger:
 
     def starting_synchronizer(
             self,
-            target_directory: Path,
+            target_directory: Union[Path, str],
             synchronizer_name: str,
             subject: Optional[str] = None,
     ) -> None:

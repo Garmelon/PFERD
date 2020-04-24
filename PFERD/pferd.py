@@ -4,7 +4,7 @@ Convenience functions for using PFERD.
 
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 from .cookie_jar import CookieJar
 from .ilias import (IliasAuthenticator, IliasCrawler, IliasDirectoryFilter,
@@ -38,7 +38,7 @@ class Pferd(Location):
 
     def _ilias(
             self,
-            target: Path,
+            target: Union[Path, str],
             base_url: str,
             course_id: str,
             authenticator: IliasAuthenticator,
@@ -51,7 +51,7 @@ class Pferd(Location):
         cookie_jar = CookieJar(cookies)
         session = cookie_jar.create_session()
         tmp_dir = self._tmp_dir.new_subdir()
-        organizer = Organizer(self.resolve(target))
+        organizer = Organizer(self.resolve(Path(target)))
 
         crawler = IliasCrawler(base_url, course_id, session, authenticator, dir_filter)
         downloader = IliasDownloader(tmp_dir, organizer, session, authenticator)
@@ -69,7 +69,7 @@ class Pferd(Location):
 
     def ilias_kit(
             self,
-            target: Path,
+            target: Union[Path, str],
             course_id: str,
             dir_filter: IliasDirectoryFilter = lambda x: True,
             transform: Transform = lambda x: x,
