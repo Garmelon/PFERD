@@ -58,7 +58,7 @@ def download_modified_or_new(organizer: Organizer, info: IliasDownloadInfo) -> b
     if info.modification_date.timestamp() > resolved_mod_time_seconds:
         return True
 
-    PRETTY.filtered_path(info.path, "Local file had newer or equal modification time")
+    PRETTY.ignored_file(info.path, "local file has newer or equal modification time")
     return False
 
 

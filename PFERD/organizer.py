@@ -56,7 +56,7 @@ class Organizer(Location):
         if dst_absolute.exists() and dst_absolute.is_file():
             if filecmp.cmp(str(src_absolute), str(dst_absolute), shallow=False):
                 # Bail out, nothing more to do
-                PRETTY.ignored_file(dst_absolute)
+                PRETTY.ignored_file(dst_absolute, "same file contents")
                 self.mark(dst)
                 return
 

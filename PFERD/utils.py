@@ -86,39 +86,49 @@ class PrettyLogger:
     def __init__(self, logger: logging.Logger) -> None:
         self.logger = logger
 
-    def modified_file(self, file_name: PurePath) -> None:
+    def modified_file(self, path: PurePath) -> None:
         """
         An existing file has changed.
         """
 
         self.logger.info(
-            f"{Fore.MAGENTA}{Style.BRIGHT}Modified {str(file_name)!r}.{Style.RESET_ALL}"
+            f"{Fore.MAGENTA}{Style.BRIGHT}Modified {str(path)!r}.{Style.RESET_ALL}"
         )
 
-    def new_file(self, file_name: PurePath) -> None:
+    def new_file(self, path: PurePath) -> None:
         """
         A new file has been downloaded.
         """
 
         self.logger.info(
-            f"{Fore.GREEN}{Style.BRIGHT}Created {str(file_name)!r}.{Style.RESET_ALL}")
+            f"{Fore.GREEN}{Style.BRIGHT}Created {str(path)!r}.{Style.RESET_ALL}"
+        )
 
-    def ignored_file(self, file_name: PurePath) -> None:
+    def ignored_file(self, path: PurePath, reason: str) -> None:
         """
-        Nothing in particular happened to this file or directory.
-        """
-
-        self.logger.info(f"{Style.DIM}Ignored {str(file_name)!r}.{Style.RESET_ALL}")
-
-    def filtered_path(self, path: PurePath, reason: str) -> None:
-        """
-        A crawler filter rejected the given path.
+        File was not downloaded or modified.
         """
 
         self.logger.info(
-            f"{Style.DIM}Not considering {str(path)!r} due to filter rules"
-            f" ({Style.NORMAL}{reason}{Style.DIM})."
-            f"{Style.RESET_ALL}"
+            f"{Style.DIM}Ignored {str(path)!r} "
+            f"({Style.NORMAL}{reason}{Style.DIM}).{Style.RESET_ALL}"
+        )
+
+    def searching(self, path: PurePath) -> None:
+        """
+        A crawler searches a particular object.
+        """
+
+        self.logger.info(f"Searching {str(path)!r}")
+
+    def not_searching(self, path: PurePath, reason: str) -> None:
+        """
+        A crawler does not search a particular object.
+        """
+
+        self.logger.info(
+            f"{Style.DIM}Not searching {str(path)!r} "
+            f"({Style.NORMAL}{reason}{Style.DIM}).{Style.RESET_ALL}"
         )
 
     def starting_synchronizer(
