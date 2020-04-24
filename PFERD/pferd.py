@@ -14,7 +14,7 @@ from .location import Location
 from .organizer import Organizer
 from .tmp_dir import TmpDir
 from .transform import TF, Transform, apply_transform
-from .utils import PrettyLogger
+from .utils import PrettyLogger, PathLike, to_path
 
 # TODO save known-good cookies as soon as possible
 
@@ -50,20 +50,20 @@ class Pferd(Location):
 
     def _ilias(
             self,
-            target: Union[Path, str],
+            target: PathLike,
             base_url: str,
             course_id: str,
             authenticator: IliasAuthenticator,
-            cookies: Optional[Path],
+            cookies: Optional[PathLike],
             dir_filter: IliasDirectoryFilter,
             transform: Transform,
             download_strategy: IliasDownloadStrategy,
     ) -> None:
         # pylint: disable=too-many-locals
-        cookie_jar = CookieJar(cookies)
+        cookie_jar = CookieJar(to_path(cookies) if cookies else None)
         session = cookie_jar.create_session()
         tmp_dir = self._tmp_dir.new_subdir()
-        organizer = Organizer(self.resolve(Path(target)))
+        organizer = Organizer(self.resolve(to_path(target)))
 
         crawler = IliasCrawler(base_url, course_id, session, authenticator, dir_filter)
         downloader = IliasDownloader(tmp_dir, organizer, session, authenticator, download_strategy)
@@ -83,11 +83,11 @@ class Pferd(Location):
 
     def ilias_kit(
             self,
-            target: Union[Path, str],
+            target: PathLike,
             course_id: str,
             dir_filter: IliasDirectoryFilter = lambda x: True,
             transform: Transform = lambda x: x,
-            cookies: Optional[Path] = None,
+            cookies: Optional[PathLike] = None,
             username: Optional[str] = None,
             password: Optional[str] = None,
             download_strategy: IliasDownloadStrategy = download_modified_or_new,
