@@ -99,6 +99,7 @@ class IliasDownloader:
         Retries authentication until eternity if it could not fetch the file.
         """
 
+        LOGGER.debug("Downloading %r", info)
         if not self._strategy(self._organizer, info):
             self._organizer.mark(info.path)
             return
