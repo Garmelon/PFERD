@@ -111,8 +111,8 @@ class IliasCrawler:
             LOGGER.debug("Processing folder-like...")
             return self._switch_on_folder_like(path, link_element, url)
 
-        PRETTY.warn(
-            "Got unknown element type in switch. I am not sure what horror I found on the"
+        PRETTY.warning(
+            "Got unkwarning element type in switch. I am not sure what horror I found on the"
             f" ILIAS page. The element was at {str(path)!r} and it is {link_element!r})"
         )
         return []

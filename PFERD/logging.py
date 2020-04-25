@@ -66,7 +66,7 @@ class PrettyLogger:
             f"{Fore.RED}{Style.BRIGHT}{message}{Style.RESET_ALL}"
         )
 
-    def warn(self, message: str) -> None:
+    def warning(self, message: str) -> None:
         """
         Print a warning message indicating some operation failed, but the error can be recovered
         or ignored.
