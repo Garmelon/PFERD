@@ -1,7 +1,8 @@
 import argparse
 from pathlib import Path, PurePath
 
-import PFERD
+from PFERD import Pferd
+from PFERD.logging import enable_logging
 from PFERD.transform import (attempt, glob, keep, move, move_dir, optionally,
                              re_move)
 
@@ -45,9 +46,12 @@ tf_ss_2020_pg = attempt(
 
 
 def df_ss_2020_or1(path: PurePath) -> bool:
-    if glob("Tutorien/")(path): return True
-    if glob("Tutorien/Tutorium 10, dienstags 15:45 Uhr/")(path): return True
-    if glob("Tutorien/*")(path): return False
+    if glob("Tutorien/")(path):
+        return True
+    if glob("Tutorien/Tutorium 10, dienstags 15:45 Uhr/")(path):
+        return True
+    if glob("Tutorien/*")(path):
+        return False
     return True
 
 
@@ -64,8 +68,8 @@ def main() -> None:
     parser.add_argument("synchronizers", nargs="*")
     args = parser.parse_args()
 
-    PFERD.enable_logging()
-    pferd = PFERD.Pferd(Path(__file__).parent, test_run=args.test_run)
+    enable_logging()
+    pferd = Pferd(Path(__file__).parent, test_run=args.test_run)
 
     if not args.synchronizers or "numerik" in args.synchronizers:
         pferd.ilias_kit(

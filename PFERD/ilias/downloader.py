@@ -9,10 +9,11 @@ from typing import Callable, List, Optional
 import bs4
 import requests
 
+from ..logging import PrettyLogger
 from ..organizer import Organizer
 from ..tmp_dir import TmpDir
 from ..transform import Transformable
-from ..utils import PrettyLogger, soupify, stream_to_path
+from ..utils import soupify, stream_to_path
 from .authenticators import IliasAuthenticator
 
 LOGGER = logging.getLogger(__name__)

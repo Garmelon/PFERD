@@ -11,10 +11,11 @@ from .ilias import (IliasAuthenticator, IliasCrawler, IliasDirectoryFilter,
                     IliasDownloader, IliasDownloadStrategy,
                     KitShibbolethAuthenticator, download_modified_or_new)
 from .location import Location
+from .logging import PrettyLogger
 from .organizer import Organizer
 from .tmp_dir import TmpDir
 from .transform import TF, Transform, apply_transform
-from .utils import PrettyLogger, PathLike, to_path
+from .utils import PathLike, to_path
 
 # TODO save known-good cookies as soon as possible
 

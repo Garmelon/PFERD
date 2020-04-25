@@ -14,7 +14,8 @@ from urllib.parse import (parse_qs, urlencode, urljoin, urlparse, urlsplit,
 import bs4
 import requests
 
-from ..utils import PrettyLogger, soupify
+from ..logging import PrettyLogger
+from ..utils import soupify
 from .authenticators import IliasAuthenticator
 from .date_demangler import demangle_date
 from .downloader import IliasDownloadInfo
