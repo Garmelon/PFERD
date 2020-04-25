@@ -111,9 +111,11 @@ class IliasCrawler:
             LOGGER.debug("Processing folder-like...")
             return self._switch_on_folder_like(path, link_element, url)
 
-        LOGGER.warning("Got unknown type, %r, %r, %r", path, link_element, url)
-        # TODO: Other types
-        raise Exception("Implement me!")
+        PRETTY.warn(
+            "Got unknown element type in switch. I am not sure what horror I found on the"
+            f" ILIAS page. The element was at {str(path)!r} and it is {link_element!r})"
+        )
+        return []
 
     @staticmethod
     def _crawl_file(path: Path, link_element: bs4.Tag, url: str) -> List[IliasDownloadInfo]:

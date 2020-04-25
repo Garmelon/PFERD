@@ -40,6 +40,12 @@ def enable_logging(name: str = "PFERD", level: int = logging.INFO) -> None:
     colorama.init()
 
 
+class FatalException(Exception):
+    """
+    A fatal exception occurred. Recovery is not possible.
+    """
+
+
 class PrettyLogger:
     """
     A logger that prints some specially formatted log messages in color.
