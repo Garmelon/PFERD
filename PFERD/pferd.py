@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import List, Optional, Union
 
 from .cookie_jar import CookieJar
+from .diva import (DivaDownloader, DivaDownloadStrategy, DivaPlaylistCrawler,
+                   diva_download_new)
 from .ilias import (IliasAuthenticator, IliasCrawler, IliasDirectoryFilter,
                     IliasDownloader, IliasDownloadStrategy,
                     KitShibbolethAuthenticator, download_modified_or_new)
@@ -59,7 +61,8 @@ class Pferd(Location):
             dir_filter: IliasDirectoryFilter,
             transform: Transform,
             download_strategy: IliasDownloadStrategy,
-    ) -> None:
+            clean: bool = True
+    ) -> Organizer:
         # pylint: disable=too-many-locals
         cookie_jar = CookieJar(to_path(cookies) if cookies else None)
         session = cookie_jar.create_session()
@@ -76,11 +79,15 @@ class Pferd(Location):
         transformed = apply_transform(transform, info)
         if self._test_run:
             self._print_transformables(transformed)
-            return
+            return organizer
 
         downloader.download_all(transformed)
         cookie_jar.save_cookies()
-        organizer.cleanup()
+
+        if clean:
+            organizer.cleanup()
+
+        return organizer
 
     def ilias_kit(
             self,
@@ -92,7 +99,8 @@ class Pferd(Location):
             username: Optional[str] = None,
             password: Optional[str] = None,
             download_strategy: IliasDownloadStrategy = download_modified_or_new,
-    ) -> None:
+            clean: bool = True,
+    ) -> Organizer:
         """
         Synchronizes a folder with the ILIAS instance of the KIT.
 
@@ -116,11 +124,12 @@ class Pferd(Location):
             download_strategy {DownloadStrategy} -- A function to determine which files need to
                 be downloaded. Can save bandwidth and reduce the number of requests.
                 (default: {download_modified_or_new})
+            clean {bool} -- Whether to clean up when the method finishes.
         """
         # This authenticator only works with the KIT ilias instance.
         authenticator = KitShibbolethAuthenticator(username=username, password=password)
         PRETTY.starting_synchronizer(target, "ILIAS", course_id)
-        self._ilias(
+        return self._ilias(
             target=target,
             base_url="https://ilias.studium.kit.edu/",
             course_id=course_id,
@@ -129,4 +138,51 @@ class Pferd(Location):
             dir_filter=dir_filter,
             transform=transform,
             download_strategy=download_strategy,
+            clean=clean,
         )
+
+    def diva_kit(
+            self,
+            target: Union[PathLike, Organizer],
+            playlist_id: str,
+            transform: Transform = lambda x: x,
+            download_strategy: DivaDownloadStrategy = diva_download_new,
+            clean: bool = True
+    ) -> Organizer:
+        """
+        Synchronizes a folder with a DIVA playlist.
+
+        Arguments:
+            organizer {Organizer} -- The organizer to use.
+            playlist_id {str} -- the playlist id
+
+        Keyword Arguments:
+            transform {Transform} -- A transformation function for the output paths. Return None
+                to ignore a file. (default: {lambdax:x})
+            download_strategy {DivaDownloadStrategy} -- A function to determine which files need to
+                be downloaded. Can save bandwidth and reduce the number of requests.
+                (default: {diva_download_new})
+            clean {bool} -- Whether to clean up when the method finishes.
+        """
+        tmp_dir = self._tmp_dir.new_subdir()
+        if isinstance(target, Organizer):
+            organizer = target
+        else:
+            organizer = Organizer(self.resolve(to_path(target)))
+
+        crawler = DivaPlaylistCrawler(playlist_id)
+        downloader = DivaDownloader(tmp_dir, organizer, download_strategy)
+
+        info = crawler.crawl()
+
+        transformed = apply_transform(transform, info)
+        if self._test_run:
+            self._print_transformables(transformed)
+            return organizer
+
+        downloader.download_all(transformed)
+
+        if clean:
+            organizer.cleanup()
+
+        return organizer
