@@ -139,7 +139,7 @@ class IliasCrawler:
             all_properties_text
         )
         if modification_date_match is None:
-            modification_date = datetime.datetime.now()
+            modification_date = None
             LOGGER.warning("Could not extract start date from %r", all_properties_text)
         else:
             modification_date_str = modification_date_match.group(1)
@@ -331,14 +331,6 @@ class IliasCrawler:
 
             LOGGER.debug("Found exercise container %r", container_name)
 
-            # Parse the end date to use as modification date
-            # TODO: Return None?
-            end_date: datetime.datetime = datetime.datetime.now()
-            end_date_header: bs4.Tag = container.find(name="div", text="Abgabetermin")
-            if end_date_header is not None:
-                end_date_text = end_date_header.findNext("div").getText().strip()
-                end_date = demangle_date(end_date_text)
-
             # Grab each file as you now have the link
             for file_link in files:
                 # Two divs, side by side. Left is the name, right is the link ==> get left
@@ -351,7 +343,7 @@ class IliasCrawler:
                 results.append(IliasDownloadInfo(
                     Path(element_path, container_name, file_name),
                     url,
-                    end_date
+                    None  # We do not have any timestamp
                 ))
 
         return results
