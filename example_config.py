@@ -3,8 +3,8 @@ from pathlib import Path, PurePath
 
 from PFERD import Pferd
 from PFERD.logging import enable_logging
-from PFERD.transform import (attempt, glob, keep, move, move_dir, optionally,
-                             re_move)
+from PFERD.transform import (attempt, do, glob, keep, move, move_dir,
+                             optionally, re_move, re_rename)
 
 tf_ss_2020_numerik = attempt(
     re_move(r"Übungsblätter/(\d+)\. Übungsblatt/.*", "Blätter/Blatt_{1:0>2}.pdf"),
@@ -14,7 +14,11 @@ tf_ss_2020_numerik = attempt(
 
 tf_ss_2020_db = attempt(
     move_dir("Begrüßungsvideo/", "Vorlesung/Videos/"),
-    move_dir("Vorlesungsmaterial/Vorlesungsvideos/", "Vorlesung/Videos/"),
+    do(
+        move_dir("Vorlesungsmaterial/Vorlesungsvideos/", "Vorlesung/Videos/"),
+        optionally(re_rename("(.*).m4v.mp4", "{1}.mp4")),
+        optionally(re_rename("(?i)dbs-(.+)", "{1}")),
+    ),
     move_dir("Vorlesungsmaterial/", "Vorlesung/"),
     keep,
 )
