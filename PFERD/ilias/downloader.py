@@ -124,7 +124,7 @@ class IliasDownloader:
                 return False
 
             # Yay, we got the file :)
-            stream_to_path(response, target)
+            stream_to_path(response, target, info.path.name)
             return True
 
     @staticmethod

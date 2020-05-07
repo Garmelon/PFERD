@@ -127,7 +127,7 @@ class DivaDownloader:
         with self._session.get(info.url, stream=True) as response:
             if response.status_code == 200:
                 tmp_file = self._tmp_dir.new_path()
-                stream_to_path(response, tmp_file)
+                stream_to_path(response, tmp_file, info.path.name)
                 self._organizer.accept_file(tmp_file, info.path)
             else:
                 PRETTY.warning(f"Could not download file, got response {response.status_code}")

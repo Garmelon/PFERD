@@ -49,7 +49,6 @@ class HttpDownloader:
             )
         return session
 
-
     def download_all(self, infos: List[HttpDownloadInfo]) -> None:
         """
         Download multiple files one after the other.
@@ -57,7 +56,6 @@ class HttpDownloader:
 
         for info in infos:
             self.download(info)
-
 
     def download(self, info: HttpDownloadInfo) -> None:
         """
@@ -67,7 +65,7 @@ class HttpDownloader:
         with self._session.get(info.url, params=info.parameters, stream=True) as response:
             if response.status_code == 200:
                 tmp_file = self._tmp_dir.new_path()
-                stream_to_path(response, tmp_file)
+                stream_to_path(response, tmp_file, info.path.name)
                 self._organizer.accept_file(tmp_file, info.path)
             else:
                 # TODO use proper exception
