@@ -7,7 +7,9 @@ from typing import Optional
 
 from rich._log_render import LogRender
 from rich.console import Console
+from rich.style import Style
 from rich.text import Text
+from rich.theme import Theme
 
 from .utils import PathLike, to_path
 
@@ -23,7 +25,7 @@ def enable_logging(name: str = "PFERD", level: int = logging.INFO) -> None:
 
     logger = logging.getLogger(name)
     logger.setLevel(level)
-    logger.addHandler(RichLoggingHandler())
+    logger.addHandler(RichLoggingHandler(level=level))
 
     # This should be logged by our own handler, and not the root logger's
     # default handler, so we don't pass it on to the root logger.
@@ -41,9 +43,11 @@ class RichLoggingHandler(logging.Handler):
     A logging handler that uses rich for highlighting
     """
 
-    def __init__(self, level: int = logging.NOTSET, console: Optional[Console] = None) -> None:
+    def __init__(self, level: int) -> None:
         super().__init__(level=level)
-        self.console = Console() if console is None else console
+        self.console = Console(theme=Theme({
+            "logging.level.warning": Style(color="yellow")
+        }))
         self._log_render = LogRender(show_level=True, show_time=False, show_path=False)
 
     def emit(self, record: logging.LogRecord) -> None:
