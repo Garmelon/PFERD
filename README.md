@@ -4,8 +4,7 @@
 
 ## Installation
 
-Ensure that you have at least Python 3.7 installed (3.6 might also work, didn't
-test it though).
+Ensure that you have at least Python 3.8 installed.
 
 To install PFERD or update your installation to the latest version, run this
 wherever you want to install/have installed PFERD:
@@ -17,7 +16,7 @@ The use of [venv](https://docs.python.org/3/library/venv.html) is recommended.
 
 ## Example setup
 
-In this example, `python3` refers to at least Python 3.7.
+In this example, `python3` refers to at least Python 3.8.
 
 A full example setup and initial use could look like:
 ```
