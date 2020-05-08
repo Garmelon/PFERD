@@ -5,8 +5,9 @@ Contains a few logger utility functions and implementations.
 import logging
 from typing import Optional
 
-import colorama
-from colorama import Fore, Style
+from rich._log_render import LogRender
+from rich.console import Console
+from rich.text import Text
 
 from .utils import PathLike, to_path
 
@@ -14,36 +15,55 @@ STYLE = "{"
 FORMAT = "[{levelname:<7}] {message}"
 DATE_FORMAT = "%F %T"
 
-FORMATTER = logging.Formatter(
-    fmt=FORMAT,
-    datefmt=DATE_FORMAT,
-    style=STYLE,
-)
-
 
 def enable_logging(name: str = "PFERD", level: int = logging.INFO) -> None:
     """
     Enable and configure logging via the logging module.
     """
 
-    handler = logging.StreamHandler()
-    handler.setFormatter(FORMATTER)
-
     logger = logging.getLogger(name)
     logger.setLevel(level)
-    logger.addHandler(handler)
+    logger.addHandler(RichLoggingHandler())
 
     # This should be logged by our own handler, and not the root logger's
     # default handler, so we don't pass it on to the root logger.
     logger.propagate = False
-
-    colorama.init()
 
 
 class FatalException(Exception):
     """
     A fatal exception occurred. Recovery is not possible.
     """
+
+
+class RichLoggingHandler(logging.Handler):
+    """
+    A logging handler that uses rich for highlighting
+    """
+
+    def __init__(self, level: int = logging.NOTSET, console: Optional[Console] = None) -> None:
+        super().__init__(level=level)
+        self.console = Console() if console is None else console
+        self._log_render = LogRender(show_level=True, show_time=False, show_path=False)
+
+    def emit(self, record: logging.LogRecord) -> None:
+        """
+        Invoked by logging.
+        """
+        log_style = f"logging.level.{record.levelname.lower()}"
+        message = self.format(record)
+
+        level = Text()
+        level.append(record.levelname, log_style)
+        message_text = Text.from_markup(message)
+
+        self.console.print(
+            self._log_render(
+                self.console,
+                [message_text],
+                level=level,
+            )
+        )
 
 
 class PrettyLogger:
@@ -63,7 +83,7 @@ class PrettyLogger:
         Print an error message indicating some operation fatally failed.
         """
         self.logger.error(
-            f"{Fore.RED}{Style.BRIGHT}{message}{Style.RESET_ALL}"
+            f"[bold red]{message}[/bold red]"
         )
 
     def warning(self, message: str) -> None:
@@ -72,7 +92,7 @@ class PrettyLogger:
         or ignored.
         """
         self.logger.warning(
-            f"{Fore.YELLOW}{Style.BRIGHT}{message}{Style.RESET_ALL}"
+            f"[bold yellow]{message}[/bold yellow]"
         )
 
     def modified_file(self, path: PathLike) -> None:
@@ -81,7 +101,7 @@ class PrettyLogger:
         """
 
         self.logger.info(
-            f"{Fore.MAGENTA}{Style.BRIGHT}Modified {self._format_path(path)}.{Style.RESET_ALL}"
+            f"[bold magenta]Modified {self._format_path(path)}.[/bold magenta]"
         )
 
     def new_file(self, path: PathLike) -> None:
@@ -90,7 +110,7 @@ class PrettyLogger:
         """
 
         self.logger.info(
-            f"{Fore.GREEN}{Style.BRIGHT}Created {self._format_path(path)}.{Style.RESET_ALL}"
+            f"[bold green]Created {self._format_path(path)}.[/bold green]"
         )
 
     def ignored_file(self, path: PathLike, reason: str) -> None:
@@ -99,8 +119,8 @@ class PrettyLogger:
         """
 
         self.logger.info(
-            f"{Style.DIM}Ignored {self._format_path(path)} "
-            f"({Style.NORMAL}{reason}{Style.DIM}).{Style.RESET_ALL}"
+            f"[dim]Ignored {self._format_path(path)} "
+            f"([/dim]{reason}[dim]).[/dim]"
         )
 
     def searching(self, path: PathLike) -> None:
@@ -116,8 +136,8 @@ class PrettyLogger:
         """
 
         self.logger.info(
-            f"{Style.DIM}Not searching {self._format_path(path)} "
-            f"({Style.NORMAL}{reason}{Style.DIM}).{Style.RESET_ALL}"
+            f"[dim]Not searching {self._format_path(path)} "
+            f"([/dim]{reason}[dim]).[/dim]"
         )
 
     def starting_synchronizer(
@@ -133,7 +153,7 @@ class PrettyLogger:
         subject_str = f"{subject} " if subject else ""
         self.logger.info("")
         self.logger.info((
-            f"{Fore.CYAN}{Style.BRIGHT}Synchronizing "
+            f"[bold cyan]Synchronizing "
             f"{subject_str}to {self._format_path(target_directory)} "
-            f"using the {synchronizer_name} synchronizer.{Style.RESET_ALL}"
+            f"using the {synchronizer_name} synchronizer.[/bold cyan]"
         ))

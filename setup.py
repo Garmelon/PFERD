@@ -1,15 +1,14 @@
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
 
 setup(
-        name="PFERD",
-        version="1.1.8",
-        packages=find_packages(),
-        install_requires=[
-            "requests>=2.21.0",
-            "beautifulsoup4>=4.7.1",
-            "colorama>=0.4.1",
-            "rich>=1.0.0"
-        ],
+    name="PFERD",
+    version="1.1.8",
+    packages=find_packages(),
+    install_requires=[
+        "requests>=2.21.0",
+        "beautifulsoup4>=4.7.1",
+        "rich>=1.0.0"
+    ],
 )
 
 # When updating the version, also:
