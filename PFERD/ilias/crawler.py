@@ -135,7 +135,7 @@ class IliasCrawler:
         # out of it
         all_properties_text = properties_parent.getText().strip()
         modification_date_match = re.search(
-            r"(((\d+\. \w+ \d+)|(Gestern)|(Heute)), \d+:\d+)",
+            r"(((\d+\. \w+ \d+)|(Gestern|Yesterday)|(Heute|Today)|(Morgen|Tomorrow)), \d+:\d+)",
             all_properties_text
         )
         if modification_date_match is None:
