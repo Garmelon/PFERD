@@ -37,7 +37,8 @@ def apply_transform(
 
     result: List[TF] = []
     for transformable in transformables:
-        if new_path := transform(transformable.path):
+        new_path = transform(transformable.path)
+        if new_path:
             transformable.path = new_path
             result.append(transformable)
     return result
@@ -49,7 +50,8 @@ keep = lambda path: path
 def attempt(*args: Transform) -> Transform:
     def inner(path: PurePath) -> Optional[PurePath]:
         for transform in args:
-            if result := transform(path):
+            result = transform(path)
+            if result:
                 return result
         return None
     return inner
@@ -61,7 +63,8 @@ def do(*args: Transform) -> Transform:
     def inner(path: PurePath) -> Optional[PurePath]:
         current = path
         for transform in args:
-            if result := transform(current):
+            result = transform(current)
+            if result:
                 current = result
             else:
                 return None
@@ -105,7 +108,8 @@ def rename(source: str, target: str) -> Transform:
 
 def re_move(regex: Regex, target: str) -> Transform:
     def inner(path: PurePath) -> Optional[PurePath]:
-        if match := to_pattern(regex).fullmatch(str(path)):
+        match = to_pattern(regex).fullmatch(str(path))
+        if match:
             groups = [match.group(0)]
             groups.extend(match.groups())
             return PurePath(target.format(*groups))
@@ -114,7 +118,8 @@ def re_move(regex: Regex, target: str) -> Transform:
 
 def re_rename(regex: Regex, target: str) -> Transform:
     def inner(path: PurePath) -> Optional[PurePath]:
-        if match := to_pattern(regex).fullmatch(path.name):
+        match = to_pattern(regex).fullmatch(path.name)
+        if match:
             groups = [match.group(0)]
             groups.extend(match.groups())
             return path.with_name(target.format(*groups))
