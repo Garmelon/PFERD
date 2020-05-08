@@ -9,7 +9,7 @@ from typing import Optional
 import bs4
 import requests
 
-from ..authenticators import UserPassAuthenticator
+from ..authenticators import TfaAuthenticator, UserPassAuthenticator
 from ..utils import soupify
 
 LOGGER = logging.getLogger(__name__)
@@ -39,6 +39,7 @@ class KitShibbolethAuthenticator(IliasAuthenticator):
 
     def __init__(self, username: Optional[str] = None, password: Optional[str] = None) -> None:
         self._auth = UserPassAuthenticator("KIT ILIAS Shibboleth", username, password)
+        self._tfa_auth = TfaAuthenticator("KIT ILIAS Shibboleth")
 
     def authenticate(self, sess: requests.Session) -> None:
         """
@@ -80,6 +81,9 @@ class KitShibbolethAuthenticator(IliasAuthenticator):
             }
             soup = soupify(sess.post(url, data=data))
 
+            if self._tfa_required(soup):
+                soup = self._authenticate_tfa(sess, soup)
+
             if not self._login_successful(soup):
                 print("Incorrect credentials.")
                 self._auth.invalidate_credentials()
@@ -96,8 +100,32 @@ class KitShibbolethAuthenticator(IliasAuthenticator):
         }
         sess.post(url, data=data)
 
+    def _authenticate_tfa(
+            self,
+            session: requests.Session,
+            soup: bs4.BeautifulSoup
+    ) -> bs4.BeautifulSoup:
+        # Searching the form here so that this fails before asking for
+        # credentials rather than after asking.
+        form = soup.find("form", {"method": "post"})
+        action = form["action"]
+
+        # Equivalent: Enter token in
+        # https://idp.scc.kit.edu/idp/profile/SAML2/Redirect/SSO
+        LOGGER.debug("Attempt to log in to Shibboleth with TFA token")
+        url = "https://idp.scc.kit.edu" + action
+        data = {
+            "_eventId_proceed": "",
+            "j_tokenNumber": self._tfa_auth.get_token()
+        }
+        return soupify(session.post(url, data=data))
+
     @staticmethod
     def _login_successful(soup: bs4.BeautifulSoup) -> bool:
         relay_state = soup.find("input", {"name": "RelayState"})
         saml_response = soup.find("input", {"name": "SAMLResponse"})
         return relay_state is not None and saml_response is not None
+
+    @staticmethod
+    def _tfa_required(soup: bs4.BeautifulSoup) -> bool:
+        return soup.find(id="j_tokenNumber") is not None

@@ -6,6 +6,30 @@ import getpass
 from typing import Optional, Tuple
 
 
+class TfaAuthenticator:
+    # pylint: disable=too-few-public-methods
+    """
+    An authenticator for a TFA token. Always prompts the user, as the token can not be cached.
+    """
+
+    def __init__(self, reason: str):
+        """
+        Create a new tfa authenticator.
+
+        Arguments:
+            reason {str} -- the reason for obtaining the credentials
+        """
+        self._reason = reason
+
+    def get_token(self) -> str:
+        # pylint: disable=no-self-use
+        """
+        Prompts the user for the token and returns it.
+        """
+        print(f"Enter credentials ({self._reason})")
+        return getpass.getpass("TFA Token: ")
+
+
 class UserPassAuthenticator:
     """
     An authenticator for username-password combinations that prompts the user
