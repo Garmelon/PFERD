@@ -14,7 +14,7 @@ from urllib.parse import (parse_qs, urlencode, urljoin, urlparse, urlsplit,
 import bs4
 import requests
 
-from ..logging import PrettyLogger
+from ..logging import FatalException, PrettyLogger
 from ..utils import soupify
 from .authenticators import IliasAuthenticator
 from .date_demangler import demangle_date
@@ -80,8 +80,17 @@ class IliasCrawler:
             self._base_url + "/goto.php", "target", f"crs_{self._course_id}"
         )
 
+        if not self._is_course_id_valid(root_url):
+            raise FatalException(
+                "Invalid course id? The URL the server returned did not contain my id."
+            )
+
         # And treat it as a folder
         return self._crawl_folder(Path(""), root_url)
+
+    def _is_course_id_valid(self, root_url: str) -> bool:
+        response: requests.Response = self._session.get(root_url)
+        return self._course_id in response.url
 
     def _switch_on_crawled_type(
             self,

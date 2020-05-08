@@ -5,6 +5,8 @@ An error logging decorator.
 import logging
 from typing import Any, Callable
 
+from rich.console import Console
+
 from .logging import FatalException, PrettyLogger
 
 LOGGER = logging.getLogger(__name__)

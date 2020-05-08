@@ -14,7 +14,7 @@ from .ilias import (IliasAuthenticator, IliasCrawler, IliasDirectoryFilter,
                     IliasDownloader, IliasDownloadStrategy,
                     KitShibbolethAuthenticator, download_modified_or_new)
 from .location import Location
-from .logging import PrettyLogger
+from .logging import FatalException, PrettyLogger
 from .organizer import Organizer
 from .tmp_dir import TmpDir
 from .transform import TF, Transform, apply_transform
@@ -168,10 +168,17 @@ class Pferd(Location):
             clean {bool} -- Whether to clean up when the method finishes.
         """
         tmp_dir = self._tmp_dir.new_subdir()
+
+        if target is None:
+            PRETTY.starting_synchronizer("None", "DIVA", playlist_id)
+            raise FatalException("Got 'None' as target directory, aborting")
+
         if isinstance(target, Organizer):
             organizer = target
         else:
             organizer = Organizer(self.resolve(to_path(target)))
+
+        PRETTY.starting_synchronizer(organizer.path, "DIVA", playlist_id)
 
         crawler = DivaPlaylistCrawler(playlist_id)
         downloader = DivaDownloader(tmp_dir, organizer, download_strategy)
