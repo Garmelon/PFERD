@@ -61,6 +61,18 @@ def progress_for(settings: Optional[ProgressSettings]) -> 'ProgressContextManage
     return ProgressContextManager(settings)
 
 
+class _OneLineUp(LiveRender):
+    """
+    Render a control code for moving one line upwards.
+    """
+
+    def __init__(self) -> None:
+        super().__init__("not rendered")
+
+    def __console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
+        yield Control(f"\r\x1b[1A")
+
+
 class ProgressContextManager:
     """
     A context manager used for displaying progress.
@@ -95,21 +107,13 @@ class ProgressContextManager:
             _progress.remove_task(self._task_id)
 
         if len(_progress.task_ids) == 0:
+            # We need to clean up after ourselves, as we were the last one
             _progress.stop()
             _progress.refresh()
 
-            class _OneLineUp(LiveRender):
-                """
-                Render a control code for moving one line upwards.
-                """
-
-                def __init__(self) -> None:
-                    super().__init__("not rendered")
-
-                def __console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
-                    yield Control(f"\r\x1b[1A")
-
-            Console(file=sys.stdout).print(_OneLineUp())
+            # And we existed, so remove the line above (remove_task leaves one behind)
+            if self._task_id is not None:
+                Console().print(_OneLineUp())
 
         return None
 
