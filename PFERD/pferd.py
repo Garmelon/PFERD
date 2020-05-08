@@ -9,12 +9,12 @@ from typing import List, Optional, Union
 from .cookie_jar import CookieJar
 from .diva import (DivaDownloader, DivaDownloadStrategy, DivaPlaylistCrawler,
                    diva_download_new)
-from .errors import swallow_and_print_errors
+from .errors import FatalException, swallow_and_print_errors
 from .ilias import (IliasAuthenticator, IliasCrawler, IliasDirectoryFilter,
                     IliasDownloader, IliasDownloadStrategy,
                     KitShibbolethAuthenticator, download_modified_or_new)
 from .location import Location
-from .logging import FatalException, PrettyLogger
+from .logging import PrettyLogger
 from .organizer import Organizer
 from .tmp_dir import TmpDir
 from .transform import TF, Transform, apply_transform

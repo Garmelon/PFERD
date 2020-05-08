@@ -32,12 +32,6 @@ def enable_logging(name: str = "PFERD", level: int = logging.INFO) -> None:
     logger.propagate = False
 
 
-class FatalException(Exception):
-    """
-    A fatal exception occurred. Recovery is not possible.
-    """
-
-
 class RichLoggingHandler(logging.Handler):
     """
     A logging handler that uses rich for highlighting

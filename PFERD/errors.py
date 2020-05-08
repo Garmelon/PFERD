@@ -7,10 +7,16 @@ from typing import Any, Callable
 
 from rich.console import Console
 
-from .logging import FatalException, PrettyLogger
+from .logging import PrettyLogger
 
 LOGGER = logging.getLogger(__name__)
 PRETTY = PrettyLogger(LOGGER)
+
+
+class FatalException(Exception):
+    """
+    A fatal exception occurred. Recovery is not possible.
+    """
 
 
 def swallow_and_print_errors(function: Callable) -> Callable:

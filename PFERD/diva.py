@@ -5,7 +5,8 @@ from typing import Any, Callable, List, Optional
 
 import requests
 
-from .logging import FatalException, PrettyLogger
+from .errors import FatalException
+from .logging import PrettyLogger
 from .organizer import Organizer
 from .tmp_dir import TmpDir
 from .transform import Transformable

@@ -14,7 +14,8 @@ from urllib.parse import (parse_qs, urlencode, urljoin, urlparse, urlsplit,
 import bs4
 import requests
 
-from ..logging import FatalException, PrettyLogger
+from ..errors import FatalException
+from ..logging import PrettyLogger
 from ..utils import soupify
 from .authenticators import IliasAuthenticator
 from .date_demangler import demangle_date
