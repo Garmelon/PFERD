@@ -9,6 +9,7 @@ from typing import List, Optional, Union
 from .cookie_jar import CookieJar
 from .diva import (DivaDownloader, DivaDownloadStrategy, DivaPlaylistCrawler,
                    diva_download_new)
+from .errors import swallow_and_print_errors
 from .ilias import (IliasAuthenticator, IliasCrawler, IliasDirectoryFilter,
                     IliasDownloader, IliasDownloadStrategy,
                     KitShibbolethAuthenticator, download_modified_or_new)
@@ -89,6 +90,7 @@ class Pferd(Location):
 
         return organizer
 
+    @swallow_and_print_errors
     def ilias_kit(
             self,
             target: PathLike,
@@ -141,6 +143,7 @@ class Pferd(Location):
             clean=clean,
         )
 
+    @swallow_and_print_errors
     def diva_kit(
             self,
             target: Union[PathLike, Organizer],
