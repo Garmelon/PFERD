@@ -1,9 +1,9 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
         name="PFERD",
         version="1.1.8",
-        packages=["PFERD"],
+        packages=find_packages(),
         install_requires=[
             "requests>=2.21.0",
             "beautifulsoup4>=4.7.1",
