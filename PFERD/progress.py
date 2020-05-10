@@ -103,8 +103,10 @@ class ProgressContextManager:
             traceback: Optional[TracebackType],
     ) -> Optional[bool]:
         """Context manager exit function. Removes the task."""
-        if self._task_id is not None:
-            _progress.remove_task(self._task_id)
+        if self._task_id is None:
+            return None
+
+        _progress.remove_task(self._task_id)
 
         if len(_progress.task_ids) == 0:
             # We need to clean up after ourselves, as we were the last one
@@ -112,8 +114,7 @@ class ProgressContextManager:
             _progress.refresh()
 
             # And we existed, so remove the line above (remove_task leaves one behind)
-            if self._task_id is not None:
-                Console().print(_OneLineUp())
+            Console().print(_OneLineUp())
 
         return None
 
