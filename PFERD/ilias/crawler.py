@@ -38,7 +38,6 @@ class IliasCrawler:
     def __init__(
             self,
             base_url: str,
-            course_id: str,
             session: requests.Session,
             authenticator: IliasAuthenticator,
             dir_filter: IliasDirectoryFilter
@@ -48,7 +47,6 @@ class IliasCrawler:
         """
 
         self._base_url = base_url
-        self._course_id = course_id
         self._session = session
         self._authenticator = authenticator
         self.dir_filter = dir_filter
@@ -71,17 +69,23 @@ class IliasCrawler:
 
         return urlunsplit((scheme, netloc, path, new_query_string, fragment))
 
-    def crawl(self) -> List[IliasDownloadInfo]:
+    def crawl_course(self, course_id: str) -> List[IliasDownloadInfo]:
         """
-        Starts the crawl process, yielding a list of elements to (potentially) download.
-        """
+        Starts the crawl process for a course, yielding a list of elements to (potentially)
+        download.
 
+        Arguments:
+            course_id {str} -- the course id
+
+        Raises:
+            FatalException: if an unrecoverable error occurs or the course id is not valid
+        """
         # Start crawling at the given course
         root_url = self._url_set_query_param(
-            self._base_url + "/goto.php", "target", f"crs_{self._course_id}"
+            self._base_url + "/goto.php", "target", f"crs_{course_id}"
         )
 
-        if not self._is_course_id_valid(root_url):
+        if not self._is_course_id_valid(root_url, course_id):
             raise FatalException(
                 "Invalid course id? The URL the server returned did not contain my id."
             )
@@ -89,9 +93,18 @@ class IliasCrawler:
         # And treat it as a folder
         return self._crawl_folder(Path(""), root_url)
 
-    def _is_course_id_valid(self, root_url: str) -> bool:
+    def _is_course_id_valid(self, root_url: str, course_id: str) -> bool:
         response: requests.Response = self._session.get(root_url)
-        return self._course_id in response.url
+        return course_id in response.url
+
+    def crawl_personal_desktop(self) -> List[IliasDownloadInfo]:
+        """
+        Crawls the ILIAS personal desktop (and every subelements that can be reached from there).
+
+        Raises:
+            FatalException: if an unrecoverable error occurs
+        """
+        return self._crawl_folder(Path(""), self._base_url + "?baseClass=ilPersonalDesktopGUI")
 
     def _switch_on_crawled_type(
             self,

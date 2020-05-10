@@ -4,14 +4,14 @@ Convenience functions for using PFERD.
 
 import logging
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import Callable, List, Optional, Union
 
 from .cookie_jar import CookieJar
 from .diva import (DivaDownloader, DivaDownloadStrategy, DivaPlaylistCrawler,
                    diva_download_new)
 from .errors import FatalException, swallow_and_print_errors
 from .ilias import (IliasAuthenticator, IliasCrawler, IliasDirectoryFilter,
-                    IliasDownloader, IliasDownloadStrategy,
+                    IliasDownloader, IliasDownloadInfo, IliasDownloadStrategy,
                     KitShibbolethAuthenticator, download_modified_or_new)
 from .location import Location
 from .logging import PrettyLogger
@@ -56,7 +56,7 @@ class Pferd(Location):
             self,
             target: PathLike,
             base_url: str,
-            course_id: str,
+            crawl_function: Callable[[IliasCrawler], List[IliasDownloadInfo]],
             authenticator: IliasAuthenticator,
             cookies: Optional[PathLike],
             dir_filter: IliasDirectoryFilter,
@@ -70,11 +70,11 @@ class Pferd(Location):
         tmp_dir = self._tmp_dir.new_subdir()
         organizer = Organizer(self.resolve(to_path(target)))
 
-        crawler = IliasCrawler(base_url, course_id, session, authenticator, dir_filter)
+        crawler = IliasCrawler(base_url, session, authenticator, dir_filter)
         downloader = IliasDownloader(tmp_dir, organizer, session, authenticator, download_strategy)
 
         cookie_jar.load_cookies()
-        info = crawler.crawl()
+        info = crawl_function(crawler)
         cookie_jar.save_cookies()
 
         transformed = apply_transform(transform, info)
@@ -134,7 +134,58 @@ class Pferd(Location):
         return self._ilias(
             target=target,
             base_url="https://ilias.studium.kit.edu/",
-            course_id=course_id,
+            crawl_function=lambda crawler: crawler.crawl_course(course_id),
+            authenticator=authenticator,
+            cookies=cookies,
+            dir_filter=dir_filter,
+            transform=transform,
+            download_strategy=download_strategy,
+            clean=clean,
+        )
+
+    @swallow_and_print_errors
+    def ilias_kit_personal_desktop(
+            self,
+            target: PathLike,
+            dir_filter: IliasDirectoryFilter = lambda x: True,
+            transform: Transform = lambda x: x,
+            cookies: Optional[PathLike] = None,
+            username: Optional[str] = None,
+            password: Optional[str] = None,
+            download_strategy: IliasDownloadStrategy = download_modified_or_new,
+            clean: bool = True,
+    ) -> Organizer:
+        """
+        Synchronizes a folder with the ILIAS instance of the KIT. This method will crawl the ILIAS
+        "personal desktop" instead of a single course.
+
+        Arguments:
+            target {Path} -- the target path to write the data to
+
+        Keyword Arguments:
+            dir_filter {IliasDirectoryFilter} -- A filter for directories. Will be applied on the
+                crawler level, these directories and all of their content is skipped.
+                (default: {lambdax:True})
+            transform {Transform} -- A transformation function for the output paths. Return None
+                to ignore a file. (default: {lambdax:x})
+            cookies {Optional[Path]} -- The path to store and load cookies from.
+                (default: {None})
+            username {Optional[str]} -- The SCC username. If none is given, it will prompt
+                the user. (default: {None})
+            password {Optional[str]} -- The SCC password. If none is given, it will prompt
+                the user. (default: {None})
+            download_strategy {DownloadStrategy} -- A function to determine which files need to
+                be downloaded. Can save bandwidth and reduce the number of requests.
+                (default: {download_modified_or_new})
+            clean {bool} -- Whether to clean up when the method finishes.
+        """
+        # This authenticator only works with the KIT ilias instance.
+        authenticator = KitShibbolethAuthenticator(username=username, password=password)
+        PRETTY.starting_synchronizer(target, "ILIAS", "Personal Desktop")
+        return self._ilias(
+            target=target,
+            base_url="https://ilias.studium.kit.edu/",
+            crawl_function=lambda crawler: crawler.crawl_personal_desktop(),
             authenticator=authenticator,
             cookies=cookies,
             dir_filter=dir_filter,
