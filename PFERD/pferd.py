@@ -147,7 +147,7 @@ class Pferd(Location):
     def diva_kit(
             self,
             target: Union[PathLike, Organizer],
-            playlist_id: str,
+            playlist_location: str,
             transform: Transform = lambda x: x,
             download_strategy: DivaDownloadStrategy = diva_download_new,
             clean: bool = True
@@ -157,7 +157,8 @@ class Pferd(Location):
 
         Arguments:
             organizer {Organizer} -- The organizer to use.
-            playlist_id {str} -- the playlist id
+            playlist_location {str} -- the playlist id or the playlist URL
+              in the format 'https://mediaservice.bibliothek.kit.edu/#/details/DIVA-2019-271'
 
         Keyword Arguments:
             transform {Transform} -- A transformation function for the output paths. Return None
@@ -168,6 +169,11 @@ class Pferd(Location):
             clean {bool} -- Whether to clean up when the method finishes.
         """
         tmp_dir = self._tmp_dir.new_subdir()
+
+        if playlist_location.startswith("http"):
+            playlist_id = DivaPlaylistCrawler.fetch_id(playlist_link=playlist_location)
+        else:
+            playlist_id = playlist_location
 
         if target is None:
             PRETTY.starting_synchronizer("None", "DIVA", playlist_id)

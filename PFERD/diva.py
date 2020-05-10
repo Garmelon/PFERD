@@ -1,4 +1,5 @@
 import logging
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, List, Optional
@@ -44,16 +45,47 @@ class DivaPlaylistCrawler:
     A crawler for DIVA playlists.
     """
 
-    _BASE_URL = "https://mediaservice.bibliothek.kit.edu/asset/collection.json"
+    _PLAYLIST_BASE_URL = "https://mediaservice.bibliothek.kit.edu/asset/detail/"
+    _COLLECTION_BASE_URL = "https://mediaservice.bibliothek.kit.edu/asset/collection.json"
 
     def __init__(self, playlist_id: str):
         self._id = playlist_id
+
+    @classmethod
+    def fetch_id(cls, playlist_link: str) -> str:
+        """
+        Fetches the ID for a playerlist, given the base link
+        (e.g. https://mediaservice.bibliothek.kit.edu/#/details/DIVA-2019-271).
+
+        Raises a FatalException, if the id can not be resolved
+        """
+        match = re.match(r".+#/details/(.+)", playlist_link)
+        if match is None:
+            raise FatalException(
+                "DIVA: Invalid playlist link format, could not extract details."
+            )
+        base_name = match.group(1)
+
+        response = requests.get(cls._PLAYLIST_BASE_URL + base_name + ".json")
+
+        if response.status_code != 200:
+            raise FatalException(
+                f"DIVA: Got non-200 status code ({response.status_code}))"
+                f"when requesting {response.url!r}!"
+            )
+
+        body = response.json()
+
+        if body["error"]:
+            raise FatalException(f"DIVA: Server returned error {body['error']!r}.")
+
+        return body["result"]["id"]
 
     def crawl(self) -> List[DivaDownloadInfo]:
         """
         Crawls the playlist given in the constructor.
         """
-        response = requests.get(self._BASE_URL, params={"collection": self._id})
+        response = requests.get(self._COLLECTION_BASE_URL, params={"collection": self._id})
         if response.status_code != 200:
             raise FatalException(f"Server returned status {response.status_code}.")
 
