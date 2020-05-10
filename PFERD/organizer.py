@@ -46,7 +46,7 @@ class Organizer(Location):
         LOGGER.debug("Copying %s to %s", src_absolute, dst_absolute)
 
         if self._is_marked(dst):
-            LOGGER.warning("File %r was already written!", str(dst_absolute))
+            PRETTY.warning(f"File {str(dst_absolute)!r} was already written!")
             if not prompt_yes_no(f"Overwrite file?", default=False):
                 PRETTY.ignored_file(dst_absolute, "file was written previously")
                 return
@@ -56,7 +56,7 @@ class Organizer(Location):
             if prompt_yes_no(f"Overwrite folder {dst_absolute} with file?", default=False):
                 shutil.rmtree(dst_absolute)
             else:
-                LOGGER.warning("Could not add file %s", dst_absolute)
+                PRETTY.warning(f"Could not add file {str(dst_absolute)!r}")
                 return
 
         # Destination file exists

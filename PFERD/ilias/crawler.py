@@ -163,7 +163,7 @@ class IliasCrawler:
         )
         if modification_date_match is None:
             modification_date = None
-            LOGGER.warning("Could not extract start date from %r", all_properties_text)
+            PRETTY.warning(f"Could not extract start date from {all_properties_text!r}")
         else:
             modification_date_str = modification_date_match.group(1)
             modification_date = demangle_date(modification_date_str)
@@ -203,14 +203,14 @@ class IliasCrawler:
                 break
 
         if found_parent is None:
-            LOGGER.warning("Could not find element icon for %r", url)
+            PRETTY.warning(f"Could not find element icon for {url!r}")
             return []
 
         # Find the small descriptive icon to figure out the type
         img_tag: Optional[bs4.Tag] = found_parent.select_one("img.ilListItemIcon")
 
         if img_tag is None:
-            LOGGER.warning("Could not find image tag for %r", url)
+            PRETTY.warning(f"Could not find image tag for {url!r}")
             return []
 
         # A forum
@@ -319,7 +319,7 @@ class IliasCrawler:
         json_match = regex.search(str(video_page_soup))
 
         if json_match is None:
-            LOGGER.warning("Could not find json stream info for %r", video_page_url)
+            PRETTY.warning(f"Could not find json stream info for {video_page_url!r}")
             return []
         json_str = json_match.group(1)
 
