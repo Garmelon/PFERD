@@ -1,3 +1,6 @@
+"""
+Utility functions and a scraper/downloader for the KIT DIVA portal.
+"""
 import logging
 import re
 from dataclasses import dataclass

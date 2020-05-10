@@ -16,8 +16,6 @@ from .utils import prompt_yes_no
 LOGGER = logging.getLogger(__name__)
 PRETTY = PrettyLogger(LOGGER)
 
-# TODO prevent overwriting an already marked file
-
 
 class FileAcceptException(Exception):
     """An exception while accepting a file."""
@@ -46,6 +44,12 @@ class Organizer(Location):
             raise FileAcceptException("Source is a directory")
 
         LOGGER.debug("Copying %s to %s", src_absolute, dst_absolute)
+
+        if self._is_marked(dst):
+            LOGGER.warning("File %r was already written!", str(dst_absolute))
+            if not prompt_yes_no(f"Overwrite file?", default=False):
+                PRETTY.ignored_file(dst_absolute, "file was written previously")
+                return
 
         # Destination file is directory
         if dst_absolute.exists() and dst_absolute.is_dir():
@@ -81,6 +85,13 @@ class Organizer(Location):
         absolute_path = self.resolve(path)
         self._known_files.add(absolute_path)
         LOGGER.debug("Tracked %s", absolute_path)
+
+    def _is_marked(self, path: PurePath) -> bool:
+        """
+        Checks whether a file is marked.
+        """
+        absolute_path = self.resolve(path)
+        return absolute_path in self._known_files
 
     def cleanup(self) -> None:
         """Remove all untracked files in the organizer's dir."""
