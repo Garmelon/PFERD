@@ -82,7 +82,7 @@ class DivaPlaylistCrawler:
         if body["error"]:
             raise FatalException(f"DIVA: Server returned error {body['error']!r}.")
 
-        return body["result"]["id"]
+        return body["result"]["collection"]["id"]
 
     def crawl(self) -> List[DivaDownloadInfo]:
         """
