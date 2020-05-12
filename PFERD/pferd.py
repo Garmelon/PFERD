@@ -95,7 +95,7 @@ class Pferd(Location):
             self,
             target: PathLike,
             course_id: str,
-            dir_filter: IliasDirectoryFilter = lambda x: True,
+            dir_filter: IliasDirectoryFilter = lambda x, y: True,
             transform: Transform = lambda x: x,
             cookies: Optional[PathLike] = None,
             username: Optional[str] = None,
@@ -147,7 +147,7 @@ class Pferd(Location):
     def ilias_kit_personal_desktop(
             self,
             target: PathLike,
-            dir_filter: IliasDirectoryFilter = lambda x: True,
+            dir_filter: IliasDirectoryFilter = lambda x, y: True,
             transform: Transform = lambda x: x,
             cookies: Optional[PathLike] = None,
             username: Optional[str] = None,

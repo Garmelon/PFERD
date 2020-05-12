@@ -6,6 +6,7 @@ import datetime
 import json
 import logging
 import re
+from enum import Enum
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 from urllib.parse import (parse_qs, urlencode, urljoin, urlparse, urlsplit,
@@ -24,7 +25,17 @@ from .downloader import IliasDownloadInfo
 LOGGER = logging.getLogger(__name__)
 PRETTY = PrettyLogger(LOGGER)
 
-IliasDirectoryFilter = Callable[[Path], bool]
+
+class IliasDirectoryType(Enum):
+    """
+    The type of an ilias directory.
+    """
+    FOLDER = "FOLDER"
+    VIDEO = "VIDEO"
+    EXERCISE = "EXERCISE"
+
+
+IliasDirectoryFilter = Callable[[Path, IliasDirectoryType], bool]
 
 
 class IliasCrawler:
@@ -187,12 +198,6 @@ class IliasCrawler:
 
         element_path = Path(parent_path, link_element.getText().strip())
 
-        if not self.dir_filter(element_path):
-            PRETTY.not_searching(element_path, "user filter")
-            return []
-
-        PRETTY.searching(element_path)
-
         found_parent: Optional[bs4.Tag] = None
 
         # We look for the outer div of our inner link, to find information around it
@@ -213,6 +218,20 @@ class IliasCrawler:
             PRETTY.warning(f"Could not find image tag for {url!r}")
             return []
 
+        directory_type = IliasDirectoryType.FOLDER
+
+        if "opencast" in str(img_tag["alt"]).lower():
+            directory_type = IliasDirectoryType.VIDEO
+
+        if str(img_tag["src"]).endswith("icon_exc.svg"):
+            directory_type = IliasDirectoryType.EXERCISE
+
+        if not self.dir_filter(element_path, directory_type):
+            PRETTY.not_searching(element_path, "user filter")
+            return []
+
+        PRETTY.searching(element_path)
+
         # A forum
         if str(img_tag["src"]).endswith("frm.svg"):
             LOGGER.debug("Skipping forum at %r", url)
@@ -220,7 +239,7 @@ class IliasCrawler:
             return []
 
         # An exercise
-        if str(img_tag["src"]).endswith("icon_exc.svg"):
+        if directory_type == IliasDirectoryType.EXERCISE:
             LOGGER.debug("Crawling exercises at %r", url)
             return self._crawl_exercises(element_path, url)
 
@@ -230,7 +249,7 @@ class IliasCrawler:
             return []
 
         # Match the opencast video plugin
-        if "opencast" in str(img_tag["alt"]).lower():
+        if directory_type == IliasDirectoryType.VIDEO:
             LOGGER.debug("Found video site: %r", url)
             return self._crawl_video_directory(element_path, url)
 
