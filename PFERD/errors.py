@@ -3,7 +3,7 @@ An error logging decorator.
 """
 
 import logging
-from typing import Any, Callable
+from typing import Any, Callable, TypeVar, cast
 
 from rich.console import Console
 
@@ -19,7 +19,10 @@ class FatalException(Exception):
     """
 
 
-def swallow_and_print_errors(function: Callable) -> Callable:
+TFun = TypeVar('TFun', bound=Callable[..., Any])
+
+
+def swallow_and_print_errors(function: TFun) -> TFun:
     """
     Decorates a function, swallows all errors, logs them and returns none if one occurred.
     """
@@ -33,4 +36,4 @@ def swallow_and_print_errors(function: Callable) -> Callable:
         except Exception as error:
             Console().print_exception()
             return None
-    return inner
+    return cast(TFun, inner)
