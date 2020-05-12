@@ -14,7 +14,7 @@ from .ilias import (IliasAuthenticator, IliasCrawler, IliasDirectoryFilter,
                     IliasDownloader, IliasDownloadInfo, IliasDownloadStrategy,
                     KitShibbolethAuthenticator, download_modified_or_new)
 from .location import Location
-from .logging import PrettyLogger
+from .logging import PrettyLogger, enable_logging
 from .organizer import Organizer
 from .tmp_dir import TmpDir
 from .transform import TF, Transform, apply_transform
@@ -44,6 +44,16 @@ class Pferd(Location):
 
         self._tmp_dir = TmpDir(self.resolve(tmp_dir))
         self._test_run = test_run
+
+
+    @staticmethod
+    def enable_logging() -> None:
+        """
+        Enable and configure logging via the logging module.
+        """
+
+        enable_logging()
+
 
     @staticmethod
     def _print_transformables(transformables: List[TF]) -> None:

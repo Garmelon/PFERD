@@ -2,7 +2,6 @@ import argparse
 from pathlib import Path, PurePath
 
 from PFERD import Pferd
-from PFERD.logging import enable_logging
 from PFERD.transform import (attempt, do, glob, keep, move, move_dir,
                              optionally, re_move, re_rename)
 
@@ -72,8 +71,8 @@ def main() -> None:
     parser.add_argument("synchronizers", nargs="*")
     args = parser.parse_args()
 
-    enable_logging()
     pferd = Pferd(Path(__file__).parent, test_run=args.test_run)
+    pferd.enable_logging()
 
     if not args.synchronizers or "numerik" in args.synchronizers:
         pferd.ilias_kit(
