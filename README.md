@@ -18,6 +18,11 @@ The use of [venv](https://docs.python.org/3/library/venv.html) is recommended.
 
 In this example, `python3` refers to at least Python 3.8.
 
+If you just want to get started and crawl *your entire ILIAS Desktop* instead
+of a given set of courses, please replace `example_config.py` with
+`example_config_personal_desktop.py` in all of the instructions below (`curl` call and
+`python3` run command).
+
 A full example setup and initial use could look like:
 ```
 $ mkdir Vorlesungen
