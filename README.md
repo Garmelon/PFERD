@@ -25,7 +25,7 @@ $ cd Vorlesungen
 $ python3 -m venv .
 $ . bin/activate
 $ pip install git+https://github.com/Garmelon/PFERD@rewrite
-$ curl -O https://raw.githubusercontent.com/Garmelon/PFERD/master/example_config.py
+$ curl -O https://raw.githubusercontent.com/Garmelon/PFERD/rewrite/example_config.py
 $ python3 example_config.py
 $ deactivate
 ```
@@ -38,14 +38,13 @@ $ python3 example_config.py
 $ deactivate
 ```
 
-
 ## Usage
 
 A PFERD config is a normal python file that starts multiple *synchronizers*
 which do all the heavy lifting. While you can create and wire them up manually,
 you are encouraged to use the helper methods provided in `PFERD.Pferd`.
 
-The synchronizers take some input arguments specific to their sercice and a
+The synchronizers take some input arguments specific to their service and a
 *transformer*. The transformer receives the computed path of an element in
 ILIAS and can return either an output path (so you can rename files or move
 them around as you wish) or `None` if you do not want to save the given file.
