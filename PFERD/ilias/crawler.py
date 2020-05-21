@@ -272,6 +272,71 @@ class IliasCrawler:
             {"limit": 800, "cmd": "asyncGetTableGUI", "cmdMode": "asynch"}
         )
 
+        # If we find a page selected, we probably need to respect pagination
+        if self._is_paginated_video_page(video_list_soup):
+            second_stage_url = self._abs_url_from_link(content_link)
+
+            return self._crawl_paginated_video_directory(
+                video_dir_path, video_list_soup, second_stage_url
+            )
+
+        return self._crawl_video_directory_second_stage(video_dir_path, video_list_soup)
+
+    @staticmethod
+    def _is_paginated_video_page(soup: bs4.BeautifulSoup) -> bool:
+        return soup.find(id=re.compile(r"tab_page_sel.+")) is not None
+
+    def _crawl_paginated_video_directory(
+            self,
+            video_dir_path: Path,
+            paged_video_list_soup: bs4.BeautifulSoup,
+            second_stage_url: str
+    ) -> List[IliasDownloadInfo]:
+        LOGGER.info("Found paginated video page, trying 800 elements")
+
+        # Try to find the table id. This can be used to build the query parameter indicating
+        # you want 800 elements
+
+        table_element: bs4.Tag = paged_video_list_soup.find(
+            name="table", id=re.compile(r"tbl_xoct_.+")
+        )
+        if table_element is None:
+            PRETTY.warning(
+                "Could not increase elements per page (table not found)."
+                " Some might not be crawled!"
+            )
+            return self._crawl_video_directory_second_stage(video_dir_path, paged_video_list_soup)
+
+        match = re.match(r"tbl_xoct_(.+)", table_element.attrs["id"])
+        if match is None:
+            PRETTY.warning(
+                "Could not increase elements per page (table id not found)."
+                " Some might not be crawled!"
+            )
+            return self._crawl_video_directory_second_stage(video_dir_path, paged_video_list_soup)
+        table_id = match.group(1)
+
+        extended_video_page = self._get_page(
+            second_stage_url,
+            {f"tbl_xoct_{table_id}_trows": 800, "cmd": "asyncGetTableGUI", "cmdMode": "asynch"}
+        )
+
+        if self._is_paginated_video_page(extended_video_page):
+            PRETTY.warning(
+                "800 elements do not seem to be enough (or I failed to fetch that many)."
+                " I will miss elements."
+            )
+
+        return self._crawl_video_directory_second_stage(video_dir_path, extended_video_page)
+
+    def _crawl_video_directory_second_stage(
+            self,
+            video_dir_path: Path,
+            video_list_soup: bs4.BeautifulSoup
+    ) -> List[IliasDownloadInfo]:
+        """
+        Crawls the "second stage" video page. This page contains the actual video urls.
+        """
         direct_download_links: List[bs4.Tag] = video_list_soup.findAll(
             name="a", text=re.compile(r"\s*Download\s*")
         )
@@ -416,8 +481,10 @@ class IliasCrawler:
         content_type = response.headers["content-type"]
 
         if not content_type.startswith("text/html"):
-            # TODO: Correct exception type
-            raise Exception(f"Invalid content type {content_type}")
+            raise FatalException(
+                f"Invalid content type {content_type} when crawling ilias page"
+                " {url!r} with {params!r}"
+            )
 
         soup = soupify(response)
 
