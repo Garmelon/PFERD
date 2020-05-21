@@ -1,7 +1,9 @@
 """Contains a downloader for ILIAS."""
 
 import datetime
+import json
 import logging
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, List, Optional
@@ -32,7 +34,7 @@ class IliasDownloadInfo(Transformable):
 
     url: str
     modification_date: Optional[datetime.datetime]
-    # parameters: Dict[str, Any] = field(default_factory=dict)
+    unpack_video: bool = False
 
 
 IliasDownloadStrategy = Callable[[Organizer, IliasDownloadInfo], bool]
@@ -107,17 +109,50 @@ class IliasDownloader:
 
         tmp_file = self._tmp_dir.new_path()
 
-        while not self._try_download(info, tmp_file):
+        while not self._download_file(info, tmp_file):
+            LOGGER.info("Retrying download: %r", info)
             self._authenticator.authenticate(self._session)
 
         self._organizer.accept_file(tmp_file, info.path)
+
+    def _download_file(self, info: IliasDownloadInfo, target: Path) -> bool:
+        if info.unpack_video:
+            return self._download_unpack_video(info, target)
+
+        return self._try_download(info, target)
+
+    def _download_unpack_video(self, info: IliasDownloadInfo, target: Path) -> bool:
+        # Fetch the actual video page. This is a small wrapper page initializing a javscript
+        # player. Sadly we can not execute that JS. The actual video stream url is nowhere
+        # on the page, but defined in a JS object inside a script tag, passed to the player
+        # library.
+        # We do the impossible and RegEx the stream JSON object out of the page's HTML source
+        video_page_soup = soupify(self._session.get(info.url))
+        regex: re.Pattern = re.compile(
+            r"({\"streams\"[\s\S]+?),\s*{\"paella_config_file", re.IGNORECASE
+        )
+        json_match = regex.search(str(video_page_soup))
+
+        if json_match is None:
+            PRETTY.warning(f"Could not find json stream info for {info.url!r}")
+            return True
+        json_str = json_match.group(1)
+
+        # parse it
+        json_object = json.loads(json_str)
+        # and fetch the video url!
+        video_url = json_object["streams"][0]["sources"]["mp4"][0]["src"]
+
+        return self._try_download(
+            IliasDownloadInfo(info.path, video_url, info.modification_date),
+            target
+        )
 
     def _try_download(self, info: IliasDownloadInfo, target: Path) -> bool:
         with self._session.get(info.url, stream=True) as response:
             content_type = response.headers["content-type"]
 
             if content_type.startswith("text/html"):
-                # Dangit, we're probably not logged in.
                 if self._is_logged_in(soupify(response)):
                     raise ContentTypeException("Attempting to download a web page, not a file")
 

@@ -3,7 +3,6 @@ Contains an ILIAS crawler alongside helper functions.
 """
 
 import datetime
-import json
 import logging
 import re
 from enum import Enum
@@ -390,29 +389,12 @@ class IliasCrawler:
                 modification_time
             )]
 
-        # Fetch the actual video page. This is a small wrapper page initializing a javscript
-        # player. Sadly we can not execute that JS. The actual video stream url is nowhere
-        # on the page, but defined in a JS object inside a script tag, passed to the player
-        # library.
-        # We do the impossible and RegEx the stream JSON object out of the page's HTML source
-        video_page_url = self._abs_url_from_link(link)
-        video_page_soup = self._get_page(video_page_url, {})
-        regex: re.Pattern = re.compile(
-            r"({\"streams\"[\s\S]+?),\s*{\"paella_config_file", re.IGNORECASE
-        )
-        json_match = regex.search(str(video_page_soup))
-
-        if json_match is None:
-            PRETTY.warning(f"Could not find json stream info for {video_page_url!r}")
-            return []
-        json_str = json_match.group(1)
-
-        # parse it
-        json_object = json.loads(json_str)
-        # and fetch the video url!
-        video_url = json_object["streams"][0]["sources"]["mp4"][0]["src"]
-
-        return [IliasDownloadInfo(video_path, video_url, modification_time)]
+        return [IliasDownloadInfo(
+            video_path,
+            self._abs_url_from_link(link),
+            modification_time,
+            unpack_video=True
+        )]
 
     def _crawl_exercises(self, element_path: Path, url: str) -> List[IliasDownloadInfo]:
         """
