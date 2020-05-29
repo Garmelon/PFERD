@@ -45,7 +45,6 @@ class Pferd(Location):
         self._tmp_dir = TmpDir(self.resolve(tmp_dir))
         self._test_run = test_run
 
-
     @staticmethod
     def enable_logging() -> None:
         """
@@ -53,7 +52,6 @@ class Pferd(Location):
         """
 
         enable_logging()
-
 
     @staticmethod
     def _print_transformables(transformables: List[TF]) -> None:
