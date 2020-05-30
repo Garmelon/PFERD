@@ -161,7 +161,10 @@ class IliasCrawler:
             entries: List[IliasCrawlerEntry]
     ) -> List[IliasDownloadInfo]:
         result: List[IliasDownloadInfo] = []
-        for entry in entries:
+        entries_to_process: List[IliasCrawlerEntry] = entries.copy()
+        while len(entries_to_process) > 0:
+            entry = entries_to_process.pop()
+
             if entry.entry_type == IliasElementType.EXTERNAL_LINK:
                 PRETTY.not_searching(entry.path, "external link")
                 continue
@@ -176,6 +179,25 @@ class IliasCrawler:
             download_info = entry.to_download_info()
             if download_info is not None:
                 result.append(download_info)
+                continue
+
+            url = entry.url()
+
+            if url is None:
+                PRETTY.warning(f"Could not find url for {str(entry.path)!r}, skipping it")
+                continue
+
+            PRETTY.searching(entry.path)
+
+            if entry.entry_type == IliasElementType.EXERCISE_FOLDER:
+                entries_to_process += self._crawl_exercises(entry.path, url)
+                continue
+            if entry.entry_type == IliasElementType.REGULAR_FOLDER:
+                entries_to_process += self._crawl_folder(entry.path, url)
+                continue
+            if entry.entry_type == IliasElementType.VIDEO_FOLDER:
+                entries_to_process += self._crawl_video_directory(entry.path, url)
+                continue
 
         return result
 
@@ -188,8 +210,6 @@ class IliasCrawler:
         """
         Decides which sub crawler to use for a given top level element.
         """
-        PRETTY.searching(path)
-
         parsed_url = urlparse(url)
         LOGGER.debug("Parsed url: %r", parsed_url)
 
@@ -510,16 +530,9 @@ class IliasCrawler:
             element_path = Path(folder_path, link.getText().strip())
             element_type = self._find_type_from_link(element_path, link, abs_url)
 
-            if element_type == IliasElementType.EXERCISE_FOLDER:
-                result += self._crawl_exercises(element_path, abs_url)
-            elif element_type == IliasElementType.REGULAR_FOLDER:
-                result += self._crawl_folder(element_path, abs_url)
-            elif element_type == IliasElementType.VIDEO_FOLDER:
-                result += self._crawl_video_directory(element_path, abs_url)
-            elif element_type == IliasElementType.REGULAR_FILE:
-                result += self._crawl_file(element_path, link, abs_url)
+            if element_type == IliasElementType.REGULAR_FILE:
+                result += self._crawl_file(folder_path, link, abs_url)
             elif element_type is not None:
-                LOGGER.info(f"Just appending entry {element_type} {str(element_path)!r}")
                 result += [IliasCrawlerEntry(element_path, abs_url, element_type, None)]
             else:
                 PRETTY.warning(f"Found element without a type at {str(element_path)!r}")
