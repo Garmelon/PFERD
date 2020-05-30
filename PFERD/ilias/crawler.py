@@ -28,7 +28,7 @@ PRETTY = PrettyLogger(LOGGER)
 
 class IliasElementType(Enum):
     """
-    The type of an ilias directory.
+    The type of an ilias element.
     """
     REGULAR_FOLDER = "REGULAR_FOLDER"
     VIDEO_FOLDER = "VIDEO_FOLDER"
@@ -43,6 +43,7 @@ IliasDirectoryFilter = Callable[[Path, IliasElementType], bool]
 
 
 class IliasCrawlerEntry:
+    # pylint: disable=too-few-public-methods
     """
     An ILIAS crawler entry used internally to find, catalogue and recursively crawl elements.
     """
@@ -97,12 +98,6 @@ class IliasCrawler:
         self._authenticator = authenticator
         self.dir_filter = dir_filter
 
-    def _abs_url_from_link(self, link_tag: bs4.Tag) -> str:
-        """
-        Create an absolute url from an <a> tag.
-        """
-        return urljoin(self._base_url, link_tag.get("href"))
-
     @staticmethod
     def _url_set_query_param(url: str, param: str, value: str) -> str:
         """
@@ -138,7 +133,7 @@ class IliasCrawler:
 
         # And treat it as a folder
         entries: List[IliasCrawlerEntry] = self._crawl_folder(Path(""), root_url)
-        return self._entries_to_download_infos(entries)
+        return self._iterate_entries_to_download_infos(entries)
 
     def _is_course_id_valid(self, root_url: str, course_id: str) -> bool:
         response: requests.Response = self._session.get(root_url)
@@ -154,9 +149,9 @@ class IliasCrawler:
         entries: List[IliasCrawlerEntry] = self._crawl_folder(
             Path(""), self._base_url + "?baseClass=ilPersonalDesktopGUI"
         )
-        return self._entries_to_download_infos(entries)
+        return self._iterate_entries_to_download_infos(entries)
 
-    def _entries_to_download_infos(
+    def _iterate_entries_to_download_infos(
             self,
             entries: List[IliasCrawlerEntry]
     ) -> List[IliasDownloadInfo]:
@@ -200,6 +195,36 @@ class IliasCrawler:
                 continue
 
         return result
+
+    def _crawl_folder(self, folder_path: Path, url: str) -> List[IliasCrawlerEntry]:
+        """
+        Crawl all files in a folder-like element.
+        """
+        soup = self._get_page(url, {})
+
+        result: List[IliasCrawlerEntry] = []
+
+        # Fetch all links and throw them to the general interpreter
+        links: List[bs4.Tag] = soup.select("a.il_ContainerItemTitle")
+        for link in links:
+            abs_url = self._abs_url_from_link(link)
+            element_path = Path(folder_path, link.getText().strip())
+            element_type = self._find_type_from_link(element_path, link, abs_url)
+
+            if element_type == IliasElementType.REGULAR_FILE:
+                result += self._crawl_file(folder_path, link, abs_url)
+            elif element_type is not None:
+                result += [IliasCrawlerEntry(element_path, abs_url, element_type, None)]
+            else:
+                PRETTY.warning(f"Found element without a type at {str(element_path)!r}")
+
+        return result
+
+    def _abs_url_from_link(self, link_tag: bs4.Tag) -> str:
+        """
+        Create an absolute url from an <a> tag.
+        """
+        return urljoin(self._base_url, link_tag.get("href"))
 
     @staticmethod
     def _find_type_from_link(
@@ -514,30 +539,6 @@ class IliasCrawler:
                 ))
 
         return results
-
-    def _crawl_folder(self, folder_path: Path, url: str) -> List[IliasCrawlerEntry]:
-        """
-        Crawl all files in a folder-like element.
-        """
-        soup = self._get_page(url, {})
-
-        result: List[IliasCrawlerEntry] = []
-
-        # Fetch all links and throw them to the general interpreter
-        links: List[bs4.Tag] = soup.select("a.il_ContainerItemTitle")
-        for link in links:
-            abs_url = self._abs_url_from_link(link)
-            element_path = Path(folder_path, link.getText().strip())
-            element_type = self._find_type_from_link(element_path, link, abs_url)
-
-            if element_type == IliasElementType.REGULAR_FILE:
-                result += self._crawl_file(folder_path, link, abs_url)
-            elif element_type is not None:
-                result += [IliasCrawlerEntry(element_path, abs_url, element_type, None)]
-            else:
-                PRETTY.warning(f"Found element without a type at {str(element_path)!r}")
-
-        return result
 
     def _get_page(self, url: str, params: Dict[str, Any]) -> bs4.BeautifulSoup:
         """
