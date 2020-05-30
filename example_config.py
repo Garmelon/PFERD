@@ -2,7 +2,7 @@ import argparse
 from pathlib import Path, PurePath
 
 from PFERD import Pferd
-from PFERD.ilias import IliasDirectoryType
+from PFERD.ilias import IliasElementType
 from PFERD.transform import (attempt, do, glob, keep, move, move_dir,
                              optionally, re_move, re_rename)
 
@@ -49,7 +49,7 @@ tf_ss_2020_pg = attempt(
 )
 
 
-def df_ss_2020_or1(path: PurePath, _type: IliasDirectoryType) -> bool:
+def df_ss_2020_or1(path: PurePath, _type: IliasElementType) -> bool:
     if glob("Tutorien/")(path):
         return True
     if glob("Tutorien/Tutorium 10, dienstags 15:45 Uhr/")(path):

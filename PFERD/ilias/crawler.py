@@ -8,7 +8,7 @@ import logging
 import re
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Union
 from urllib.parse import (parse_qs, urlencode, urljoin, urlparse, urlsplit,
                           urlunsplit)
 
@@ -26,16 +26,51 @@ LOGGER = logging.getLogger(__name__)
 PRETTY = PrettyLogger(LOGGER)
 
 
-class IliasDirectoryType(Enum):
+class IliasElementType(Enum):
     """
     The type of an ilias directory.
     """
-    FOLDER = "FOLDER"
-    VIDEO = "VIDEO"
-    EXERCISE = "EXERCISE"
+    REGULAR_FOLDER = "REGULAR_FOLDER"
+    VIDEO_FOLDER = "VIDEO_FOLDER"
+    EXERCISE_FOLDER = "EXERCISE_FOLDER"
+    REGULAR_FILE = "REGULAR_FILE"
+    VIDEO_FILE = "VIDEO_FILE"
+    FORUM = "FORUM"
+    EXTERNAL_LINK = "EXTERNAL_LINK"
 
 
-IliasDirectoryFilter = Callable[[Path, IliasDirectoryType], bool]
+IliasDirectoryFilter = Callable[[Path, IliasElementType], bool]
+
+
+class IliasCrawlerEntry:
+    """
+    An ILIAS crawler entry used internally to find, catalogue and recursively crawl elements.
+    """
+
+    def __init__(
+            self,
+            path: Path,
+            url: Union[str, Callable[[], Optional[str]]],
+            entry_type: IliasElementType,
+            modification_date: Optional[datetime.datetime]
+    ):
+        self.path = path
+        if isinstance(url, str):
+            str_url = url
+            self.url: Callable[[], Optional[str]] = lambda: str_url
+        else:
+            self.url = url
+        self.entry_type = entry_type
+        self.modification_date = modification_date
+
+    def to_download_info(self) -> Optional[IliasDownloadInfo]:
+        """
+        Converts this crawler entry to an IliasDownloadInfo, if possible.
+        This method will only succeed for *File* types.
+        """
+        if self.entry_type in [IliasElementType.REGULAR_FILE, IliasElementType.VIDEO_FILE]:
+            return IliasDownloadInfo(self.path, self.url, self.modification_date)
+        return None
 
 
 class IliasCrawler:
@@ -102,7 +137,8 @@ class IliasCrawler:
             )
 
         # And treat it as a folder
-        return self._crawl_folder(Path(""), root_url)
+        entries: List[IliasCrawlerEntry] = self._crawl_folder(Path(""), root_url)
+        return self._entries_to_download_infos(entries)
 
     def _is_course_id_valid(self, root_url: str, course_id: str) -> bool:
         response: requests.Response = self._session.get(root_url)
@@ -115,44 +151,108 @@ class IliasCrawler:
         Raises:
             FatalException: if an unrecoverable error occurs
         """
-        return self._crawl_folder(Path(""), self._base_url + "?baseClass=ilPersonalDesktopGUI")
+        entries: List[IliasCrawlerEntry] = self._crawl_folder(
+            Path(""), self._base_url + "?baseClass=ilPersonalDesktopGUI"
+        )
+        return self._entries_to_download_infos(entries)
 
-    def _switch_on_crawled_type(
+    def _entries_to_download_infos(
             self,
+            entries: List[IliasCrawlerEntry]
+    ) -> List[IliasDownloadInfo]:
+        result: List[IliasDownloadInfo] = []
+        for entry in entries:
+            if entry.entry_type == IliasElementType.EXTERNAL_LINK:
+                PRETTY.not_searching(entry.path, "external link")
+                continue
+            if entry.entry_type == IliasElementType.FORUM:
+                PRETTY.not_searching(entry.path, "forum")
+                continue
+
+            if not self.dir_filter(entry.path, entry.entry_type):
+                PRETTY.not_searching(entry.path, "user filter")
+                continue
+
+            download_info = entry.to_download_info()
+            if download_info is not None:
+                result.append(download_info)
+
+        return result
+
+    @staticmethod
+    def _find_type_from_link(
             path: Path,
             link_element: bs4.Tag,
             url: str
-    ) -> List[IliasDownloadInfo]:
+    ) -> Optional[IliasElementType]:
         """
         Decides which sub crawler to use for a given top level element.
         """
+        PRETTY.searching(path)
+
         parsed_url = urlparse(url)
         LOGGER.debug("Parsed url: %r", parsed_url)
 
         # file URLs contain "target=file"
         if "target=file_" in parsed_url.query:
-            LOGGER.debug("Interpreted as file.")
-            return self._crawl_file(path, link_element, url)
+            return IliasElementType.REGULAR_FILE
 
         # Skip forums
         if "cmd=showThreads" in parsed_url.query:
-            LOGGER.debug("Skipping forum %r", url)
-            return []
+            return IliasElementType.FORUM
 
         # Everything with a ref_id can *probably* be opened to reveal nested things
         # video groups, directories, exercises, etc
         if "ref_id=" in parsed_url.query:
-            LOGGER.debug("Processing folder-like...")
-            return self._switch_on_folder_like(path, link_element, url)
+            return IliasCrawler._find_type_from_folder_like(link_element, url)
 
         PRETTY.warning(
-            "Got unkwarning element type in switch. I am not sure what horror I found on the"
+            "Got unknown element type in switch. I am not sure what horror I found on the"
             f" ILIAS page. The element was at {str(path)!r} and it is {link_element!r})"
         )
-        return []
+        return None
 
     @staticmethod
-    def _crawl_file(path: Path, link_element: bs4.Tag, url: str) -> List[IliasDownloadInfo]:
+    def _find_type_from_folder_like(link_element: bs4.Tag, url: str) -> Optional[IliasElementType]:
+        """
+        Try crawling something that looks like a folder.
+        """
+        # pylint: disable=too-many-return-statements
+
+        # We look for the outer div of our inner link, to find information around it
+        # (mostly the icon)
+        for parent in link_element.parents:
+            if "ilContainerListItemOuter" in parent["class"]:
+                found_parent = parent
+                break
+
+        if found_parent is None:
+            PRETTY.warning(f"Could not find element icon for {url!r}")
+            return None
+
+        # Find the small descriptive icon to figure out the type
+        img_tag: Optional[bs4.Tag] = found_parent.select_one("img.ilListItemIcon")
+
+        if img_tag is None:
+            PRETTY.warning(f"Could not find image tag for {url!r}")
+            return None
+
+        if "opencast" in str(img_tag["alt"]).lower():
+            return IliasElementType.VIDEO_FOLDER
+
+        if str(img_tag["src"]).endswith("icon_exc.svg"):
+            return IliasElementType.EXERCISE_FOLDER
+
+        if str(img_tag["src"]).endswith("icon_webr.svg"):
+            return IliasElementType.EXTERNAL_LINK
+
+        if str(img_tag["src"]).endswith("frm.svg"):
+            return IliasElementType.FORUM
+
+        return IliasElementType.REGULAR_FOLDER
+
+    @staticmethod
+    def _crawl_file(path: Path, link_element: bs4.Tag, url: str) -> List[IliasCrawlerEntry]:
         """
         Crawls a file.
         """
@@ -183,80 +283,11 @@ class IliasCrawler:
         name = link_element.getText()
         full_path = Path(path, name + "." + file_type)
 
-        return [IliasDownloadInfo(full_path, url, modification_date)]
+        return [
+            IliasCrawlerEntry(full_path, url, IliasElementType.REGULAR_FILE, modification_date)
+        ]
 
-    def _switch_on_folder_like(
-            self,
-            parent_path: Path,
-            link_element: bs4.Tag,
-            url: str
-    ) -> List[IliasDownloadInfo]:
-        """
-        Try crawling something that looks like a folder.
-        """
-        # pylint: disable=too-many-return-statements
-
-        element_path = Path(parent_path, link_element.getText().strip())
-
-        found_parent: Optional[bs4.Tag] = None
-
-        # We look for the outer div of our inner link, to find information around it
-        # (mostly the icon)
-        for parent in link_element.parents:
-            if "ilContainerListItemOuter" in parent["class"]:
-                found_parent = parent
-                break
-
-        if found_parent is None:
-            PRETTY.warning(f"Could not find element icon for {url!r}")
-            return []
-
-        # Find the small descriptive icon to figure out the type
-        img_tag: Optional[bs4.Tag] = found_parent.select_one("img.ilListItemIcon")
-
-        if img_tag is None:
-            PRETTY.warning(f"Could not find image tag for {url!r}")
-            return []
-
-        directory_type = IliasDirectoryType.FOLDER
-
-        if "opencast" in str(img_tag["alt"]).lower():
-            directory_type = IliasDirectoryType.VIDEO
-
-        if str(img_tag["src"]).endswith("icon_exc.svg"):
-            directory_type = IliasDirectoryType.EXERCISE
-
-        if not self.dir_filter(element_path, directory_type):
-            PRETTY.not_searching(element_path, "user filter")
-            return []
-
-        PRETTY.searching(element_path)
-
-        # A forum
-        if str(img_tag["src"]).endswith("frm.svg"):
-            LOGGER.debug("Skipping forum at %r", url)
-            PRETTY.not_searching(element_path, "forum")
-            return []
-
-        # An exercise
-        if directory_type == IliasDirectoryType.EXERCISE:
-            LOGGER.debug("Crawling exercises at %r", url)
-            return self._crawl_exercises(element_path, url)
-
-        if str(img_tag["src"]).endswith("icon_webr.svg"):
-            LOGGER.debug("Skipping external link at %r", url)
-            PRETTY.not_searching(element_path, "external link")
-            return []
-
-        # Match the opencast video plugin
-        if directory_type == IliasDirectoryType.VIDEO:
-            LOGGER.debug("Found video site: %r", url)
-            return self._crawl_video_directory(element_path, url)
-
-        # Assume it is a folder
-        return self._crawl_folder(element_path, self._abs_url_from_link(link_element))
-
-    def _crawl_video_directory(self, video_dir_path: Path, url: str) -> List[IliasDownloadInfo]:
+    def _crawl_video_directory(self, video_dir_path: Path, url: str) -> List[IliasCrawlerEntry]:
         """
         Crawl the video overview site.
         """
@@ -291,7 +322,7 @@ class IliasCrawler:
             video_dir_path: Path,
             paged_video_list_soup: bs4.BeautifulSoup,
             second_stage_url: str
-    ) -> List[IliasDownloadInfo]:
+    ) -> List[IliasCrawlerEntry]:
         LOGGER.info("Found paginated video page, trying 800 elements")
 
         # Try to find the table id. This can be used to build the query parameter indicating
@@ -333,7 +364,7 @@ class IliasCrawler:
             self,
             video_dir_path: Path,
             video_list_soup: bs4.BeautifulSoup
-    ) -> List[IliasDownloadInfo]:
+    ) -> List[IliasCrawlerEntry]:
         """
         Crawls the "second stage" video page. This page contains the actual video urls.
         """
@@ -346,7 +377,7 @@ class IliasCrawler:
             name="a", text=re.compile(r"\s*Abspielen\s*")
         )
 
-        results: List[IliasDownloadInfo] = []
+        results: List[IliasCrawlerEntry] = []
 
         # We can download everything directly!
         if len(direct_download_links) == len(video_links):
@@ -363,7 +394,7 @@ class IliasCrawler:
             parent_path: Path,
             link: bs4.Tag,
             direct_download: bool
-    ) -> List[IliasDownloadInfo]:
+    ) -> List[IliasCrawlerEntry]:
         """
         Crawl a single video based on its "Abspielen" link from the video listing.
         """
@@ -386,11 +417,14 @@ class IliasCrawler:
         # The video had a direct download button we can use instead
         if direct_download:
             LOGGER.debug("Using direct download for video %r", str(video_path))
-            return [IliasDownloadInfo(video_path, video_url, modification_time)]
+            return [IliasCrawlerEntry(
+                video_path, video_url, IliasElementType.VIDEO_FILE, modification_time
+            )]
 
-        return [IliasDownloadInfo(
+        return [IliasCrawlerEntry(
             video_path,
             self._crawl_video_url_from_play_link(video_url),
+            IliasElementType.VIDEO_FILE,
             modification_time
         )]
 
@@ -419,13 +453,13 @@ class IliasCrawler:
             return video_url
         return inner
 
-    def _crawl_exercises(self, element_path: Path, url: str) -> List[IliasDownloadInfo]:
+    def _crawl_exercises(self, element_path: Path, url: str) -> List[IliasCrawlerEntry]:
         """
         Crawl files offered for download in exercises.
         """
         soup = self._get_page(url, {})
 
-        results: List[IliasDownloadInfo] = []
+        results: List[IliasCrawlerEntry] = []
 
         # Each assignment is in an accordion container
         assignment_containers: List[bs4.Tag] = soup.select(".il_VAccordionInnerContainer")
@@ -452,27 +486,43 @@ class IliasCrawler:
 
                 LOGGER.debug("Found file %r at %r", file_name, url)
 
-                results.append(IliasDownloadInfo(
+                results.append(IliasCrawlerEntry(
                     Path(element_path, container_name, file_name),
                     url,
+                    IliasElementType.REGULAR_FILE,
                     None  # We do not have any timestamp
                 ))
 
         return results
 
-    def _crawl_folder(self, folder_path: Path, url: str) -> List[IliasDownloadInfo]:
+    def _crawl_folder(self, folder_path: Path, url: str) -> List[IliasCrawlerEntry]:
         """
         Crawl all files in a folder-like element.
         """
         soup = self._get_page(url, {})
 
-        result: List[IliasDownloadInfo] = []
+        result: List[IliasCrawlerEntry] = []
 
         # Fetch all links and throw them to the general interpreter
         links: List[bs4.Tag] = soup.select("a.il_ContainerItemTitle")
         for link in links:
             abs_url = self._abs_url_from_link(link)
-            result += self._switch_on_crawled_type(folder_path, link, abs_url)
+            element_path = Path(folder_path, link.getText().strip())
+            element_type = self._find_type_from_link(element_path, link, abs_url)
+
+            if element_type == IliasElementType.EXERCISE_FOLDER:
+                result += self._crawl_exercises(element_path, abs_url)
+            elif element_type == IliasElementType.REGULAR_FOLDER:
+                result += self._crawl_folder(element_path, abs_url)
+            elif element_type == IliasElementType.VIDEO_FOLDER:
+                result += self._crawl_video_directory(element_path, abs_url)
+            elif element_type == IliasElementType.REGULAR_FILE:
+                result += self._crawl_file(element_path, link, abs_url)
+            elif element_type is not None:
+                LOGGER.info(f"Just appending entry {element_type} {str(element_path)!r}")
+                result += [IliasCrawlerEntry(element_path, abs_url, element_type, None)]
+            else:
+                PRETTY.warning(f"Found element without a type at {str(element_path)!r}")
 
         return result
 
