@@ -65,6 +65,8 @@ class Organizer(Location):
                 # Bail out, nothing more to do
                 PRETTY.ignored_file(dst_absolute, "same file contents")
                 self.mark(dst)
+                # Touch it to update the timestamp
+                dst_absolute.touch()
                 return
 
             PRETTY.modified_file(dst_absolute)
