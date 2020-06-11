@@ -425,7 +425,8 @@ class IliasCrawler:
         results: List[IliasCrawlerEntry] = []
 
         # We can download everything directly!
-        if len(direct_download_links) == len(video_links):
+        # FIXME: Sadly the download button is currently broken, so never do that
+        if False and len(direct_download_links) == len(video_links):
             for link in direct_download_links:
                 results += self._crawl_single_video(video_dir_path, link, True)
         else:
