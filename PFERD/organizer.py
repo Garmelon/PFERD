@@ -26,6 +26,7 @@ class Organizer(Location):
 
     new_files = []
     modified_files = []
+    deleted_files = []
 
     def __init__(self, path: Path):
         """Create a new organizer for a given path."""
@@ -122,9 +123,9 @@ class Organizer(Location):
         if start_dir.resolve() not in self._known_files and dir_empty:
             start_dir.rmdir()
 
-    @staticmethod
-    def _delete_file_if_confirmed(path: Path) -> None:
+    def _delete_file_if_confirmed(self, path: Path) -> None:
         prompt = f"Do you want to delete {path}"
 
         if prompt_yes_no(prompt, False):
+            self.deleted_files.append(path)
             path.unlink()

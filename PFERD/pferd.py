@@ -36,6 +36,7 @@ class Pferd(Location):
 
     new_files = []
     modified_files = []
+    deleted_files = []
 
     def __init__(
             self,
@@ -157,13 +158,14 @@ class Pferd(Location):
 
         self.new_files += organizer.new_files
         self.modified_files += organizer.modified_files
+        self.deleted_files += organizer.deleted_files
 
         return organizer
 
     def print_summary(self):
         LOGGER.info("")
         LOGGER.info("Summary: ")
-        if len(self.new_files) == 0 and len(self.modified_files) == 0:
+        if len(self.new_files) == 0 and len(self.modified_files) == 0 and len(self.deleted_files) == 0:
             LOGGER.info("Nothing changed")
 
         if len(self.new_files) > 0:
@@ -177,6 +179,13 @@ class Pferd(Location):
             LOGGER.info("Modified Files:")
             for file in self.modified_files:
                 PRETTY.modified_file(file)
+
+        LOGGER.info("")
+
+        if len(self.deleted_files) > 0:
+            LOGGER.info("Deleted Files:")
+            for file in self.deleted_files:
+                PRETTY.deleted_file(file)
 
         LOGGER.info("")
 

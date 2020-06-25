@@ -111,6 +111,15 @@ class PrettyLogger:
             f"[bold green]Created {self._format_path(path)}.[/bold green]"
         )
 
+    def deleted_file(self, path: PathLike) -> None:
+        """
+        A file has been deleted.
+        """
+
+        self.logger.info(
+            f"[bold red]Deleted {self._format_path(path)}.[/bold red]"
+        )
+
     def ignored_file(self, path: PathLike, reason: str) -> None:
         """
         File was not downloaded or modified.
