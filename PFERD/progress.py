@@ -7,8 +7,7 @@ from types import TracebackType
 from typing import Optional, Type
 
 import requests
-from rich.console import Console, ConsoleOptions, Control, RenderResult
-from rich.live_render import LiveRender
+from rich.console import Console
 from rich.progress import (BarColumn, DownloadColumn, Progress, TaskID,
                            TextColumn, TimeRemainingColumn,
                            TransferSpeedColumn)
@@ -23,7 +22,8 @@ _progress: Progress = Progress(
     TransferSpeedColumn(),
     "•",
     TimeRemainingColumn(),
-    console=Console(file=sys.stdout)
+    console=Console(file=sys.stdout),
+    transient=True
 )
 
 
@@ -59,18 +59,6 @@ def progress_for(settings: Optional[ProgressSettings]) -> 'ProgressContextManage
         ProgressContextManager -- the progress manager
     """
     return ProgressContextManager(settings)
-
-
-class _OneLineUp(LiveRender):
-    """
-    Render a control code for moving one line upwards.
-    """
-
-    def __init__(self) -> None:
-        super().__init__("not rendered")
-
-    def __console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
-        yield Control(f"\r\x1b[1A")
 
 
 class ProgressContextManager:
@@ -112,9 +100,6 @@ class ProgressContextManager:
             # We need to clean up after ourselves, as we were the last one
             _progress.stop()
             _progress.refresh()
-
-            # And we existed, so remove the line above (remove_task leaves one behind)
-            Console().print(_OneLineUp())
 
         return None
 
