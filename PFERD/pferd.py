@@ -9,6 +9,7 @@ from typing import Callable, List, Optional, Union
 from .cookie_jar import CookieJar
 from .diva import (DivaDownloader, DivaDownloadStrategy, DivaPlaylistCrawler,
                    diva_download_new)
+from .download_summary import DownloadSummary
 from .errors import FatalException, swallow_and_print_errors
 from .ilias import (IliasAuthenticator, IliasCrawler, IliasDirectoryFilter,
                     IliasDownloader, IliasDownloadInfo, IliasDownloadStrategy,
@@ -34,10 +35,6 @@ class Pferd(Location):
     useful shortcuts for running synchronizers in a single interface.
     """
 
-    new_files = []
-    modified_files = []
-    deleted_files = []
-
     def __init__(
             self,
             base_dir: Path,
@@ -46,6 +43,7 @@ class Pferd(Location):
     ):
         super().__init__(Path(base_dir))
 
+        self._download_summary = DownloadSummary()
         self._tmp_dir = TmpDir(self.resolve(tmp_dir))
         self._test_run = test_run
 
@@ -156,38 +154,12 @@ class Pferd(Location):
             clean=clean,
         )
 
-        self.new_files += organizer.new_files
-        self.modified_files += organizer.modified_files
-        self.deleted_files += organizer.deleted_files
+        self._download_summary.merge(organizer.download_summary)
 
         return organizer
 
     def print_summary(self):
-        LOGGER.info("")
-        LOGGER.info("Summary: ")
-        if len(self.new_files) == 0 and len(self.modified_files) == 0 and len(self.deleted_files) == 0:
-            LOGGER.info("Nothing changed")
-
-        if len(self.new_files) > 0:
-            LOGGER.info("New Files:")
-            for file in self.new_files:
-                PRETTY.new_file(file)
-
-        LOGGER.info("")
-
-        if len(self.modified_files) > 0:
-            LOGGER.info("Modified Files:")
-            for file in self.modified_files:
-                PRETTY.modified_file(file)
-
-        LOGGER.info("")
-
-        if len(self.deleted_files) > 0:
-            LOGGER.info("Deleted Files:")
-            for file in self.deleted_files:
-                PRETTY.deleted_file(file)
-
-        LOGGER.info("")
+        self._download_summary.print(LOGGER, PRETTY)
 
     @swallow_and_print_errors
     def ilias_kit_personal_desktop(

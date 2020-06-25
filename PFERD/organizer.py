@@ -9,6 +9,7 @@ import shutil
 from pathlib import Path, PurePath
 from typing import List, Set
 
+from .download_summary import DownloadSummary
 from .location import Location
 from .logging import PrettyLogger
 from .utils import prompt_yes_no
@@ -24,10 +25,6 @@ class FileAcceptException(Exception):
 class Organizer(Location):
     """A helper for managing downloaded files."""
 
-    new_files = []
-    modified_files = []
-    deleted_files = []
-
     def __init__(self, path: Path):
         """Create a new organizer for a given path."""
         super().__init__(path)
@@ -35,6 +32,8 @@ class Organizer(Location):
 
         # Keep the root dir
         self._known_files.add(path.resolve())
+
+        self.download_summary = DownloadSummary()
 
     def accept_file(self, src: Path, dst: PurePath) -> None:
         """Move a file to this organizer and mark it."""
@@ -73,10 +72,10 @@ class Organizer(Location):
                 dst_absolute.touch()
                 return
 
-            self.modified_files.append(dst_absolute)
+            self.download_summary.add_changed_file(dst_absolute)
             PRETTY.modified_file(dst_absolute)
         else:
-            self.new_files.append(dst_absolute)
+            self.download_summary.add_new_file(dst_absolute)
             PRETTY.new_file(dst_absolute)
 
         # Create parent dir if needed
@@ -127,5 +126,5 @@ class Organizer(Location):
         prompt = f"Do you want to delete {path}"
 
         if prompt_yes_no(prompt, False):
-            self.deleted_files.append(path)
+            self.download_summary.add_deleted_file(path)
             path.unlink()
