@@ -124,6 +124,7 @@ def main() -> None:
             cookies="ilias_cookies.txt",
         )
 
+    pferd.print_summary()
 
 if __name__ == "__main__":
     main()

@@ -24,6 +24,9 @@ class FileAcceptException(Exception):
 class Organizer(Location):
     """A helper for managing downloaded files."""
 
+    new_files = []
+    modified_files = []
+
     def __init__(self, path: Path):
         """Create a new organizer for a given path."""
         super().__init__(path)
@@ -69,8 +72,10 @@ class Organizer(Location):
                 dst_absolute.touch()
                 return
 
+            self.modified_files.append(dst_absolute)
             PRETTY.modified_file(dst_absolute)
         else:
+            self.new_files.append(dst_absolute)
             PRETTY.new_file(dst_absolute)
 
         # Create parent dir if needed

@@ -34,6 +34,9 @@ class Pferd(Location):
     useful shortcuts for running synchronizers in a single interface.
     """
 
+    new_files = []
+    modified_files = []
+
     def __init__(
             self,
             base_dir: Path,
@@ -139,7 +142,8 @@ class Pferd(Location):
         # This authenticator only works with the KIT ilias instance.
         authenticator = KitShibbolethAuthenticator(username=username, password=password)
         PRETTY.starting_synchronizer(target, "ILIAS", course_id)
-        return self._ilias(
+
+        organizer = self._ilias(
             target=target,
             base_url="https://ilias.studium.kit.edu/",
             crawl_function=lambda crawler: crawler.crawl_course(course_id),
@@ -150,6 +154,31 @@ class Pferd(Location):
             download_strategy=download_strategy,
             clean=clean,
         )
+
+        self.new_files += organizer.new_files
+        self.modified_files += organizer.modified_files
+
+        return organizer
+
+    def print_summary(self):
+        LOGGER.info("")
+        LOGGER.info("Summary: ")
+        if len(self.new_files) == 0 and len(self.modified_files) == 0:
+            LOGGER.info("Nothing changed")
+
+        if len(self.new_files) > 0:
+            LOGGER.info("New Files:")
+            for file in self.new_files:
+                PRETTY.new_file(file)
+
+        LOGGER.info("")
+
+        if len(self.modified_files) > 0:
+            LOGGER.info("Modified Files:")
+            for file in self.modified_files:
+                PRETTY.modified_file(file)
+
+        LOGGER.info("")
 
     @swallow_and_print_errors
     def ilias_kit_personal_desktop(

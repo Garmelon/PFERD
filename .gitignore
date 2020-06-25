@@ -1,5 +1,8 @@
 __pycache__/
 .venv/
+venv/
+.idea/
+build/
 .mypy_cache/
 .tmp/
 .env
