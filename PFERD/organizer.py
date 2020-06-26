@@ -72,7 +72,7 @@ class Organizer(Location):
                 dst_absolute.touch()
                 return
 
-            self.download_summary.add_changed_file(dst_absolute)
+            self.download_summary.add_modified_file(dst_absolute)
             PRETTY.modified_file(dst_absolute)
         else:
             self.download_summary.add_new_file(dst_absolute)
