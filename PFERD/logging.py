@@ -3,14 +3,18 @@ Contains a few logger utility functions and implementations.
 """
 
 import logging
-from typing import Optional
+from pathlib import Path
+from typing import List, Optional
 
+from rich import print as rich_print
 from rich._log_render import LogRender
 from rich.console import Console
+from rich.panel import Panel
 from rich.style import Style
 from rich.text import Text
 from rich.theme import Theme
 
+from .download_summary import DownloadSummary
 from .utils import PathLike, to_path
 
 STYLE = "{"
@@ -146,6 +150,23 @@ class PrettyLogger:
             f"[dim]Not searching {self._format_path(path)} "
             f"([/dim]{reason}[dim]).[/dim]"
         )
+
+    def summary(self, download_summary: DownloadSummary) -> None:
+        """
+        Prints a download summary.
+        """
+        self.logger.info("")
+        self.logger.info("[bold cyan]Download Summary[/bold cyan]")
+        if not download_summary.has_updates():
+            self.logger.info("[bold dim]Nothing changed![/bold dim]")
+            return
+
+        for new_file in download_summary.new_files:
+            self.new_file(new_file)
+        for modified_file in download_summary.modified_files:
+            self.modified_file(modified_file)
+        for deleted_files in download_summary.deleted_files:
+            self.deleted_file(deleted_files)
 
     def starting_synchronizer(
             self,

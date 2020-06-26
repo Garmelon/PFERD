@@ -159,7 +159,10 @@ class Pferd(Location):
         return organizer
 
     def print_summary(self) -> None:
-        self._download_summary.print(LOGGER, PRETTY)
+        """
+        Prints the accumulated download summary.
+        """
+        PRETTY.summary(self._download_summary)
 
     @swallow_and_print_errors
     def ilias_kit_personal_desktop(
