@@ -124,6 +124,7 @@ def main() -> None:
             cookies="ilias_cookies.txt",
         )
 
+    # Prints a summary listing all new, modified or deleted files
     pferd.print_summary()
 
 if __name__ == "__main__":

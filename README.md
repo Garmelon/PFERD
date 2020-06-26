@@ -9,7 +9,7 @@ Ensure that you have at least Python 3.8 installed.
 To install PFERD or update your installation to the latest version, run this
 wherever you want to install/have installed PFERD:
 ```
-$ pip install git+https://github.com/Garmelon/PFERD@v2.1.1
+$ pip install git+https://github.com/Garmelon/PFERD@v2.1.2
 ```
 
 The use of [venv](https://docs.python.org/3/library/venv.html) is recommended.
@@ -37,8 +37,8 @@ $ mkdir Vorlesungen
 $ cd Vorlesungen
 $ python3 -m venv .venv
 $ .venv/bin/activate
-$ pip install git+https://github.com/Garmelon/PFERD@v2.1.1
-$ curl -O https://raw.githubusercontent.com/Garmelon/PFERD/v2.1.1/example_config.py
+$ pip install git+https://github.com/Garmelon/PFERD@v2.1.2
+$ curl -O https://raw.githubusercontent.com/Garmelon/PFERD/v2.1.2/example_config.py
 $ python3 example_config.py
 $ deactivate
 ```
