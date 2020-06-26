@@ -158,7 +158,7 @@ class Pferd(Location):
 
         return organizer
 
-    def print_summary(self):
+    def print_summary(self) -> None:
         self._download_summary.print(LOGGER, PRETTY)
 
     @swallow_and_print_errors
