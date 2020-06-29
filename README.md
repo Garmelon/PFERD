@@ -63,8 +63,8 @@ ILIAS and can return either an output path (so you can rename files or move
 them around as you wish) or `None` if you do not want to save the given file.
 
 Additionally the ILIAS synchronizer allows you to define a *crawl filter*. This
-filter also receives the computed path as the input, but is only called or
-*directoties*. If you return `True`, the directory will be crawled and
+filter also receives the computed path as the input, but is only called for
+*directories*. If you return `True`, the directory will be crawled and
 searched. If you return `False` the directory will be ignored and nothing in it
 will be passed to the transformer.
 
