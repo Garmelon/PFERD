@@ -28,7 +28,7 @@ The use of [venv] is recommended.
 
 ### Upgrading from 2.0.0 to 2.1.0+
 
-- The `IliasDirectoryType` type was renamed to `IliasElementType` and is now far more detailed:
+- The `IliasDirectoryType` type was renamed to `IliasElementType` and is now far more detailed.
   The new values are: `REGULAR_FOLDER`, `VIDEO_FOLDER`, `EXERCISE_FOLDER`, `REGULAR_FILE`, `VIDEO_FILE`, `FORUM`, `EXTERNAL_LINK`.
 - Forums and external links are skipped automatically if you use the `kit_ilias` helper.
 
@@ -91,33 +91,33 @@ the `PFERD.transform` module:
 
 These methods let you create a few basic transform building blocks:
 
-- **`glob(glob)`**
+- **`glob(glob)`**  
   Creates a transform that returns the unchanged path if the glob matches the path and `None` otherwise.
-  See also [Path.match].
+  See also [Path.match].  
   Example: `glob("Übung/*.pdf")`
-- **`predicate(pred)`**
+- **`predicate(pred)`**  
   Creates a transform that returns the unchanged path if `pred(path)` returns a truthy value.
-  Returns `None` otherwise.
+  Returns `None` otherwise.  
   Example: `predicate(lambda path: len(path.parts) == 3)`
-- **`move_dir(source, target)`**
-  Creates a transform that moves all files from the `source` to the `target` directory.
+- **`move_dir(source, target)`**  
+  Creates a transform that moves all files from the `source` to the `target` directory.  
   Example: `move_dir("Übung/", "Blätter/")`
-- **`move(source, target)`**
-  Creates a transform that moves the `source` file to `target`.
+- **`move(source, target)`**  
+  Creates a transform that moves the `source` file to `target`.  
   Example: `move("Vorlesung/VL02_Automten.pdf", "Vorlesung/VL02_Automaten.pdf")`
-- **`rename(source, target)`**
+- **`rename(source, target)`**  
   Creates a transform that renames all files named `source` to `target`.
-  This transform works on the file names, not paths, and thus works no matter where the file is located.
+  This transform works on the file names, not paths, and thus works no matter where the file is located.  
   Example: `rename("VL02_Automten.pdf", "VL02_Automaten.pdf")`
-- **`re_move(regex, target)`**
+- **`re_move(regex, target)`**  
   Creates a transform that moves all files matching `regex` to `target`.
   The transform `str.format` on the `target` string with the contents of the capturing groups before returning it.
   The capturing groups can be accessed via their index.
-  See also [Match.group].
+  See also [Match.group].  
   Example: `re_move(r"Übung/Blatt (\d+)\.pdf", "Blätter/Blatt_{1:0>2}.pdf")`
-- **`re_rename(regex, target)`**
+- **`re_rename(regex, target)`**  
   Creates a transform that renames all files matching `regex` to `target`.
-  This transform works on the file names, not paths, and thus works no matter where the file is located.
+  This transform works on the file names, not paths, and thus works no matter where the file is located.  
   Example: `re_rename(r"VL(\d+)(.*)\.pdf", "Vorlesung_Nr_{1}__{2}.pdf")`
 
 All movement or rename transforms above return `None` if a file doesn't match
@@ -135,11 +135,11 @@ See below for example usage.
 
 These methods let you combine transforms into more complex transforms:
 
-- **`optionally(transform)`**
+- **`optionally(transform)`**  
   Wraps a given transform and returns its result if it is not `None`.
   Otherwise returns the input path unchanged.
   See below for example usage.
-* **`do(transforms)`**
+* **`do(transforms)`**  
   Accepts a series of transforms and applies them in the given order to the result of the previous one.
   If any transform returns `None`, `do` short-circuits and also returns `None`.
   This can be used to perform multiple renames in a row:
@@ -153,7 +153,7 @@ These methods let you combine transforms into more complex transforms:
       optionally(re_rename("(?i)dbs-(.+)", "{1}")),
   )
   ```
-- **`attempt(transforms)`**
+- **`attempt(transforms)`**  
   Applies the passed transforms in the given order until it finds one that does not return `None`.
   If it does not find any, it returns `None`.
   This can be used to give a list of possible transformations and automatically pick the first one that fits:
