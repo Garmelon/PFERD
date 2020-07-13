@@ -38,6 +38,12 @@ class IliasElementType(Enum):
     FORUM = "FORUM"
     EXTERNAL_LINK = "EXTERNAL_LINK"
 
+    def is_folder(self) -> bool:
+        """
+        Returns whether this type is some kind of folder.
+        """
+        return "FOLDER" in str(self.name)
+
 
 IliasDirectoryFilter = Callable[[Path, IliasElementType], bool]
 
@@ -167,7 +173,7 @@ class IliasCrawler:
                 PRETTY.not_searching(entry.path, "forum")
                 continue
 
-            if not self.dir_filter(entry.path, entry.entry_type):
+            if entry.entry_type.is_folder() and not self.dir_filter(entry.path, entry.entry_type):
                 PRETTY.not_searching(entry.path, "user filter")
                 continue
 
