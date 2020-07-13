@@ -2,6 +2,8 @@
 
 import datetime
 import logging
+import math
+import os
 from pathlib import Path, PurePath
 from typing import Callable, List, Optional, Union
 
@@ -119,7 +121,15 @@ class IliasDownloader:
             LOGGER.info("Retrying download: %r", info)
             self._authenticator.authenticate(self._session)
 
-        self._organizer.accept_file(tmp_file, info.path)
+        dst_path = self._organizer.accept_file(tmp_file, info.path)
+        if dst_path and info.modification_date:
+            os.utime(
+                dst_path,
+                times=(
+                    math.ceil(info.modification_date.timestamp()),
+                    math.ceil(info.modification_date.timestamp())
+                )
+            )
 
     def _try_download(self, info: IliasDownloadInfo, target: Path) -> bool:
         url = info.url()

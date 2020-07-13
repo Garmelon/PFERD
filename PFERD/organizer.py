@@ -7,7 +7,7 @@ import filecmp
 import logging
 import shutil
 from pathlib import Path, PurePath
-from typing import List, Set
+from typing import List, Optional, Set
 
 from .download_summary import DownloadSummary
 from .location import Location
@@ -35,8 +35,15 @@ class Organizer(Location):
 
         self.download_summary = DownloadSummary()
 
-    def accept_file(self, src: Path, dst: PurePath) -> None:
-        """Move a file to this organizer and mark it."""
+    def accept_file(self, src: Path, dst: PurePath) -> Optional[Path]:
+        """
+        Move a file to this organizer and mark it.
+
+        Returns the path the file was moved to, to allow the caller to adjust the metadata.
+        As you might still need to adjust the metadata when the file was identical
+        (e.g. update the timestamp), the path is also returned in this case.
+        In all other cases (ignored, not overwritten, etc.) this method returns None.
+        """
         src_absolute = src.resolve()
         dst_absolute = self.resolve(dst)
 
@@ -52,7 +59,7 @@ class Organizer(Location):
             PRETTY.warning(f"File {str(dst_absolute)!r} was already written!")
             if not prompt_yes_no(f"Overwrite file?", default=False):
                 PRETTY.ignored_file(dst_absolute, "file was written previously")
-                return
+                return None
 
         # Destination file is directory
         if dst_absolute.exists() and dst_absolute.is_dir():
@@ -60,7 +67,7 @@ class Organizer(Location):
                 shutil.rmtree(dst_absolute)
             else:
                 PRETTY.warning(f"Could not add file {str(dst_absolute)!r}")
-                return
+                return None
 
         # Destination file exists
         if dst_absolute.exists() and dst_absolute.is_file():
@@ -68,9 +75,7 @@ class Organizer(Location):
                 # Bail out, nothing more to do
                 PRETTY.ignored_file(dst_absolute, "same file contents")
                 self.mark(dst)
-                # Touch it to update the timestamp
-                dst_absolute.touch()
-                return
+                return dst_absolute
 
             self.download_summary.add_modified_file(dst_absolute)
             PRETTY.modified_file(dst_absolute)
@@ -86,6 +91,8 @@ class Organizer(Location):
         shutil.move(str(src_absolute), str(dst_absolute))
 
         self.mark(dst)
+
+        return dst_absolute
 
     def mark(self, path: PurePath) -> None:
         """Mark a file as used so it will not get cleaned up."""
