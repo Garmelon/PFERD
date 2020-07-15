@@ -139,8 +139,9 @@ class IliasDownloader:
 
         with self._session.get(url, stream=True) as response:
             content_type = response.headers["content-type"]
+            has_content_disposition = "content-disposition" in response.headers
 
-            if content_type.startswith("text/html"):
+            if content_type.startswith("text/html") and not has_content_disposition:
                 if self._is_logged_in(soupify(response)):
                     raise ContentTypeException("Attempting to download a web page, not a file")
 
