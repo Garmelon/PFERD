@@ -203,7 +203,8 @@ class Pferd(Location):
         # This authenticator only works with the KIT ilias instance.
         authenticator = KitShibbolethAuthenticator(username=username, password=password)
         PRETTY.starting_synchronizer(target, "ILIAS", "Personal Desktop")
-        return self._ilias(
+
+        organizer = self._ilias(
             target=target,
             base_url="https://ilias.studium.kit.edu/",
             crawl_function=lambda crawler: crawler.crawl_personal_desktop(),
@@ -214,6 +215,10 @@ class Pferd(Location):
             download_strategy=download_strategy,
             clean=clean,
         )
+
+        self._download_summary.merge(organizer.download_summary)
+
+        return organizer
 
     @swallow_and_print_errors
     def diva_kit(
