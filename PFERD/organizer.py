@@ -5,6 +5,7 @@ A organizer is bound to a single directory.
 
 import filecmp
 import logging
+import os
 import shutil
 from pathlib import Path, PurePath
 from typing import List, Optional, Set
@@ -44,8 +45,17 @@ class Organizer(Location):
         (e.g. update the timestamp), the path is also returned in this case.
         In all other cases (ignored, not overwritten, etc.) this method returns None.
         """
-        src_absolute = src.resolve()
-        dst_absolute = self.resolve(dst)
+        # Windows limits the path length to 260 for *some* historical reason
+        # If you want longer paths, you will have to add the "\\?\" prefix in front of
+        # your path...
+        # See:
+        # https://docs.microsoft.com/en-us/windows/win32/fileio/naming-a-file#maximum-path-length-limitation
+        if os.name == 'nt':
+            src_absolute = Path("\\\\?\\" + str(src.resolve()))
+            dst_absolute = Path("\\\\?\\" + str(self.resolve(dst)))
+        else:
+            src_absolute = src.resolve()
+            dst_absolute = self.resolve(dst)
 
         if not src_absolute.exists():
             raise FileAcceptException("Source file does not exist")
