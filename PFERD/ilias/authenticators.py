@@ -67,7 +67,7 @@ class KitShibbolethAuthenticator(IliasAuthenticator):
         while not self._login_successful(soup):
             # Searching the form here so that this fails before asking for
             # credentials rather than after asking.
-            form = soup.find("form", {"class": "form2", "method": "post"})
+            form = soup.find("form", {"class": "full content", "method": "post"})
             action = form["action"]
 
             # Equivalent: Enter credentials in
