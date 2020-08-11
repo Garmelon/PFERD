@@ -72,7 +72,8 @@ class Pferd(Location):
             dir_filter: IliasDirectoryFilter,
             transform: Transform,
             download_strategy: IliasDownloadStrategy,
-            clean: bool = True
+            timeout: int,
+            clean: bool = True,
     ) -> Organizer:
         # pylint: disable=too-many-locals
         cookie_jar = CookieJar(to_path(cookies) if cookies else None)
@@ -81,7 +82,8 @@ class Pferd(Location):
         organizer = Organizer(self.resolve(to_path(target)))
 
         crawler = IliasCrawler(base_url, session, authenticator, dir_filter)
-        downloader = IliasDownloader(tmp_dir, organizer, session, authenticator, download_strategy)
+        downloader = IliasDownloader(tmp_dir, organizer, session,
+                                     authenticator, download_strategy, timeout)
 
         cookie_jar.load_cookies()
         info = crawl_function(crawler)
@@ -112,6 +114,7 @@ class Pferd(Location):
             password: Optional[str] = None,
             download_strategy: IliasDownloadStrategy = download_modified_or_new,
             clean: bool = True,
+            timeout: int = 5,
     ) -> Organizer:
         """
         Synchronizes a folder with the ILIAS instance of the KIT.
@@ -137,6 +140,8 @@ class Pferd(Location):
                 be downloaded. Can save bandwidth and reduce the number of requests.
                 (default: {download_modified_or_new})
             clean {bool} -- Whether to clean up when the method finishes.
+            timeout {int} -- The download timeout for opencast videos. Sadly needed due to a
+                requests bug.
         """
         # This authenticator only works with the KIT ilias instance.
         authenticator = KitShibbolethAuthenticator(username=username, password=password)
@@ -152,6 +157,7 @@ class Pferd(Location):
             transform=transform,
             download_strategy=download_strategy,
             clean=clean,
+            timeout=timeout
         )
 
         self._download_summary.merge(organizer.download_summary)
@@ -175,6 +181,7 @@ class Pferd(Location):
             password: Optional[str] = None,
             download_strategy: IliasDownloadStrategy = download_modified_or_new,
             clean: bool = True,
+            timeout: int = 5,
     ) -> Organizer:
         """
         Synchronizes a folder with the ILIAS instance of the KIT. This method will crawl the ILIAS
@@ -199,6 +206,8 @@ class Pferd(Location):
                 be downloaded. Can save bandwidth and reduce the number of requests.
                 (default: {download_modified_or_new})
             clean {bool} -- Whether to clean up when the method finishes.
+            timeout {int} -- The download timeout for opencast videos. Sadly needed due to a
+                requests bug.
         """
         # This authenticator only works with the KIT ilias instance.
         authenticator = KitShibbolethAuthenticator(username=username, password=password)
@@ -214,6 +223,7 @@ class Pferd(Location):
             transform=transform,
             download_strategy=download_strategy,
             clean=clean,
+            timeout=timeout
         )
 
         self._download_summary.merge(organizer.download_summary)

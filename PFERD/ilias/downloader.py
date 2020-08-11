@@ -84,9 +84,13 @@ class IliasDownloader:
             session: requests.Session,
             authenticator: IliasAuthenticator,
             strategy: IliasDownloadStrategy,
+            timeout: int = 5
     ):
         """
         Create a new IliasDownloader.
+
+        The timeout applies to the download request only, as bwcloud uses IPv6
+        and requests has a problem with that: https://github.com/psf/requests/issues/5522
         """
 
         self._tmp_dir = tmp_dir
@@ -94,6 +98,7 @@ class IliasDownloader:
         self._session = session
         self._authenticator = authenticator
         self._strategy = strategy
+        self._timeout = timeout
 
     def download_all(self, infos: List[IliasDownloadInfo]) -> None:
         """
@@ -137,7 +142,7 @@ class IliasDownloader:
             PRETTY.warning(f"Could not download {str(info.path)!r} as I got no URL :/")
             return True
 
-        with self._session.get(url, stream=True) as response:
+        with self._session.get(url, stream=True, timeout=self._timeout) as response:
             content_type = response.headers["content-type"]
             has_content_disposition = "content-disposition" in response.headers
 
