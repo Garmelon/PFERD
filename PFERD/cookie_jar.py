@@ -22,7 +22,7 @@ class CookieJar:
         if cookie_file is None:
             self._cookies = LWPCookieJar()
         else:
-            self._cookies = LWPCookieJar(cookie_file)
+            self._cookies = LWPCookieJar(str(cookie_file.resolve()))
 
     @property
     def cookies(self) -> LWPCookieJar:
