@@ -134,7 +134,7 @@ class IliasCrawler:
 
         if not self._is_course_id_valid(root_url, course_id):
             raise FatalException(
-                "Invalid course id? The URL the server returned did not contain my id."
+                "Invalid course id? I didn't find anything looking like a course!"
             )
 
         # And treat it as a folder
@@ -143,7 +143,15 @@ class IliasCrawler:
 
     def _is_course_id_valid(self, root_url: str, course_id: str) -> bool:
         response: requests.Response = self._session.get(root_url)
-        return course_id in response.url
+        # We were redirected ==> Non-existant ID
+        if course_id not in response.url:
+            return False
+
+        link_element: bs4.Tag = self._get_page(root_url, {}).find(id="current_perma_link")
+        if not link_element:
+            return False
+        # It wasn't a course but a category list, forum, etc.
+        return "crs_" in link_element.get("value")
 
     def crawl_personal_desktop(self) -> List[IliasDownloadInfo]:
         """
