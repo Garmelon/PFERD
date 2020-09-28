@@ -153,6 +153,25 @@ class IliasCrawler:
         # It wasn't a course but a category list, forum, etc.
         return "crs_" in link_element.get("value")
 
+    def find_course_name(self, course_id: str) -> Optional[str]:
+        """
+        Returns the name of a given course. None if it is not a valid course
+        or it could not be found.
+        """
+        course_url = self._url_set_query_param(
+            self._base_url + "/goto.php", "target", f"crs_{course_id}"
+        )
+        return self.find_element_name(course_url)
+
+    def find_element_name(self, url: str) -> Optional[str]:
+        """
+        Returns the name of the element at the given URL, if it can find one.
+        """
+        focus_element: bs4.Tag = self._get_page(url, {}).find(id="il_mhead_t_focus")
+        if not focus_element:
+            return None
+        return focus_element.text
+
     def crawl_personal_desktop(self) -> List[IliasDownloadInfo]:
         """
         Crawls the ILIAS personal desktop (and every subelements that can be reached from there).
