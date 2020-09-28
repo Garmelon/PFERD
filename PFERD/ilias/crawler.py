@@ -116,6 +116,16 @@ class IliasCrawler:
 
         return urlunsplit((scheme, netloc, path, new_query_string, fragment))
 
+    def recursive_crawl_url(self, url: str) -> List[IliasDownloadInfo]:
+        """
+        Crawls a given url *and all reachable elements in it*.
+
+        Args:
+            url {str} -- the *full* url to crawl
+        """
+        start_entries: List[IliasCrawlerEntry] = self._crawl_folder(Path(""), url)
+        return self._iterate_entries_to_download_infos(start_entries)
+
     def crawl_course(self, course_id: str) -> List[IliasDownloadInfo]:
         """
         Starts the crawl process for a course, yielding a list of elements to (potentially)

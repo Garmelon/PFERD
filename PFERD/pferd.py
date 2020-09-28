@@ -231,6 +231,70 @@ class Pferd(Location):
         return organizer
 
     @swallow_and_print_errors
+    def ilias_kit_folder(
+            self,
+            target: PathLike,
+            full_url: str,
+            dir_filter: IliasDirectoryFilter = lambda x, y: True,
+            transform: Transform = lambda x: x,
+            cookies: Optional[PathLike] = None,
+            username: Optional[str] = None,
+            password: Optional[str] = None,
+            download_strategy: IliasDownloadStrategy = download_modified_or_new,
+            clean: bool = True,
+            timeout: int = 5,
+    ) -> Organizer:
+        """
+        Synchronizes a folder with a given folder on the ILIAS instance of the KIT.
+
+        Arguments:
+            target {Path}  -- the target path to write the data to
+            full_url {str} -- the full url of the folder/videos/course to crawl
+
+        Keyword Arguments:
+            dir_filter {IliasDirectoryFilter} -- A filter for directories. Will be applied on the
+                crawler level, these directories and all of their content is skipped.
+                (default: {lambdax:True})
+            transform {Transform} -- A transformation function for the output paths. Return None
+                to ignore a file. (default: {lambdax:x})
+            cookies {Optional[Path]} -- The path to store and load cookies from.
+                (default: {None})
+            username {Optional[str]} -- The SCC username. If none is given, it will prompt
+                the user. (default: {None})
+            password {Optional[str]} -- The SCC password. If none is given, it will prompt
+                the user. (default: {None})
+            download_strategy {DownloadStrategy} -- A function to determine which files need to
+                be downloaded. Can save bandwidth and reduce the number of requests.
+                (default: {download_modified_or_new})
+            clean {bool} -- Whether to clean up when the method finishes.
+            timeout {int} -- The download timeout for opencast videos. Sadly needed due to a
+                requests bug.
+        """
+        # This authenticator only works with the KIT ilias instance.
+        authenticator = KitShibbolethAuthenticator(username=username, password=password)
+        PRETTY.starting_synchronizer(target, "ILIAS", "An ILIAS element by url")
+
+        if not full_url.startswith("https://ilias.studium.kit.edu"):
+            raise FatalException("Not a valid KIT ILIAS URL")
+
+        organizer = self._ilias(
+            target=target,
+            base_url="https://ilias.studium.kit.edu/",
+            crawl_function=lambda crawler: crawler.recursive_crawl_url(full_url),
+            authenticator=authenticator,
+            cookies=cookies,
+            dir_filter=dir_filter,
+            transform=transform,
+            download_strategy=download_strategy,
+            clean=clean,
+            timeout=timeout
+        )
+
+        self._download_summary.merge(organizer.download_summary)
+
+        return organizer
+
+    @swallow_and_print_errors
     def diva_kit(
             self,
             target: Union[PathLike, Organizer],

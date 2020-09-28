@@ -23,10 +23,15 @@ def main() -> None:
     parser.add_argument('folder', nargs='?', default=None, help="Folder to put stuff into")
     args = parser.parse_args()
 
-    # parse provided course URL
     url = urlparse(args.url)
-    query = parse_qs(url.query)
-    course_id = query['ref_id'][0]
+
+    cookie_jar = CookieJar(to_path(args.cookies) if args.cookies else None)
+    session = cookie_jar.create_session()
+    authenticator = KitShibbolethAuthenticator()
+    crawler = IliasCrawler(url.scheme + '://' + url.netloc, session,
+                           authenticator, lambda x, y: True)
+
+    cookie_jar.load_cookies()
 
     if args.folder is not None:
         folder = args.folder
@@ -36,13 +41,6 @@ def main() -> None:
         pferd = Pferd(Path(Path(__file__).parent, folder).parent, test_run=args.test_run)
     else:
         # fetch course name from ilias
-        cookie_jar = CookieJar(to_path(args.cookies) if args.cookies else None)
-        session = cookie_jar.create_session()
-        authenticator = KitShibbolethAuthenticator()
-        crawler = IliasCrawler(url.scheme + '://' + url.netloc, session,
-                               authenticator, lambda x, y: True)
-
-        cookie_jar.load_cookies()
         folder = crawler.find_element_name(args.url)
         cookie_jar.save_cookies()
 
@@ -51,7 +49,7 @@ def main() -> None:
 
     pferd.enable_logging()
     # fetch
-    pferd.ilias_kit(target=folder, course_id=course_id, cookies=args.cookies)
+    pferd.ilias_kit_folder(target=folder, full_url=args.url, cookies=args.cookies)
 
 
 if __name__ == "__main__":
