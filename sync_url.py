@@ -34,7 +34,7 @@ def main() -> None:
         crawler = IliasCrawler(url.scheme + '://' + url.netloc, session, authenticator, lambda x, y: True)
 
         cookie_jar.load_cookies()
-        folder = crawler.find_course_name(id)
+        folder = crawler.find_element_name(args.url)
         cookie_jar.save_cookies()
     else:
         folder = args.folder
