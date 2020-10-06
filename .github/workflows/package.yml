@@ -1,0 +1,67 @@
+name: Package Application with Pyinstaller
+
+on:
+  push:
+    branches:
+      - "*"
+    tags:
+      - "v*"
+
+jobs:
+  build:
+
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
+
+    - name: "Install dependencies"
+      run: "pip install setuptools pyinstaller rich requests beautifulsoup4 -f --upgrade"
+
+    - name: "Install sync_url.py"
+      run: "pyinstaller sync_url.py -F"
+
+    - uses: actions/upload-artifact@v2
+      with:
+        name: "Pferd Sync URL"
+        path: "dist/sync_url*"
+
+  release:
+    name: Release
+
+    needs: [build]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+    - name: "Checkout"
+      uses: actions/checkout@v2
+
+    - name: "Download artifacts"
+      uses: actions/download-artifact@v2
+      with:
+        name: "Pferd Sync URL"
+
+    - name: "look at folder structure"
+      run: "ls -lah"
+
+    - name: "Create release"
+      uses: softprops/action-gh-release@v1
+
+    - name: "Upload release artifacts"
+      uses: softprops/action-gh-release@v1
+      with:
+        body: "Download sync_url (or sync_url.exe on Windows) and run it in the terminal or CMD."
+        files: |
+          sync_url
+          sync_url.exe
