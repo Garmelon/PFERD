@@ -245,6 +245,12 @@ class IliasCrawler:
         """
         soup = self._get_page(url, {})
 
+        if soup.find(id="headerimage"):
+            element: bs4.Tag = soup.find(id="headerimage")
+            if "opencast" in element.attrs["src"].lower():
+                PRETTY.warning(f"Switched to crawling a video at {folder_path}")
+                return self._crawl_video_directory(folder_path, url)
+
         result: List[IliasCrawlerEntry] = []
 
         # Fetch all links and throw them to the general interpreter
