@@ -6,12 +6,12 @@ A simple script to download a course by name from ILIAS.
 
 import argparse
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import urlparse
 
 from PFERD import Pferd
 from PFERD.cookie_jar import CookieJar
-from PFERD.ilias.authenticators import KitShibbolethAuthenticator
-from PFERD.ilias.crawler import IliasCrawler
+from PFERD.ilias import (IliasCrawler, IliasElementType,
+                         KitShibbolethAuthenticator)
 from PFERD.utils import to_path
 
 
@@ -19,6 +19,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--test-run", action="store_true")
     parser.add_argument('-c', '--cookies', nargs='?', default=None, help="File to store cookies in")
+    parser.add_argument('-f', '--no-videos', nargs='?', default=None, help="Don't download videos")
     parser.add_argument('url', help="URL to the course page")
     parser.add_argument('folder', nargs='?', default=None, help="Folder to put stuff into")
     args = parser.parse_args()
@@ -47,9 +48,19 @@ def main() -> None:
         # Initialize pferd at the location of the script
         pferd = Pferd(Path(__file__).parent, test_run=args.test_run)
 
+    def dir_filter(_: Path, element: IliasElementType) -> bool:
+        if args.no_videos:
+            return element not in [IliasElementType.VIDEO_FILE, IliasElementType.VIDEO_FOLDER]
+        return True
+
     pferd.enable_logging()
     # fetch
-    pferd.ilias_kit_folder(target=folder, full_url=args.url, cookies=args.cookies)
+    pferd.ilias_kit_folder(
+        target=folder,
+        full_url=args.url,
+        cookies=args.cookies,
+        dir_filter=dir_filter
+    )
 
 
 if __name__ == "__main__":

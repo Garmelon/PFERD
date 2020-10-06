@@ -249,6 +249,9 @@ class IliasCrawler:
             element: bs4.Tag = soup.find(id="headerimage")
             if "opencast" in element.attrs["src"].lower():
                 PRETTY.warning(f"Switched to crawling a video at {folder_path}")
+                if not self.dir_filter(folder_path, IliasElementType.VIDEO_FOLDER):
+                    PRETTY.not_searching(folder_path, "user filter")
+                    return []
                 return self._crawl_video_directory(folder_path, url)
 
         result: List[IliasCrawlerEntry] = []
