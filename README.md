@@ -2,6 +2,7 @@
 
 **P**rogramm zum **F**lotten, **E**infachen **R**unterladen von **D**ateien
 
+- [Quickstart with `sync_url`](#quickstart-with-sync_url)
 - [Installation](#installation)
     - [Upgrading from 2.0.0 to 2.1.0+](#upgrading-from-200-to-210)
 - [Example setup](#example-setup)
@@ -11,6 +12,20 @@
         - [Transform creators](#transform-creators)
         - [Transform combinators](#transform-combinators)
     - [A short, but commented example](#a-short-but-commented-example)
+
+## Quickstart with `sync_url`
+
+The `sync_url` program allows you to just synchronize a given ILIAS URL (of a
+course, a folder, your personal desktop, etc.) without any extra configuration
+or setting up. Download the program, open ILIAS, copy the URL from the address
+bar and pass it to sync_url.
+
+It bundles everything it needs in one executable and is easy to
+use, but doesn't expose all the configuration options and tweaks a full install
+does.
+
+1. Download the `sync_url` binary from the [latest release](https://github.com/Garmelon/PFERD/releases/latest).
+2. Run the binary in your terminal (`./sync_url` or `sync_url.exe` in the CMD) to see the help and use it
 
 ## Installation
 
