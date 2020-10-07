@@ -8,3 +8,7 @@ build/
 .env
 .vscode
 ilias_cookies.txt
+
+# PyInstaller
+sync_url.spec
+dist/

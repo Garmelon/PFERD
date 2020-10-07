@@ -116,6 +116,16 @@ class IliasCrawler:
 
         return urlunsplit((scheme, netloc, path, new_query_string, fragment))
 
+    def recursive_crawl_url(self, url: str) -> List[IliasDownloadInfo]:
+        """
+        Crawls a given url *and all reachable elements in it*.
+
+        Args:
+            url {str} -- the *full* url to crawl
+        """
+        start_entries: List[IliasCrawlerEntry] = self._crawl_folder(Path(""), url)
+        return self._iterate_entries_to_download_infos(start_entries)
+
     def crawl_course(self, course_id: str) -> List[IliasDownloadInfo]:
         """
         Starts the crawl process for a course, yielding a list of elements to (potentially)
@@ -234,6 +244,15 @@ class IliasCrawler:
         Crawl all files in a folder-like element.
         """
         soup = self._get_page(url, {})
+
+        if soup.find(id="headerimage"):
+            element: bs4.Tag = soup.find(id="headerimage")
+            if "opencast" in element.attrs["src"].lower():
+                PRETTY.warning(f"Switched to crawling a video at {folder_path}")
+                if not self.dir_filter(folder_path, IliasElementType.VIDEO_FOLDER):
+                    PRETTY.not_searching(folder_path, "user filter")
+                    return []
+                return self._crawl_video_directory(folder_path, url)
 
         result: List[IliasCrawlerEntry] = []
 
