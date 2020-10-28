@@ -25,7 +25,7 @@ use, but doesn't expose all the configuration options and tweaks a full install
 does.
 
 1. Download the `sync_url` binary from the [latest release](https://github.com/Garmelon/PFERD/releases/latest).
-2. Run the binary in your terminal (`./sync_url` or `sync_url.exe` in the CMD) to see the help and use it
+2. Run the binary in your terminal (`./sync_url` or `sync_url.exe` in the CMD) to see the help and use it. I'd recommend using the `--cookies` option.
 
 ## Installation
 
