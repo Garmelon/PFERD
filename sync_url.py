@@ -19,7 +19,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--test-run", action="store_true")
     parser.add_argument('-c', '--cookies', nargs='?', default=None, help="File to store cookies in")
-    parser.add_argument('-f', '--no-videos', nargs='?', default=None, help="Don't download videos")
+    parser.add_argument('--no-videos', nargs='?', default=None, help="Don't download videos")
     parser.add_argument('url', help="URL to the course page")
     parser.add_argument('folder', nargs='?', default=None, help="Folder to put stuff into")
     args = parser.parse_args()
