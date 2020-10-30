@@ -59,7 +59,7 @@ jobs:
       run: "ls -lah"
 
     - name: "Rename releases"
-      run: "mv sync_url-macos-latest sync_url_mac && mv sync_url-ubuntu-latest sync_url_linux && sync_url-windows-latest sync_url_windows.exe"
+      run: "mv sync_url-macos-latest sync_url_mac && mv sync_url-ubuntu-latest sync_url_linux && mv sync_url-windows-latest sync_url_windows.exe"
 
     - name: "look at folder structure after rename"
       run: "ls -lah"
