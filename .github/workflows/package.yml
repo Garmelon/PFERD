@@ -59,10 +59,7 @@ jobs:
       run: "ls -lah"
 
     - name: "Rename releases"
-      run: "mv sync_url-macos-latest sync_url_mac && mv sync_url-ubuntu-latest sync_url_linux && mv sync_url-windows-latest sync_url_windows.exe"
-
-    - name: "look at folder structure after rename"
-      run: "ls -lah"
+      run: "mv sync_url-macos-latest pferd_sync_url_mac && mv sync_url-ubuntu-latest pferd_sync_url_linux && mv sync_url-windows-latest pferd_sync_url.exe"
 
     - name: "Create release"
       uses: softprops/action-gh-release@v1
@@ -72,6 +69,6 @@ jobs:
       with:
         body: "Download the correct sync_url for your platform and run it in the terminal or CMD. You might need to make it executable on Linux/Mac with `chmod +x <file>`."
         files: |
-          sync_url_mac
-          sync_url_linux
-          sync_url_windows.exe
+          pferd_sync_url_mac
+          pferd_sync_url_linux
+          pferd_sync_url.exe
