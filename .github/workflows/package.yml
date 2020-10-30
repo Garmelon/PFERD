@@ -70,7 +70,7 @@ jobs:
     - name: "Upload release artifacts"
       uses: softprops/action-gh-release@v1
       with:
-        body: "Download the correct sync_url for your platform and run it in the terminal or CMD. You might need to make it executable ob Linux/Mac with 'chmod +x <file>'"
+        body: "Download the correct sync_url for your platform and run it in the terminal or CMD. You might need to make it executable on Linux/Mac with `chmod +x <file>`."
         files: |
           sync_url_mac
           sync_url_linux
