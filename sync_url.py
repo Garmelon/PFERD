@@ -40,6 +40,8 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--test-run", action="store_true")
     parser.add_argument('-c', '--cookies', nargs='?', default=None, help="File to store cookies in")
+    parser.add_argument('-u', '--username', nargs='?', default=None, help="Username for Ilias")
+    parser.add_argument('-p', '--password', nargs='?', default=None, help="Password for Ilias")
     parser.add_argument('--no-videos', nargs='?', default=None, help="Don't download videos")
     parser.add_argument('--local-first', action="store_true",
                         help="Don't prompt for confirmation, keep existing files")
@@ -55,7 +57,7 @@ def main() -> None:
 
     cookie_jar = CookieJar(to_path(args.cookies) if args.cookies else None)
     session = cookie_jar.create_session()
-    authenticator = KitShibbolethAuthenticator()
+    authenticator = KitShibbolethAuthenticator(username=args.username, password=args.password)
     crawler = IliasCrawler(url.scheme + '://' + url.netloc, session,
                            authenticator, lambda x, y: True)
 
@@ -98,6 +100,8 @@ def main() -> None:
         full_url=args.url,
         cookies=args.cookies,
         dir_filter=dir_filter,
+        username=args.username,
+        password=args.password,
         transform=sanitize_windows_path,
         file_conflict_resolver=file_confilict_resolver
     )
