@@ -14,6 +14,8 @@ from .errors import FatalException, swallow_and_print_errors
 from .ilias import (IliasAuthenticator, IliasCrawler, IliasDirectoryFilter,
                     IliasDownloader, IliasDownloadInfo, IliasDownloadStrategy,
                     KitShibbolethAuthenticator, download_modified_or_new)
+from .ipd import (IpdCrawler, IpdDownloader, IpdDownloadInfo,
+                  IpdDownloadStrategy, ipd_download_new_or_modified)
 from .location import Location
 from .logging import PrettyLogger, enable_logging
 from .organizer import Organizer
@@ -291,6 +293,55 @@ class Pferd(Location):
         )
 
         self._download_summary.merge(organizer.download_summary)
+
+        return organizer
+
+    @swallow_and_print_errors
+    def ipd_kit(
+            self,
+            target: Union[PathLike, Organizer],
+            url: str,
+            transform: Transform = lambda x: x,
+            download_strategy: IpdDownloadStrategy = ipd_download_new_or_modified,
+            clean: bool = True
+    ) -> Organizer:
+        """
+        Synchronizes a folder with a DIVA playlist.
+
+        Arguments:
+            target {Union[PathLike, Organizer]} -- The organizer / target folder to use.
+            url {str} -- the url to the page
+
+        Keyword Arguments:
+            transform {Transform} -- A transformation function for the output paths. Return None
+                to ignore a file. (default: {lambdax:x})
+            download_strategy {DivaDownloadStrategy} -- A function to determine which files need to
+                be downloaded. Can save bandwidth and reduce the number of requests.
+                (default: {diva_download_new})
+            clean {bool} -- Whether to clean up when the method finishes.
+        """
+        tmp_dir = self._tmp_dir.new_subdir()
+
+        if target is None:
+            PRETTY.starting_synchronizer("None", "IPD", url)
+            raise FatalException("Got 'None' as target directory, aborting")
+
+        if isinstance(target, Organizer):
+            organizer = target
+        else:
+            organizer = Organizer(self.resolve(to_path(target)))
+
+        PRETTY.starting_synchronizer(organizer.path, "IPD", url)
+
+        elements: List[IpdDownloadInfo] = IpdCrawler(url).crawl()
+        transformed = apply_transform(transform, elements)
+
+        if self._test_run:
+            self._print_transformables(transformed)
+            return organizer
+
+        downloader = IpdDownloader(tmp_dir=tmp_dir, organizer=organizer, strategy=download_strategy)
+        downloader.download_all(transformed)
 
         return organizer
 
