@@ -11,7 +11,8 @@ from urllib.parse import urlparse
 from PFERD import Pferd
 from PFERD.cookie_jar import CookieJar
 from PFERD.ilias import (IliasCrawler, IliasElementType,
-                         KitShibbolethAuthenticator)
+                         KitShibbolethAuthenticator,
+                         KeyringKitShibbolethAuthenticator)
 from PFERD.utils import to_path
 
 
@@ -20,6 +21,7 @@ def main() -> None:
     parser.add_argument("--test-run", action="store_true")
     parser.add_argument('-c', '--cookies', nargs='?', default=None, help="File to store cookies in")
     parser.add_argument('--no-videos', nargs='?', default=None, help="Don't download videos")
+    parser.add_argument("-k", "--keyring", action="store_true", help="Use the system keyring service for authentication")
     parser.add_argument('url', help="URL to the course page")
     parser.add_argument('folder', nargs='?', default=None, help="Folder to put stuff into")
     args = parser.parse_args()
@@ -28,7 +30,8 @@ def main() -> None:
 
     cookie_jar = CookieJar(to_path(args.cookies) if args.cookies else None)
     session = cookie_jar.create_session()
-    authenticator = KitShibbolethAuthenticator()
+    authenticator = (KeyringKitShibbolethAuthenticator() if args.keyring
+                     else KitShibbolethAuthenticator())
     crawler = IliasCrawler(url.scheme + '://' + url.netloc, session,
                            authenticator, lambda x, y: True)
 
@@ -55,11 +58,14 @@ def main() -> None:
 
     pferd.enable_logging()
     # fetch
+    (username, password) = authenticator._auth.get_credentials()
     pferd.ilias_kit_folder(
         target=folder,
         full_url=args.url,
         cookies=args.cookies,
-        dir_filter=dir_filter
+        dir_filter=dir_filter,
+        username=username,
+        password=password
     )
 
 

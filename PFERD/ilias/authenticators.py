@@ -9,7 +9,7 @@ from typing import Optional
 import bs4
 import requests
 
-from ..authenticators import TfaAuthenticator, UserPassAuthenticator
+from ..authenticators import TfaAuthenticator, UserPassAuthenticator, KeyringAuthenticator
 from ..utils import soupify
 
 LOGGER = logging.getLogger(__name__)
@@ -129,3 +129,13 @@ class KitShibbolethAuthenticator(IliasAuthenticator):
     @staticmethod
     def _tfa_required(soup: bs4.BeautifulSoup) -> bool:
         return soup.find(id="j_tokenNumber") is not None
+
+
+class KeyringKitShibbolethAuthenticator(KitShibbolethAuthenticator):
+    """
+    Authenticate via KIT's shibboleth system using the system keyring service.
+    """
+
+    def __init__(self, username: Optional[str] = None, password: Optional[str] = None) -> None:
+        super().__init__()
+        self._auth = KeyringAuthenticator("KIT ILIAS Shibboleth", username, password)
