@@ -49,6 +49,13 @@ The use of [venv] is recommended.
   The new values are: `REGULAR_FOLDER`, `VIDEO_FOLDER`, `EXERCISE_FOLDER`, `REGULAR_FILE`, `VIDEO_FILE`, `FORUM`, `EXTERNAL_LINK`.
 - Forums and external links are skipped automatically if you use the `kit_ilias` helper.
 
+### Optional dependency for keyring feature
+
+PFERD provides a feature for optionally storing the authentication credentials in the system keyring service to make the login process more convenient. If you want to use that feature, the `keyring` package is required:
+```
+$ pip install keyring
+```
+
 ## Example setup
 
 In this example, `python3` refers to at least Python 3.8.
