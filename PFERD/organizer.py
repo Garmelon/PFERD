@@ -124,6 +124,8 @@ class Organizer(Location):
         self._cleanup(self.path)
 
     def _cleanup(self, start_dir: Path) -> None:
+        if not start_dir.exists():
+            return
         paths: List[Path] = list(start_dir.iterdir())
 
         # Recursively clean paths
