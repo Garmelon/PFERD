@@ -7,7 +7,8 @@ setup(
     install_requires=[
         "requests>=2.21.0",
         "beautifulsoup4>=4.7.1",
-        "rich>=2.1.0"
+        "rich>=2.1.0",
+        "keyring>=21.5.0"
     ],
 )
 

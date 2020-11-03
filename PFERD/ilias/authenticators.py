@@ -37,8 +37,12 @@ class KitShibbolethAuthenticator(IliasAuthenticator):
     Authenticate via KIT's shibboleth system.
     """
 
-    def __init__(self, username: Optional[str] = None, password: Optional[str] = None) -> None:
-        self._auth = UserPassAuthenticator("KIT ILIAS Shibboleth", username, password)
+    def __init__(self, authenticator: Optional[UserPassAuthenticator] = None) -> None:
+        if authenticator:
+            self._auth = authenticator
+        else:
+            self._auth = UserPassAuthenticator("KIT ILIAS Shibboleth")
+
         self._tfa_auth = TfaAuthenticator("KIT ILIAS Shibboleth")
 
     def authenticate(self, sess: requests.Session) -> None:

@@ -8,10 +8,11 @@ import argparse
 import logging
 import sys
 from pathlib import Path, PurePath
-from typing import Optional, Tuple
+from typing import Optional
 from urllib.parse import urlparse
 
 from PFERD import Pferd
+from PFERD.authenticators import KeyringAuthenticator, UserPassAuthenticator
 from PFERD.cookie_jar import CookieJar
 from PFERD.ilias import (IliasCrawler, IliasElementType,
                          KitShibbolethAuthenticator)
@@ -25,9 +26,9 @@ _LOGGER = logging.getLogger("sync_url")
 _PRETTY = PrettyLogger(_LOGGER)
 
 
-def _extract_credentials(file_path: Optional[str]) -> Tuple[Optional[str], Optional[str]]:
+def _extract_credentials(file_path: Optional[str]) -> UserPassAuthenticator:
     if not file_path:
-        return (None, None)
+        return UserPassAuthenticator("KIT ILIAS Shibboleth", None, None)
 
     if not Path(file_path).exists():
         _PRETTY.error("Credential file does not exist")
@@ -39,7 +40,7 @@ def _extract_credentials(file_path: Optional[str]) -> Tuple[Optional[str], Optio
 
         name = read_name if read_name else None
         password = read_password[0] if read_password else None
-        return (name, password)
+        return UserPassAuthenticator("KIT ILIAS Shibboleth", username=name, password=password)
 
 
 def _resolve_remote_first(_path: PurePath, _conflict: ConflictType) -> FileConflictResolution:
@@ -71,6 +72,8 @@ def main() -> None:
     parser.add_argument('--credential-file', nargs='?', default=None,
                         help="Path to a file containing credentials for Ilias. The file must have "
                         "one line in the following format: '<user>:<password>'")
+    parser.add_argument("-k", "--keyring", action="store_true",
+                        help="Use the system keyring service for authentication")
     parser.add_argument('--no-videos', nargs='?', default=None, help="Don't download videos")
     parser.add_argument('--local-first', action="store_true",
                         help="Don't prompt for confirmation, keep existing files")
@@ -85,10 +88,21 @@ def main() -> None:
     cookie_jar = CookieJar(to_path(args.cookies) if args.cookies else None)
     session = cookie_jar.create_session()
 
-    username, password = _extract_credentials(args.credential_file)
-    authenticator = KitShibbolethAuthenticator(username=username, password=password)
+    if args.keyring:
+        if not args.username:
+            _PRETTY.error("Keyring auth selected but no --username passed!")
+            return
+        inner_auth: UserPassAuthenticator = KeyringAuthenticator(
+            "KIT ILIAS Shibboleth", username=args.username, password=args.password
+        )
+    else:
+        inner_auth = _extract_credentials(args.credential_file)
+
+    username, password = inner_auth.get_credentials()
+    authenticator = KitShibbolethAuthenticator(inner_auth)
 
     url = urlparse(args.url)
+
     crawler = IliasCrawler(url.scheme + '://' + url.netloc, session,
                            authenticator, lambda x, y: True)
 
@@ -125,6 +139,7 @@ def main() -> None:
         file_confilict_resolver = resolve_prompt_user
 
     pferd.enable_logging()
+
     # fetch
     pferd.ilias_kit_folder(
         target=target,
