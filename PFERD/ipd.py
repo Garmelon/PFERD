@@ -86,11 +86,12 @@ class IpdCrawler:
             href: str = link.attrs.get("href")
             name = href.split("/")[-1]
 
-            modification_date: Optional[datetime.datetime]
+            modification_date: Optional[datetime.datetime] = None
             try:
                 enclosing_row: bs4.Tag = link.findParent(name="tr")
-                date_text = enclosing_row.find(name="td").text
-                modification_date = datetime.datetime.strptime(date_text, "%d.%m.%Y")
+                if enclosing_row:
+                    date_text = enclosing_row.find(name="td").text
+                    modification_date = datetime.datetime.strptime(date_text, "%d.%m.%Y")
             except ValueError:
                 modification_date = None
 
