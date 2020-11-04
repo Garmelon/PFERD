@@ -593,10 +593,17 @@ class IliasCrawler:
 
         return results
 
-    def _get_page(self, url: str, params: Dict[str, Any]) -> bs4.BeautifulSoup:
+    def _get_page(self, url: str, params: Dict[str, Any],
+                  retry_count: int = 0) -> bs4.BeautifulSoup:
         """
         Fetches a page from ILIAS, authenticating when needed.
         """
+
+        if retry_count >= 4:
+            raise FatalException("Could not get a proper page after 4 tries. "
+                                 "Maybe your URL is wrong, authentication fails continuously, "
+                                 "your ILIAS connection is spotty or ILIAS is not well.")
+
         LOGGER.debug("Fetching %r", url)
 
         response = self._session.get(url, params=params)
@@ -617,7 +624,7 @@ class IliasCrawler:
 
         self._authenticator.authenticate(self._session)
 
-        return self._get_page(url, params)
+        return self._get_page(url, params, retry_count + 1)
 
     @staticmethod
     def _is_logged_in(soup: bs4.BeautifulSoup) -> bool:
