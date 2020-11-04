@@ -343,6 +343,11 @@ class Pferd(Location):
         downloader = IpdDownloader(tmp_dir=tmp_dir, organizer=organizer, strategy=download_strategy)
         downloader.download_all(transformed)
 
+        if clean:
+            organizer.cleanup()
+
+        self._download_summary.merge(organizer.download_summary)
+
         return organizer
 
     @swallow_and_print_errors
@@ -402,5 +407,7 @@ class Pferd(Location):
 
         if clean:
             organizer.cleanup()
+
+        self._download_summary.merge(organizer.download_summary)
 
         return organizer
