@@ -25,7 +25,7 @@ use, but doesn't expose all the configuration options and tweaks a full install
 does.
 
 1. Download the `sync_url` binary from the [latest release](https://github.com/Garmelon/PFERD/releases/latest).
-2. Recognize that you most likely need to enclose the URL in `''` quotes to prevent your shell from interpreting `&` and other symbols
+2. Recognize that you most likely need to enclose the URL in `""` quotes to prevent your shell from interpreting `&` and other symbols
 3. Run the binary in your terminal (`./sync_url` or `sync_url.exe` in the CMD) to see the help and use it. I'd recommend using the `--cookies` option.  
   If you are on **Linux/Mac**, you need to *make the file executable* using `chmod +x <file>`.  
   If you are on **Mac**, you need to allow this unverified program to run (see e.g. [here](https://www.switchingtomac.com/tutorials/osx/how-to-run-unverified-apps-on-macos/))
