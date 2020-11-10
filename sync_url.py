@@ -15,14 +15,13 @@ from PFERD import Pferd
 from PFERD.cookie_jar import CookieJar
 from PFERD.ilias import (IliasCrawler, IliasElementType,
                          KitShibbolethAuthenticator)
-from PFERD.transform import re_rename
 from PFERD.utils import to_path
 
 
 def sanitize_path(path: PurePath) -> Optional[PurePath]:
     # Escape windows illegal path characters
     if os.name == 'nt':
-        return PurePath(re.sub(r'[<>:"/\\|?]', "", str(path)))
+        return PurePath(re.sub(r'[<>:"/\\|?]', "_", str(path)))
     return path
 
 
