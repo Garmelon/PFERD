@@ -21,7 +21,7 @@ from PFERD.utils import to_path
 def sanitize_path(path: PurePath) -> Optional[PurePath]:
     # Escape windows illegal path characters
     if os.name == 'nt':
-        return PurePath(re.sub(r'[<>:"/\\|?]', "_", str(path)))
+        return PurePath(re.sub(r'[<>:"/|?]', "_", str(path)))
     return path
 
 
