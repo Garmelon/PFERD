@@ -5,6 +5,8 @@ only files whose names match a regex, or renaming files from one numbering
 scheme to another.
 """
 
+import os
+import re
 from dataclasses import dataclass
 from pathlib import PurePath
 from typing import Callable, List, Optional, TypeVar
@@ -45,7 +47,8 @@ def apply_transform(
 
 # Transform combinators
 
-keep = lambda path: path
+def keep(path: PurePath) -> Optional[PurePath]:
+    return path
 
 def attempt(*args: Transform) -> Transform:
     def inner(path: PurePath) -> Optional[PurePath]:
@@ -125,3 +128,15 @@ def re_rename(regex: Regex, target: str) -> Transform:
             return path.with_name(target.format(*groups))
         return None
     return inner
+
+
+def sanitize_windows_path(path: PurePath) -> Optional[PurePath]:
+    """
+    A small function to escape characters that are forbidden in windows path names.
+    This method is a no-op on other operating systems.
+    """
+    # Escape windows illegal path characters
+    if os.name == 'nt':
+        sanitized_parts = [re.sub(r'[<>:"/|?]', "_", x) for x in list(path.parts)]
+        return PurePath(*sanitized_parts)
+    return path

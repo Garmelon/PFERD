@@ -5,25 +5,15 @@ A simple script to download a course by name from ILIAS.
 """
 
 import argparse
-import os
-import re
-from pathlib import Path, PurePath
-from typing import Optional
+from pathlib import Path
 from urllib.parse import urlparse
 
 from PFERD import Pferd
 from PFERD.cookie_jar import CookieJar
 from PFERD.ilias import (IliasCrawler, IliasElementType,
                          KitShibbolethAuthenticator)
+from PFERD.transform import sanitize_windows_path
 from PFERD.utils import to_path
-
-
-def sanitize_path(path: PurePath) -> Optional[PurePath]:
-    # Escape windows illegal path characters
-    if os.name == 'nt':
-        sanitized_parts = [re.sub(r'[<>:"/|?]', "_", x) for x in list(path.parts)]
-        return PurePath(*sanitized_parts)
-    return path
 
 
 def main() -> None:
@@ -71,7 +61,7 @@ def main() -> None:
         full_url=args.url,
         cookies=args.cookies,
         dir_filter=dir_filter,
-        transform=sanitize_path
+        transform=sanitize_windows_path
     )
 
 
