@@ -26,6 +26,10 @@ LOGGER = logging.getLogger(__name__)
 PRETTY = PrettyLogger(LOGGER)
 
 
+def _sanitize_path_name(name: str) -> str:
+    return name.replace("/", "-")
+
+
 class IliasElementType(Enum):
     """
     The type of an ilias element.
@@ -260,7 +264,7 @@ class IliasCrawler:
         links: List[bs4.Tag] = soup.select("a.il_ContainerItemTitle")
         for link in links:
             abs_url = self._abs_url_from_link(link)
-            element_path = Path(folder_path, link.getText().strip())
+            element_path = Path(folder_path, _sanitize_path_name(link.getText().strip()))
             element_type = self._find_type_from_link(element_path, link, abs_url)
 
             if element_type == IliasElementType.REGULAR_FILE:
@@ -377,7 +381,7 @@ class IliasCrawler:
             modification_date = demangle_date(modification_date_str)
 
         # Grab the name from the link text
-        name = link_element.getText()
+        name = _sanitize_path_name(link_element.getText())
         full_path = Path(path, name + "." + file_type)
 
         return [
@@ -508,7 +512,7 @@ class IliasCrawler:
         ).getText().strip()
         title += ".mp4"
 
-        video_path: Path = Path(parent_path, title)
+        video_path: Path = Path(parent_path, _sanitize_path_name(title))
 
         video_url = self._abs_url_from_link(link)
 
@@ -580,6 +584,7 @@ class IliasCrawler:
                 # Two divs, side by side. Left is the name, right is the link ==> get left
                 # sibling
                 file_name = file_link.parent.findPrevious(name="div").getText().strip()
+                file_name = _sanitize_path_name(file_name)
                 url = self._abs_url_from_link(file_link)
 
                 LOGGER.debug("Found file %r at %r", file_name, url)
