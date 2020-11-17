@@ -5,6 +5,12 @@ from pathlib import Path
 from typing import List
 
 
+def _mergeNoDuplicate(first: List[Path], second: List[Path]) -> List[Path]:
+    tmp = list(set(first + second))
+    tmp.sort(key=lambda x: str(x.resolve()))
+    return tmp
+
+
 class DownloadSummary:
     """
     Keeps track of all new, modified or deleted files and provides a summary.
@@ -40,9 +46,9 @@ class DownloadSummary:
         """
         Merges ourselves with the passed summary. Modifies this object, but not the passed one.
         """
-        self._new_files = list(set(self._new_files + summary.new_files))
-        self._modified_files = list(set(self._modified_files + summary.modified_files))
-        self._deleted_files = list(set(self._deleted_files + summary.deleted_files))
+        self._new_files = _mergeNoDuplicate(self._new_files, summary.new_files)
+        self._modified_files = _mergeNoDuplicate(self._modified_files, summary.modified_files)
+        self._deleted_files = _mergeNoDuplicate(self._deleted_files, summary.deleted_files)
 
     def add_deleted_file(self, path: Path) -> None:
         """
