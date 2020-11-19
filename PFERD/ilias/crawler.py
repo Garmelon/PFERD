@@ -27,7 +27,7 @@ PRETTY = PrettyLogger(LOGGER)
 
 
 def _sanitize_path_name(name: str) -> str:
-    return name.replace("/", "-")
+    return name.replace("/", "-").replace("\\", "-")
 
 
 class IliasElementType(Enum):
