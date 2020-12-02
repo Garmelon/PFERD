@@ -35,19 +35,15 @@ def main() -> None:
 
     cookie_jar.load_cookies()
 
-    if args.folder is not None:
-        folder = args.folder
-        # Initialize pferd at the *parent of the passed folder*
-        # This is needed so Pferd's internal protections against escaping the working directory
-        # do not trigger (e.g. if somebody names a file in ILIAS '../../bad thing.txt')
-        pferd = Pferd(Path(Path(__file__).parent, folder).parent, test_run=args.test_run)
-    else:
-        # fetch course name from ilias
+    folder = args.folder
+    if args.folder is None:
         folder = crawler.find_element_name(args.url)
         cookie_jar.save_cookies()
 
-        # Initialize pferd at the location of the script
-        pferd = Pferd(Path(__file__).parent, test_run=args.test_run)
+    # files may not escape the pferd_root with relative paths
+    # note: Path(Path.cwd, Path(folder)) == Path(folder) if it is an absolute path
+    pferd_root = Path(Path.cwd(), Path(folder)).parent
+    pferd = Pferd(pferd_root, test_run=args.test_run)
 
     def dir_filter(_: Path, element: IliasElementType) -> bool:
         if args.no_videos:
