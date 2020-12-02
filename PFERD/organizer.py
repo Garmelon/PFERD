@@ -26,7 +26,7 @@ class FileAcceptException(Exception):
 class Organizer(Location):
     """A helper for managing downloaded files."""
 
-    def __init__(self, path: Path):
+    def __init__(self, path: Path, no_prompt: bool = False):
         """Create a new organizer for a given path."""
         super().__init__(path)
         self._known_files: Set[Path] = set()
@@ -35,6 +35,8 @@ class Organizer(Location):
         self._known_files.add(path.resolve())
 
         self.download_summary = DownloadSummary()
+
+        self.not_prompting = no_prompt
 
     def accept_file(self, src: Path, dst: PurePath) -> Optional[Path]:
         """
@@ -67,13 +69,18 @@ class Organizer(Location):
 
         if self._is_marked(dst):
             PRETTY.warning(f"File {str(dst_absolute)!r} was already written!")
-            if not prompt_yes_no(f"Overwrite file?", default=False):
+            default_action: bool = False
+            if self.not_prompting and not default_action \
+                    or not self.not_prompting and not prompt_yes_no(f"Overwrite file?", default=default_action):
                 PRETTY.ignored_file(dst_absolute, "file was written previously")
                 return None
 
         # Destination file is directory
         if dst_absolute.exists() and dst_absolute.is_dir():
-            if prompt_yes_no(f"Overwrite folder {dst_absolute} with file?", default=False):
+            default_action: bool = False
+            if self.not_prompting and default_action \
+                    or not self.not_prompting \
+                    and prompt_yes_no(f"Overwrite folder {dst_absolute} with file?", default=default_action):
                 shutil.rmtree(dst_absolute)
             else:
                 PRETTY.warning(f"Could not add file {str(dst_absolute)!r}")
@@ -144,6 +151,8 @@ class Organizer(Location):
     def _delete_file_if_confirmed(self, path: Path) -> None:
         prompt = f"Do you want to delete {path}"
 
-        if prompt_yes_no(prompt, False):
+        default_action: bool = False
+        if self.not_prompting and default_action or \
+                not self.not_prompting and prompt_yes_no(prompt, default_action):
             self.download_summary.add_deleted_file(path)
             path.unlink()
