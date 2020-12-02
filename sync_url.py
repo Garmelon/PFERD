@@ -37,14 +37,15 @@ def main() -> None:
 
     cookie_jar.load_cookies()
 
-    folder = args.folder
+    folder = Path(args.folder)
     if args.folder is None:
-        folder = crawler.find_element_name(args.url)
+        folder = Path(crawler.find_element_name(args.url))
         cookie_jar.save_cookies()
 
     # files may not escape the pferd_root with relative paths
     # note: Path(Path.cwd, Path(folder)) == Path(folder) if it is an absolute path
     pferd_root = Path(Path.cwd(), Path(folder)).parent
+    folder = folder.name
     pferd = Pferd(pferd_root, test_run=args.test_run)
 
     def dir_filter(_: Path, element: IliasElementType) -> bool:
