@@ -21,6 +21,8 @@ def main() -> None:
     parser.add_argument("--test-run", action="store_true")
     parser.add_argument('-c', '--cookies', nargs='?', default=None, help="File to store cookies in")
     parser.add_argument('--no-videos', nargs='?', default=None, help="Don't download videos")
+    parser.add_argument('-p', '--passive', action="store_true",
+                        help="Don't prompt for confirmations and use sane defaults")
     parser.add_argument('url', help="URL to the course page")
     parser.add_argument('folder', nargs='?', default=None, help="Folder to put stuff into")
     args = parser.parse_args()
@@ -57,7 +59,8 @@ def main() -> None:
         full_url=args.url,
         cookies=args.cookies,
         dir_filter=dir_filter,
-        transform=sanitize_windows_path
+        transform=sanitize_windows_path,
+        no_prompt=args.passive
     )
 
 

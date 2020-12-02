@@ -76,12 +76,13 @@ class Pferd(Location):
             download_strategy: IliasDownloadStrategy,
             timeout: int,
             clean: bool = True,
+            no_prompt: bool = None
     ) -> Organizer:
         # pylint: disable=too-many-locals
         cookie_jar = CookieJar(to_path(cookies) if cookies else None)
         session = cookie_jar.create_session()
         tmp_dir = self._tmp_dir.new_subdir()
-        organizer = Organizer(self.resolve(to_path(target)))
+        organizer = Organizer(self.resolve(to_path(target)), no_prompt if no_prompt is not None else False)
 
         crawler = IliasCrawler(base_url, session, authenticator, dir_filter)
         downloader = IliasDownloader(tmp_dir, organizer, session,
@@ -245,6 +246,7 @@ class Pferd(Location):
             download_strategy: IliasDownloadStrategy = download_modified_or_new,
             clean: bool = True,
             timeout: int = 5,
+            no_prompt: bool = None
     ) -> Organizer:
         """
         Synchronizes a folder with a given folder on the ILIAS instance of the KIT.
@@ -289,7 +291,8 @@ class Pferd(Location):
             transform=transform,
             download_strategy=download_strategy,
             clean=clean,
-            timeout=timeout
+            timeout=timeout,
+            no_prompt=no_prompt
         )
 
         self._download_summary.merge(organizer.download_summary)
