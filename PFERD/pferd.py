@@ -18,7 +18,7 @@ from .ipd import (IpdCrawler, IpdDownloader, IpdDownloadInfo,
                   IpdDownloadStrategy, ipd_download_new_or_modified)
 from .location import Location
 from .logging import PrettyLogger, enable_logging
-from .organizer import Organizer
+from .organizer import FileConflictResolver, Organizer, resolve_prompt_user
 from .tmp_dir import TmpDir
 from .transform import TF, Transform, apply_transform
 from .utils import PathLike, to_path
@@ -76,13 +76,13 @@ class Pferd(Location):
             download_strategy: IliasDownloadStrategy,
             timeout: int,
             clean: bool = True,
-            no_prompt: bool = None
+            file_conflict_resolver: FileConflictResolver = resolve_prompt_user
     ) -> Organizer:
         # pylint: disable=too-many-locals
         cookie_jar = CookieJar(to_path(cookies) if cookies else None)
         session = cookie_jar.create_session()
         tmp_dir = self._tmp_dir.new_subdir()
-        organizer = Organizer(self.resolve(to_path(target)), no_prompt if no_prompt is not None else False)
+        organizer = Organizer(self.resolve(to_path(target)), file_conflict_resolver)
 
         crawler = IliasCrawler(base_url, session, authenticator, dir_filter)
         downloader = IliasDownloader(tmp_dir, organizer, session,
@@ -118,6 +118,7 @@ class Pferd(Location):
             download_strategy: IliasDownloadStrategy = download_modified_or_new,
             clean: bool = True,
             timeout: int = 5,
+            file_conflict_resolver: FileConflictResolver = resolve_prompt_user
     ) -> Organizer:
         """
         Synchronizes a folder with the ILIAS instance of the KIT.
@@ -145,6 +146,8 @@ class Pferd(Location):
             clean {bool} -- Whether to clean up when the method finishes.
             timeout {int} -- The download timeout for opencast videos. Sadly needed due to a
                 requests bug.
+            file_conflict_resolver {FileConflictResolver} -- A function specifying how to deal
+                with overwriting or deleting files. The default always asks the user.
         """
         # This authenticator only works with the KIT ilias instance.
         authenticator = KitShibbolethAuthenticator(username=username, password=password)
@@ -160,7 +163,8 @@ class Pferd(Location):
             transform=transform,
             download_strategy=download_strategy,
             clean=clean,
-            timeout=timeout
+            timeout=timeout,
+            file_conflict_resolver=file_conflict_resolver
         )
 
         self._download_summary.merge(organizer.download_summary)
@@ -185,6 +189,7 @@ class Pferd(Location):
             download_strategy: IliasDownloadStrategy = download_modified_or_new,
             clean: bool = True,
             timeout: int = 5,
+            file_conflict_resolver: FileConflictResolver = resolve_prompt_user
     ) -> Organizer:
         """
         Synchronizes a folder with the ILIAS instance of the KIT. This method will crawl the ILIAS
@@ -211,6 +216,8 @@ class Pferd(Location):
             clean {bool} -- Whether to clean up when the method finishes.
             timeout {int} -- The download timeout for opencast videos. Sadly needed due to a
                 requests bug.
+            file_conflict_resolver {FileConflictResolver} -- A function specifying how to deal
+                with overwriting or deleting files. The default always asks the user.
         """
         # This authenticator only works with the KIT ilias instance.
         authenticator = KitShibbolethAuthenticator(username=username, password=password)
@@ -226,7 +233,8 @@ class Pferd(Location):
             transform=transform,
             download_strategy=download_strategy,
             clean=clean,
-            timeout=timeout
+            timeout=timeout,
+            file_conflict_resolver=file_conflict_resolver
         )
 
         self._download_summary.merge(organizer.download_summary)
@@ -246,7 +254,7 @@ class Pferd(Location):
             download_strategy: IliasDownloadStrategy = download_modified_or_new,
             clean: bool = True,
             timeout: int = 5,
-            no_prompt: bool = None
+            file_conflict_resolver: FileConflictResolver = resolve_prompt_user
     ) -> Organizer:
         """
         Synchronizes a folder with a given folder on the ILIAS instance of the KIT.
@@ -273,6 +281,8 @@ class Pferd(Location):
             clean {bool} -- Whether to clean up when the method finishes.
             timeout {int} -- The download timeout for opencast videos. Sadly needed due to a
                 requests bug.
+            file_conflict_resolver {FileConflictResolver} -- A function specifying how to deal
+                with overwriting or deleting files. The default always asks the user.
         """
         # This authenticator only works with the KIT ilias instance.
         authenticator = KitShibbolethAuthenticator(username=username, password=password)
@@ -292,7 +302,7 @@ class Pferd(Location):
             download_strategy=download_strategy,
             clean=clean,
             timeout=timeout,
-            no_prompt=no_prompt
+            file_conflict_resolver=file_conflict_resolver
         )
 
         self._download_summary.merge(organizer.download_summary)
@@ -306,7 +316,8 @@ class Pferd(Location):
             url: str,
             transform: Transform = lambda x: x,
             download_strategy: IpdDownloadStrategy = ipd_download_new_or_modified,
-            clean: bool = True
+            clean: bool = True,
+            file_conflict_resolver: FileConflictResolver = resolve_prompt_user
     ) -> Organizer:
         """
         Synchronizes a folder with a DIVA playlist.
@@ -322,6 +333,8 @@ class Pferd(Location):
                 be downloaded. Can save bandwidth and reduce the number of requests.
                 (default: {diva_download_new})
             clean {bool} -- Whether to clean up when the method finishes.
+            file_conflict_resolver {FileConflictResolver} -- A function specifying how to deal
+                with overwriting or deleting files. The default always asks the user.
         """
         tmp_dir = self._tmp_dir.new_subdir()
 
@@ -332,7 +345,7 @@ class Pferd(Location):
         if isinstance(target, Organizer):
             organizer = target
         else:
-            organizer = Organizer(self.resolve(to_path(target)))
+            organizer = Organizer(self.resolve(to_path(target)), file_conflict_resolver)
 
         PRETTY.starting_synchronizer(organizer.path, "IPD", url)
 
@@ -360,7 +373,8 @@ class Pferd(Location):
             playlist_location: str,
             transform: Transform = lambda x: x,
             download_strategy: DivaDownloadStrategy = diva_download_new,
-            clean: bool = True
+            clean: bool = True,
+            file_conflict_resolver: FileConflictResolver = resolve_prompt_user
     ) -> Organizer:
         """
         Synchronizes a folder with a DIVA playlist.
@@ -377,6 +391,8 @@ class Pferd(Location):
                 be downloaded. Can save bandwidth and reduce the number of requests.
                 (default: {diva_download_new})
             clean {bool} -- Whether to clean up when the method finishes.
+            file_conflict_resolver {FileConflictResolver} -- A function specifying how to deal
+                with overwriting or deleting files. The default always asks the user.
         """
         tmp_dir = self._tmp_dir.new_subdir()
 
@@ -392,7 +408,7 @@ class Pferd(Location):
         if isinstance(target, Organizer):
             organizer = target
         else:
-            organizer = Organizer(self.resolve(to_path(target)))
+            organizer = Organizer(self.resolve(to_path(target)), file_conflict_resolver)
 
         PRETTY.starting_synchronizer(organizer.path, "DIVA", playlist_id)
 

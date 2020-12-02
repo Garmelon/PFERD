@@ -7,8 +7,9 @@ import filecmp
 import logging
 import os
 import shutil
+from enum import Enum
 from pathlib import Path, PurePath
-from typing import List, Optional, Set
+from typing import Callable, List, Optional, Set
 
 from .download_summary import DownloadSummary
 from .location import Location
@@ -19,6 +20,25 @@ LOGGER = logging.getLogger(__name__)
 PRETTY = PrettyLogger(LOGGER)
 
 
+class FileConflictResolution(Enum):
+    """
+    The reaction when confronted with a file conflict.
+    """
+
+    OVERWRITE_EXISTING = "overwrite"
+    KEEP_EXISTING = "keep"
+    DEFAULT = "default"
+    PROMPT = "prompt"
+
+
+FileConflictResolver = Callable[[PurePath], FileConflictResolution]
+
+
+def resolve_prompt_user(_path: PurePath) -> FileConflictResolution:
+    """Resolves conflicts by always asking the user."""
+    return FileConflictResolution.PROMPT
+
+
 class FileAcceptException(Exception):
     """An exception while accepting a file."""
 
@@ -26,7 +46,7 @@ class FileAcceptException(Exception):
 class Organizer(Location):
     """A helper for managing downloaded files."""
 
-    def __init__(self, path: Path, no_prompt: bool = False):
+    def __init__(self, path: Path, conflict_resolver: FileConflictResolver = resolve_prompt_user):
         """Create a new organizer for a given path."""
         super().__init__(path)
         self._known_files: Set[Path] = set()
@@ -36,7 +56,7 @@ class Organizer(Location):
 
         self.download_summary = DownloadSummary()
 
-        self.not_prompting = no_prompt
+        self.conflict_resolver = conflict_resolver
 
     def accept_file(self, src: Path, dst: PurePath) -> Optional[Path]:
         """
@@ -69,18 +89,14 @@ class Organizer(Location):
 
         if self._is_marked(dst):
             PRETTY.warning(f"File {str(dst_absolute)!r} was already written!")
-            default_action: bool = False
-            if self.not_prompting and not default_action \
-                    or not self.not_prompting and not prompt_yes_no(f"Overwrite file?", default=default_action):
+            if self._resolve_conflict(f"Overwrite file?", dst_absolute, default=False):
                 PRETTY.ignored_file(dst_absolute, "file was written previously")
                 return None
 
         # Destination file is directory
         if dst_absolute.exists() and dst_absolute.is_dir():
-            default_action: bool = False
-            if self.not_prompting and default_action \
-                    or not self.not_prompting \
-                    and prompt_yes_no(f"Overwrite folder {dst_absolute} with file?", default=default_action):
+            prompt = f"Overwrite folder {dst_absolute} with file?"
+            if self._resolve_conflict(prompt, dst_absolute, default=False):
                 shutil.rmtree(dst_absolute)
             else:
                 PRETTY.warning(f"Could not add file {str(dst_absolute)!r}")
@@ -151,8 +167,20 @@ class Organizer(Location):
     def _delete_file_if_confirmed(self, path: Path) -> None:
         prompt = f"Do you want to delete {path}"
 
-        default_action: bool = False
-        if self.not_prompting and default_action or \
-                not self.not_prompting and prompt_yes_no(prompt, default_action):
+        if self._resolve_conflict(prompt, path, default=False):
             self.download_summary.add_deleted_file(path)
             path.unlink()
+
+    def _resolve_conflict(self, prompt: str, path: Path, default: bool) -> bool:
+        if not self.conflict_resolver:
+            return prompt_yes_no(prompt, default=default)
+
+        result = self.conflict_resolver(path)
+        if result == FileConflictResolution.DEFAULT:
+            return default
+        if result == FileConflictResolution.KEEP_EXISTING:
+            return False
+        if result == FileConflictResolution.OVERWRITE_EXISTING:
+            return True
+
+        return prompt_yes_no(prompt, default=default)
