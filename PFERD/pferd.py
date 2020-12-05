@@ -6,6 +6,7 @@ import logging
 from pathlib import Path
 from typing import Callable, List, Optional, Union
 
+from .authenticators import UserPassAuthenticator
 from .cookie_jar import CookieJar
 from .diva import (DivaDownloader, DivaDownloadStrategy, DivaPlaylistCrawler,
                    diva_download_new)
@@ -63,6 +64,13 @@ class Pferd(Location):
         LOGGER.info("Results of the test run:")
         for transformable in transformables:
             LOGGER.info(transformable.path)
+
+    @staticmethod
+    def _get_authenticator(
+            username: Optional[str], password: Optional[str]
+    ) -> KitShibbolethAuthenticator:
+        inner_auth = UserPassAuthenticator("ILIAS - Pferd.py", username, password)
+        return KitShibbolethAuthenticator(inner_auth)
 
     def _ilias(
             self,
@@ -150,7 +158,7 @@ class Pferd(Location):
                 with overwriting or deleting files. The default always asks the user.
         """
         # This authenticator only works with the KIT ilias instance.
-        authenticator = KitShibbolethAuthenticator(username=username, password=password)
+        authenticator = Pferd._get_authenticator(username=username, password=password)
         PRETTY.starting_synchronizer(target, "ILIAS", course_id)
 
         organizer = self._ilias(
@@ -220,7 +228,7 @@ class Pferd(Location):
                 with overwriting or deleting files. The default always asks the user.
         """
         # This authenticator only works with the KIT ilias instance.
-        authenticator = KitShibbolethAuthenticator(username=username, password=password)
+        authenticator = Pferd._get_authenticator(username, password)
         PRETTY.starting_synchronizer(target, "ILIAS", "Personal Desktop")
 
         organizer = self._ilias(
@@ -285,7 +293,7 @@ class Pferd(Location):
                 with overwriting or deleting files. The default always asks the user.
         """
         # This authenticator only works with the KIT ilias instance.
-        authenticator = KitShibbolethAuthenticator(username=username, password=password)
+        authenticator = Pferd._get_authenticator(username=username, password=password)
         PRETTY.starting_synchronizer(target, "ILIAS", "An ILIAS element by url")
 
         if not full_url.startswith("https://ilias.studium.kit.edu"):
