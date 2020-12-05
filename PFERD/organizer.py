@@ -141,6 +141,7 @@ class Organizer(Location):
             prompt = f"Overwrite file {dst_absolute}?"
             conflict = ConflictType.FILE_OVERWRITTEN
             if not self._resolve_conflict(prompt, dst_absolute, conflict, default=True):
+                PRETTY.ignored_file(dst_absolute, "user conflict resolution")
                 return None
 
             self.download_summary.add_modified_file(dst_absolute)
@@ -203,6 +204,8 @@ class Organizer(Location):
         if self._resolve_conflict(prompt, path, ConflictType.FILE_DELETED, default=False):
             self.download_summary.add_deleted_file(path)
             path.unlink()
+        else:
+            PRETTY.ignored_file(path, "user conflict resolution")
 
     def _resolve_conflict(
             self, prompt: str, path: Path, conflict: ConflictType, default: bool
