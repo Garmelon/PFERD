@@ -59,7 +59,6 @@ def main() -> None:
 
     cookie_jar.load_cookies()
 
-    folder = Path(args.folder)
     if args.folder is None:
         element_name = crawler.find_element_name(args.url)
         if not element_name:
@@ -67,6 +66,8 @@ def main() -> None:
             return
         folder = Path(element_name)
         cookie_jar.save_cookies()
+    else:
+        folder = Path(args.folder)
 
     # files may not escape the pferd_root with relative paths
     # note: Path(Path.cwd, Path(folder)) == Path(folder) if it is an absolute path
