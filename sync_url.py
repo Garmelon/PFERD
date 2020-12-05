@@ -30,6 +30,8 @@ def _resolve_no_delete(_path: PurePath, conflict: ConflictType) -> FileConflictR
     # Update files
     if conflict == ConflictType.FILE_OVERWRITTEN:
         return FileConflictResolution.DESTROY_EXISTING
+    if conflict == ConflictType.MARKED_FILE_OVERWRITTEN:
+        return FileConflictResolution.DESTROY_EXISTING
     # But do not delete them
     return FileConflictResolution.KEEP_EXISTING
 

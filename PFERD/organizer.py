@@ -24,34 +24,44 @@ class ConflictType(Enum):
     """
     The type of the conflict. A file might not exist anymore and will be deleted
     or it might be overwritten with a newer version.
+
+    FILE_OVERWRITTEN: An existing file will be updated
+    MARKED_FILE_OVERWRITTEN: A file is written for the second+ time in this run
+    FILE_DELETED: The file was deleted
     """
     FILE_OVERWRITTEN = "overwritten"
+    MARKED_FILE_OVERWRITTEN = "marked_file_overwritten"
     FILE_DELETED = "deleted"
 
 
 class FileConflictResolution(Enum):
     """
     The reaction when confronted with a file conflict:
+
+    DESTROY_EXISTING: Delete/overwrite the current file
+    KEEP_EXISTING: Keep the current file
+    DEFAULT: Do whatever the PFERD authors thought is sensible
+    PROMPT: Interactively ask the user
     """
 
     DESTROY_EXISTING = "destroy"
-    """Delete/overwrite the current file"""
 
     KEEP_EXISTING = "keep"
-    """Keep the current file"""
 
     DEFAULT = "default"
-    """Do whatever the PFERD authors thought is sensible"""
 
     PROMPT = "prompt"
-    """Interactively ask the user"""
 
 
 FileConflictResolver = Callable[[PurePath, ConflictType], FileConflictResolution]
 
 
-def resolve_prompt_user(_path: PurePath, _conflict: ConflictType) -> FileConflictResolution:
-    """Resolves conflicts by always asking the user."""
+def resolve_prompt_user(_path: PurePath, conflict: ConflictType) -> FileConflictResolution:
+    """
+    Resolves conflicts by asking the user if a file was written twice or will be deleted.
+    """
+    if conflict == ConflictType.FILE_OVERWRITTEN:
+        return FileConflictResolution.DESTROY_EXISTING
     return FileConflictResolution.PROMPT
 
 
@@ -105,7 +115,7 @@ class Organizer(Location):
 
         if self._is_marked(dst):
             PRETTY.warning(f"File {str(dst_absolute)!r} was already written!")
-            conflict = ConflictType.FILE_OVERWRITTEN
+            conflict = ConflictType.MARKED_FILE_OVERWRITTEN
             if self._resolve_conflict(f"Overwrite file?", dst_absolute, conflict, default=False):
                 PRETTY.ignored_file(dst_absolute, "file was written previously")
                 return None
@@ -127,6 +137,11 @@ class Organizer(Location):
                 PRETTY.ignored_file(dst_absolute, "same file contents")
                 self.mark(dst)
                 return dst_absolute
+
+            prompt = f"Overwrite file {dst_absolute}?"
+            conflict = ConflictType.FILE_OVERWRITTEN
+            if not self._resolve_conflict(prompt, dst_absolute, conflict, default=True):
+                return None
 
             self.download_summary.add_modified_file(dst_absolute)
             PRETTY.modified_file(dst_absolute)
