@@ -20,21 +20,37 @@ LOGGER = logging.getLogger(__name__)
 PRETTY = PrettyLogger(LOGGER)
 
 
+class ConflictType(Enum):
+    """
+    The type of the conflict. A file might not exist anymore and will be deleted
+    or it might be overwritten with a newer version.
+    """
+    FILE_OVERWRITTEN = "overwritten"
+    FILE_DELETED = "deleted"
+
+
 class FileConflictResolution(Enum):
     """
-    The reaction when confronted with a file conflict.
+    The reaction when confronted with a file conflict:
     """
 
-    OVERWRITE_EXISTING = "overwrite"
+    DESTROY_EXISTING = "destroy"
+    """Delete/overwrite the current file"""
+
     KEEP_EXISTING = "keep"
+    """Keep the current file"""
+
     DEFAULT = "default"
+    """Do whatever the PFERD authors thought is sensible"""
+
     PROMPT = "prompt"
+    """Interactively ask the user"""
 
 
-FileConflictResolver = Callable[[PurePath], FileConflictResolution]
+FileConflictResolver = Callable[[PurePath, ConflictType], FileConflictResolution]
 
 
-def resolve_prompt_user(_path: PurePath) -> FileConflictResolution:
+def resolve_prompt_user(_path: PurePath, _conflict: ConflictType) -> FileConflictResolution:
     """Resolves conflicts by always asking the user."""
     return FileConflictResolution.PROMPT
 
@@ -89,14 +105,16 @@ class Organizer(Location):
 
         if self._is_marked(dst):
             PRETTY.warning(f"File {str(dst_absolute)!r} was already written!")
-            if self._resolve_conflict(f"Overwrite file?", dst_absolute, default=False):
+            conflict = ConflictType.FILE_OVERWRITTEN
+            if self._resolve_conflict(f"Overwrite file?", dst_absolute, conflict, default=False):
                 PRETTY.ignored_file(dst_absolute, "file was written previously")
                 return None
 
         # Destination file is directory
         if dst_absolute.exists() and dst_absolute.is_dir():
             prompt = f"Overwrite folder {dst_absolute} with file?"
-            if self._resolve_conflict(prompt, dst_absolute, default=False):
+            conflict = ConflictType.FILE_OVERWRITTEN
+            if self._resolve_conflict(prompt, dst_absolute, conflict, default=False):
                 shutil.rmtree(dst_absolute)
             else:
                 PRETTY.warning(f"Could not add file {str(dst_absolute)!r}")
@@ -167,20 +185,22 @@ class Organizer(Location):
     def _delete_file_if_confirmed(self, path: Path) -> None:
         prompt = f"Do you want to delete {path}"
 
-        if self._resolve_conflict(prompt, path, default=False):
+        if self._resolve_conflict(prompt, path, ConflictType.FILE_DELETED, default=False):
             self.download_summary.add_deleted_file(path)
             path.unlink()
 
-    def _resolve_conflict(self, prompt: str, path: Path, default: bool) -> bool:
+    def _resolve_conflict(
+            self, prompt: str, path: Path, conflict: ConflictType, default: bool
+    ) -> bool:
         if not self.conflict_resolver:
             return prompt_yes_no(prompt, default=default)
 
-        result = self.conflict_resolver(path)
+        result = self.conflict_resolver(path, conflict)
         if result == FileConflictResolution.DEFAULT:
             return default
         if result == FileConflictResolution.KEEP_EXISTING:
             return False
-        if result == FileConflictResolution.OVERWRITE_EXISTING:
+        if result == FileConflictResolution.DESTROY_EXISTING:
             return True
 
         return prompt_yes_no(prompt, default=default)

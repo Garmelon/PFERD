@@ -12,17 +12,26 @@ from PFERD import Pferd
 from PFERD.cookie_jar import CookieJar
 from PFERD.ilias import (IliasCrawler, IliasElementType,
                          KitShibbolethAuthenticator)
-from PFERD.organizer import FileConflictResolution, resolve_prompt_user
+from PFERD.organizer import (ConflictType, FileConflictResolution,
+                             FileConflictResolver, resolve_prompt_user)
 from PFERD.transform import sanitize_windows_path
 from PFERD.utils import to_path
 
 
-def _resolve_overwrite(_path: PurePath) -> FileConflictResolution:
-    return FileConflictResolution.OVERWRITE_EXISTING
+def _resolve_remote_first(_path: PurePath, _conflict: ConflictType) -> FileConflictResolution:
+    return FileConflictResolution.DESTROY_EXISTING
 
 
-def _resolve_default(_path: PurePath) -> FileConflictResolution:
-    return FileConflictResolution.DEFAULT
+def _resolve_local_first(_path: PurePath, _conflict: ConflictType) -> FileConflictResolution:
+    return FileConflictResolution.KEEP_EXISTING
+
+
+def _resolve_no_delete(_path: PurePath, conflict: ConflictType) -> FileConflictResolution:
+    # Update files
+    if conflict == ConflictType.FILE_OVERWRITTEN:
+        return FileConflictResolution.DESTROY_EXISTING
+    # But do not delete them
+    return FileConflictResolution.KEEP_EXISTING
 
 
 def main() -> None:
@@ -30,10 +39,12 @@ def main() -> None:
     parser.add_argument("--test-run", action="store_true")
     parser.add_argument('-c', '--cookies', nargs='?', default=None, help="File to store cookies in")
     parser.add_argument('--no-videos', nargs='?', default=None, help="Don't download videos")
-    parser.add_argument('-d', '--default', action="store_true",
-                        help="Don't prompt for confirmations and use sane defaults")
-    parser.add_argument('-r', '--remove', action="store_true",
-                        help="Remove and overwrite files without prompting for confirmation")
+    parser.add_argument('--local-first', action="store_true",
+                        help="Don't prompt for confirmation, keep existing files")
+    parser.add_argument('--remote-first', action="store_true",
+                        help="Don't prompt for confirmation, delete and overwrite local files")
+    parser.add_argument('--no-delete', action="store_true",
+                        help="Don't prompt for confirmation, overwrite local files, don't delete")
     parser.add_argument('url', help="URL to the course page")
     parser.add_argument('folder', nargs='?', default=None, help="Folder to put stuff into")
     args = parser.parse_args()
@@ -68,10 +79,12 @@ def main() -> None:
             return element not in [IliasElementType.VIDEO_FILE, IliasElementType.VIDEO_FOLDER]
         return True
 
-    if args.default:
-        file_confilict_resolver = _resolve_default
-    elif args.remove:
-        file_confilict_resolver = _resolve_overwrite
+    if args.remote_first:
+        file_confilict_resolver: FileConflictResolver = _resolve_remote_first
+    elif args.local_first:
+        file_confilict_resolver = _resolve_local_first
+    elif args.no_delete:
+        file_confilict_resolver = _resolve_no_delete
     else:
         file_confilict_resolver = resolve_prompt_user
 
