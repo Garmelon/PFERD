@@ -102,6 +102,8 @@ def main() -> None:
         file_conflict_resolver=file_confilict_resolver
     )
 
+    pferd.print_summary()
+
 
 if __name__ == "__main__":
     main()
