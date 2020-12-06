@@ -129,12 +129,12 @@ def main() -> None:
             return element not in [IliasElementType.VIDEO_FILE, IliasElementType.VIDEO_FOLDER]
         return True
 
-    if args.remote_first:
-        file_confilict_resolver: FileConflictResolver = _resolve_remote_first
-    elif args.local_first:
-        file_confilict_resolver = _resolve_local_first
+    if args.local_first:
+        file_confilict_resolver: FileConflictResolver = _resolve_local_first
     elif args.no_delete:
         file_confilict_resolver = _resolve_no_delete
+    elif args.remote_first:
+        file_confilict_resolver = _resolve_remote_first
     else:
         file_confilict_resolver = resolve_prompt_user
 
