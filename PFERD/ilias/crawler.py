@@ -281,7 +281,10 @@ class IliasCrawler:
                     result += [IliasCrawlerEntry(element_path, abs_url, element_type, None)]
                     continue
 
-                rest_of_name = meeting_name.removeprefix(date_portion_str)
+                rest_of_name = meeting_name
+                if rest_of_name.startswith(date_portion_str):
+                    rest_of_name = rest_of_name[len(date_portion_str):]
+
                 new_name = datetime.datetime.strftime(date_portion, "%Y-%m-%d, %H:%M") \
                     + rest_of_name
                 new_path = Path(folder_path, _sanitize_path_name(new_name))
