@@ -14,7 +14,7 @@ PRETTY = PrettyLogger(LOGGER)
 try:
     import keyring
 except ImportError:
-    PRETTY.warning("Keyring module not found, KeyringAuthenticator won't work!")
+    pass
 
 
 class TfaAuthenticator:

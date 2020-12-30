@@ -3,13 +3,10 @@ Contains a few logger utility functions and implementations.
 """
 
 import logging
-from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
-from rich import print as rich_print
 from rich._log_render import LogRender
 from rich.console import Console
-from rich.panel import Panel
 from rich.style import Style
 from rich.text import Text
 from rich.theme import Theme

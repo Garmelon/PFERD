@@ -116,7 +116,7 @@ class Organizer(Location):
         if self._is_marked(dst):
             PRETTY.warning(f"File {str(dst_absolute)!r} was already written!")
             conflict = ConflictType.MARKED_FILE_OVERWRITTEN
-            if self._resolve_conflict(f"Overwrite file?", dst_absolute, conflict, default=False):
+            if self._resolve_conflict("Overwrite file?", dst_absolute, conflict, default=False):
                 PRETTY.ignored_file(dst_absolute, "file was written previously")
                 return None
 
