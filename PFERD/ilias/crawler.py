@@ -40,6 +40,7 @@ class IliasElementType(Enum):
     REGULAR_FILE = "REGULAR_FILE"
     VIDEO_FILE = "VIDEO_FILE"
     FORUM = "FORUM"
+    MEETING = "MEETING"
     EXTERNAL_LINK = "EXTERNAL_LINK"
 
     def is_folder(self) -> bool:
@@ -241,6 +242,8 @@ class IliasCrawler:
                 entries_to_process += self._crawl_video_directory(entry.path, url)
                 continue
 
+            PRETTY.warning(f"Unknown type: {entry.entry_type}!")
+
         return result
 
     def _crawl_folder(self, folder_path: Path, url: str) -> List[IliasCrawlerEntry]:
@@ -269,6 +272,19 @@ class IliasCrawler:
 
             if element_type == IliasElementType.REGULAR_FILE:
                 result += self._crawl_file(folder_path, link, abs_url)
+            elif element_type == IliasElementType.MEETING:
+                meeting_name = str(element_path.name)
+                date_portion_str = meeting_name.split(" - ")[0]
+                date_portion = demangle_date(date_portion_str)
+
+                if not date_portion:
+                    result += [IliasCrawlerEntry(element_path, abs_url, element_type, None)]
+                    continue
+
+                rest_of_name = meeting_name.removeprefix(date_portion_str)
+                new_name = datetime.datetime.strftime(date_portion, "%Y-%m-%d, %H:%M") + rest_of_name
+                new_path = Path(folder_path, _sanitize_path_name(new_name))
+                result += [IliasCrawlerEntry(new_path, abs_url, IliasElementType.REGULAR_FOLDER, None)]
             elif element_type is not None:
                 result += [IliasCrawlerEntry(element_path, abs_url, element_type, None)]
             else:
@@ -320,6 +336,8 @@ class IliasCrawler:
         """
         # pylint: disable=too-many-return-statements
 
+        found_parent: Optional[bs4.Tag] = None
+
         # We look for the outer div of our inner link, to find information around it
         # (mostly the icon)
         for parent in link_element.parents:
@@ -349,6 +367,9 @@ class IliasCrawler:
 
         if str(img_tag["src"]).endswith("frm.svg"):
             return IliasElementType.FORUM
+
+        if str(img_tag["src"]).endswith("sess.svg"):
+            return IliasElementType.MEETING
 
         return IliasElementType.REGULAR_FOLDER
 
