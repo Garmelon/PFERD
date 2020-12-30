@@ -74,6 +74,8 @@ class KitShibbolethAuthenticator(IliasAuthenticator):
             form = soup.find("form", {"class": "full content", "method": "post"})
             action = form["action"]
 
+            csrf_token = form.find("input", {"name": "csrf_token"})["value"]
+
             # Equivalent: Enter credentials in
             # https://idp.scc.kit.edu/idp/profile/SAML2/Redirect/SSO
             LOGGER.debug("Attempt to log in to Shibboleth using credentials")
@@ -82,6 +84,7 @@ class KitShibbolethAuthenticator(IliasAuthenticator):
                 "_eventId_proceed": "",
                 "j_username": self._auth.username,
                 "j_password": self._auth.password,
+                "csrf_token": csrf_token
             }
             soup = soupify(sess.post(url, data=data))
 
