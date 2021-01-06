@@ -122,9 +122,22 @@ class IliasDownloader:
 
         tmp_file = self._tmp_dir.new_path()
 
-        while not self._try_download(info, tmp_file):
-            LOGGER.info("Retrying download: %r", info)
-            self._authenticator.authenticate(self._session)
+        download_successful = False
+        for _ in range(0, 3):
+            try:
+                if not self._try_download(info, tmp_file):
+                    LOGGER.info("Re-Authenticating due to download failure: %r", info)
+                    self._authenticator.authenticate(self._session)
+                else:
+                    download_successful = True
+                    break
+            except IOError as e:
+                PRETTY.warning(f"I/O Error when downloading ({e}). Retrying...",)
+            LOGGER.info("Retrying download for %s", info.path)
+
+        if not download_successful:
+            PRETTY.error(f"Download of file {info.path} failed too often! Skipping it...")
+            return
 
         dst_path = self._organizer.accept_file(tmp_file, info.path)
         if dst_path and info.modification_date:
