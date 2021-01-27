@@ -9,6 +9,7 @@ setup(
         "beautifulsoup4>=4.7.1",
         "rich>=2.1.0",
         "keyring>=21.5.0"
+        "pathmatch>=0.2.2"
     ],
 )
 
