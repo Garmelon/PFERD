@@ -9,7 +9,6 @@ import os
 import re
 from dataclasses import dataclass
 from pathlib import PurePath
-from pathmatch import wildmatch
 from typing import Callable, List, Optional, TypeVar
 
 from .utils import PathLike, Regex, to_path, to_pattern
@@ -83,7 +82,7 @@ def predicate(pred: Callable[[PurePath], bool]) -> Transform:
     return inner
 
 def glob(pattern: str) -> Transform:
-    return predicate(lambda path: wildmatch.match(pattern, str(path)))
+    return predicate(lambda path: path.match(pattern))
 
 def move_dir(source_dir: PathLike, target_dir: PathLike) -> Transform:
     source_path = to_path(source_dir)
