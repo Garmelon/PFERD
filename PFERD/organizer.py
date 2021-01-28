@@ -72,7 +72,10 @@ class FileAcceptException(Exception):
 class Organizer(Location):
     """A helper for managing downloaded files."""
 
-    def __init__(self, path: Path, conflict_resolver: FileConflictResolver = resolve_prompt_user):
+    def __init__(self, path: Path, conflict_resolver: FileConflictResolver = resolve_prompt_user, default: bool = False, force_default: bool = False):
+        self._default = default
+        self._force_default = force_default
+        
         """Create a new organizer for a given path."""
         super().__init__(path)
         self._known_files: Set[Path] = set()
@@ -201,7 +204,7 @@ class Organizer(Location):
     def _delete_file_if_confirmed(self, path: Path) -> None:
         prompt = f"Do you want to delete {path}"
 
-        if self._resolve_conflict(prompt, path, ConflictType.FILE_DELETED, default=False):
+        if (self._force_default and self._default) or (not self._force_default and self._resolve_conflict(prompt, path, ConflictType.FILE_DELETED, default=self._default)):
             self.download_summary.add_deleted_file(path)
             path.unlink()
         else:

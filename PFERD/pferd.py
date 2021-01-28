@@ -42,13 +42,17 @@ class Pferd(Location):
             self,
             base_dir: Path,
             tmp_dir: Path = Path(".tmp"),
-            test_run: bool = False
+            test_run: bool = False,
+            default: bool = False,
+            force_default: bool = False
     ):
         super().__init__(Path(base_dir))
 
         self._download_summary = DownloadSummary()
         self._tmp_dir = TmpDir(self.resolve(tmp_dir))
         self._test_run = test_run
+        self._default = default
+        self._force_default = force_default
 
     @staticmethod
     def enable_logging() -> None:
@@ -90,7 +94,7 @@ class Pferd(Location):
         cookie_jar = CookieJar(to_path(cookies) if cookies else None)
         session = cookie_jar.create_session()
         tmp_dir = self._tmp_dir.new_subdir()
-        organizer = Organizer(self.resolve(to_path(target)), file_conflict_resolver)
+        organizer = Organizer(self.resolve(to_path(target)), file_conflict_resolver, default=self._default, force_default=self._force_default)
 
         crawler = IliasCrawler(base_url, session, authenticator, dir_filter)
         downloader = IliasDownloader(tmp_dir, organizer, session,
@@ -353,7 +357,7 @@ class Pferd(Location):
         if isinstance(target, Organizer):
             organizer = target
         else:
-            organizer = Organizer(self.resolve(to_path(target)), file_conflict_resolver)
+            organizer = Organizer(self.resolve(to_path(target)), file_conflict_resolver, default=self._default, force_default=self._force_default)
 
         PRETTY.starting_synchronizer(organizer.path, "IPD", url)
 
@@ -416,7 +420,7 @@ class Pferd(Location):
         if isinstance(target, Organizer):
             organizer = target
         else:
-            organizer = Organizer(self.resolve(to_path(target)), file_conflict_resolver)
+            organizer = Organizer(self.resolve(to_path(target)), file_conflict_resolver, default=self._default, force_default=self._force_default)
 
         PRETTY.starting_synchronizer(organizer.path, "DIVA", playlist_id)
 
