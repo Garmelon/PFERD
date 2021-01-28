@@ -59,7 +59,7 @@ A full example setup and initial use could look like:
 $ mkdir Vorlesungen
 $ cd Vorlesungen
 $ python3 -m venv .venv
-$ .venv/bin/activate
+$ source .venv/bin/activate
 $ pip install git+https://github.com/Garmelon/PFERD@v2.5.3
 $ curl -O https://raw.githubusercontent.com/Garmelon/PFERD/v2.5.3/example_config.py
 $ python3 example_config.py
@@ -69,7 +69,7 @@ $ deactivate
 Subsequent runs of the program might look like:
 ```
 $ cd Vorlesungen
-$ .venv/bin/activate
+$ source .venv/bin/activate
 $ python3 example_config.py
 $ deactivate
 ```
