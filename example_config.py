@@ -68,11 +68,14 @@ tf_ss_2020_or1 = attempt(
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--test-run", action="store_true")
+    parser.add_argument("--test-run", "--dry-run", dest="test_run", action="store_true", help="performs a dry-run and doesn't actually change local files")
+    parser.add_argument("--force", "-f", dest="force", action="store_true", help="forces manual conflict resolves into default option")
+    parser.add_argument("--yes", "-y", dest="default", action="store_true", default="false", help="manual conflict resolve default set to true, carefull in combination with --force")
+    parser.add_argument("--no", "-n", dest="default", action="store_false", default="false", help="manual conflict resolve deault set to false [default]")
     parser.add_argument("synchronizers", nargs="*")
     args = parser.parse_args()
 
-    pferd = Pferd(Path(__file__).parent, test_run=args.test_run)
+    pferd = Pferd(Path(__file__).parent, test_run=args.test_run, default=args.default, force_default=args.force)
     pferd.enable_logging()
 
     if not args.synchronizers or "numerik" in args.synchronizers:
