@@ -8,7 +8,6 @@ build/
 .env
 .vscode
 ilias_cookies.txt
-*~
 PFERD.egg-info/
 
 # PyInstaller
