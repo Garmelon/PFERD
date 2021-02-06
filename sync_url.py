@@ -113,7 +113,7 @@ def main() -> None:
         if not element_name:
             print("Error, could not get element name. Please specify a folder yourself.")
             return
-        folder = Path(element_name)
+        folder = sanitize_windows_path(Path(element_name.replace("/", "-").replace("\\", "-")))
         cookie_jar.save_cookies()
     else:
         folder = Path(args.folder)
