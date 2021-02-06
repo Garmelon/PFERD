@@ -75,57 +75,62 @@ def main() -> None:
     pferd = Pferd(Path(__file__).parent, test_run=args.test_run)
     pferd.enable_logging()
 
-    if not args.synchronizers or "numerik" in args.synchronizers:
-        pferd.ilias_kit(
-            target="Numerik",
-            course_id="1083036",
-            transform=tf_ss_2020_numerik,
-            cookies="ilias_cookies.txt",
-        )
+    try:
+        if not args.synchronizers or "numerik" in args.synchronizers:
+            pferd.ilias_kit(
+                target="Numerik",
+                course_id="1083036",
+                transform=tf_ss_2020_numerik,
+                cookies="ilias_cookies.txt",
+            )
 
-    if not args.synchronizers or "db" in args.synchronizers:
-        pferd.ilias_kit(
-            target="DB",
-            course_id="1101554",
-            transform=tf_ss_2020_db,
-            cookies="ilias_cookies.txt",
-        )
+        if not args.synchronizers or "db" in args.synchronizers:
+            pferd.ilias_kit(
+                target="DB",
+                course_id="1101554",
+                transform=tf_ss_2020_db,
+                cookies="ilias_cookies.txt",
+            )
 
-    if not args.synchronizers or "rechnernetze" in args.synchronizers:
-        pferd.ilias_kit(
-            target="Rechnernetze",
-            course_id="1099996",
-            transform=tf_ss_2020_rechnernetze,
-            cookies="ilias_cookies.txt",
-        )
+        if not args.synchronizers or "rechnernetze" in args.synchronizers:
+            pferd.ilias_kit(
+                target="Rechnernetze",
+                course_id="1099996",
+                transform=tf_ss_2020_rechnernetze,
+                cookies="ilias_cookies.txt",
+            )
 
-    if not args.synchronizers or "sicherheit" in args.synchronizers:
-        pferd.ilias_kit(
-            target="Sicherheit",
-            course_id="1101980",
-            transform=tf_ss_2020_sicherheit,
-            cookies="ilias_cookies.txt",
-        )
+        if not args.synchronizers or "sicherheit" in args.synchronizers:
+            pferd.ilias_kit(
+                target="Sicherheit",
+                course_id="1101980",
+                transform=tf_ss_2020_sicherheit,
+                cookies="ilias_cookies.txt",
+            )
 
-    if not args.synchronizers or "pg" in args.synchronizers:
-        pferd.ilias_kit(
-            target="PG",
-            course_id="1106095",
-            transform=tf_ss_2020_pg,
-            cookies="ilias_cookies.txt",
-        )
+        if not args.synchronizers or "pg" in args.synchronizers:
+            pferd.ilias_kit(
+                target="PG",
+                course_id="1106095",
+                transform=tf_ss_2020_pg,
+                cookies="ilias_cookies.txt",
+            )
 
-    if not args.synchronizers or "or1" in args.synchronizers:
-        pferd.ilias_kit(
-            target="OR1",
-            course_id="1105941",
-            dir_filter=df_ss_2020_or1,
-            transform=tf_ss_2020_or1,
-            cookies="ilias_cookies.txt",
-        )
+        if not args.synchronizers or "or1" in args.synchronizers:
+            pferd.ilias_kit(
+                target="OR1",
+                course_id="1105941",
+                dir_filter=df_ss_2020_or1,
+                transform=tf_ss_2020_or1,
+                cookies="ilias_cookies.txt",
+            )
 
-    # Prints a summary listing all new, modified or deleted files
-    pferd.print_summary()
+    except KeyboardInterrupt:
+        print("Exiting early.")
+    finally:
+        # Prints a summary listing all new, modified or deleted files
+        pferd.print_summary()
+
 
 if __name__ == "__main__":
     main()

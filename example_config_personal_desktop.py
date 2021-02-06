@@ -23,15 +23,19 @@ def main() -> None:
     pferd = Pferd(Path(__file__).parent, test_run=args.test_run)
     pferd.enable_logging()
 
-    # Synchronize the personal desktop into the "ILIAS" directory.
-    # It saves the cookies, so you only need to log in again when the ILIAS cookies expire.
-    pferd.ilias_kit_personal_desktop(
-        "ILIAS",
-        cookies="ilias_cookies.txt",
-    )
+    try:
+        # Synchronize the personal desktop into the "ILIAS" directory.
+        # It saves the cookies, so you only need to log in again when the ILIAS cookies expire.
+        pferd.ilias_kit_personal_desktop(
+            "ILIAS",
+            cookies="ilias_cookies.txt",
+        )
 
-    # Prints a summary listing all new, modified or deleted files
-    pferd.print_summary()
+    except KeyboardInterrupt:
+        print("Exiting early...")
+    finally:
+        # Prints a summary listing all new, modified or deleted files
+        pferd.print_summary()
 
 
 if __name__ == "__main__":
