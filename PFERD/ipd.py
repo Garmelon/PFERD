@@ -82,7 +82,10 @@ class IpdCrawler:
 
         items: List[IpdDownloadInfo] = []
 
-        for link in page.findAll(name="a", attrs={"href": lambda x: x and x.endswith("pdf")}):
+        def is_relevant_url(x: str) -> bool:
+            return x.endswith(".pdf") or x.endswith(".c") or x.endswith(".java") or x.endswith(".zip")
+
+        for link in page.findAll(name="a", attrs={"href": lambda x: x and is_relevant_url(x)}):
             href: str = link.attrs.get("href")
             name = href.split("/")[-1]
 
