@@ -74,7 +74,7 @@ def main() -> None:
                         "one line in the following format: '<user>:<password>'")
     parser.add_argument("-k", "--keyring", action="store_true",
                         help="Use the system keyring service for authentication")
-    parser.add_argument('--no-videos', nargs='?', default=None, help="Don't download videos")
+    parser.add_argument('--no-videos', action="store_true", help="Don't download videos")
     parser.add_argument('--local-first', action="store_true",
                         help="Don't prompt for confirmation, keep existing files")
     parser.add_argument('--remote-first', action="store_true",
