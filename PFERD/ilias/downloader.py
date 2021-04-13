@@ -10,6 +10,7 @@ from typing import Callable, List, Optional, Union
 import bs4
 import requests
 
+from ..errors import retry_on_io_exception
 from ..logging import PrettyLogger
 from ..organizer import Organizer
 from ..tmp_dir import TmpDir
@@ -116,26 +117,23 @@ class IliasDownloader:
         """
 
         LOGGER.debug("Downloading %r", info)
+
         if not self._strategy(self._organizer, info):
             self._organizer.mark(info.path)
             return
 
         tmp_file = self._tmp_dir.new_path()
 
-        download_successful = False
-        for _ in range(0, 3):
-            try:
-                if not self._try_download(info, tmp_file):
-                    LOGGER.info("Re-Authenticating due to download failure: %r", info)
-                    self._authenticator.authenticate(self._session)
-                else:
-                    download_successful = True
-                    break
-            except IOError as e:
-                PRETTY.warning(f"I/O Error when downloading ({e}). Retrying...",)
-            LOGGER.info("Retrying download for %s", info.path)
+        @retry_on_io_exception(3, "downloading file")
+        def download_impl() -> bool:
+            if not self._try_download(info, tmp_file):
+                LOGGER.info("Re-Authenticating due to download failure: %r", info)
+                self._authenticator.authenticate(self._session)
+                raise IOError("Scheduled retry")
+            else:
+                return True
 
-        if not download_successful:
+        if not download_impl():
             PRETTY.error(f"Download of file {info.path} failed too often! Skipping it...")
             return
 

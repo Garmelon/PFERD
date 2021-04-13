@@ -15,7 +15,7 @@ from urllib.parse import (parse_qs, urlencode, urljoin, urlparse, urlsplit,
 import bs4
 import requests
 
-from ..errors import FatalException
+from ..errors import FatalException, retry_on_io_exception
 from ..logging import PrettyLogger
 from ..utils import soupify
 from .authenticators import IliasAuthenticator
@@ -625,6 +625,7 @@ class IliasCrawler:
 
         return results
 
+    @retry_on_io_exception(3, "fetching webpage")
     def _get_page(self, url: str, params: Dict[str, Any],
                   retry_count: int = 0) -> bs4.BeautifulSoup:
         """
