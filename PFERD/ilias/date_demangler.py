@@ -20,7 +20,7 @@ def demangle_date(date: str) -> Optional[datetime.datetime]:
     "Gestern, HH:MM"
     "Heute, HH:MM"
     "Morgen, HH:MM"
-    "dd. mon.yyyy, HH:MM
+    "dd. mon yyyy, HH:MM
     """
     saved = locale.setlocale(locale.LC_ALL)
     try:
