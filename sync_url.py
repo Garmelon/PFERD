@@ -131,13 +131,13 @@ def main() -> None:
         return True
 
     if args.local_first:
-        file_confilict_resolver: FileConflictResolver = _resolve_local_first
+        file_conflict_resolver: FileConflictResolver = _resolve_local_first
     elif args.no_delete:
-        file_confilict_resolver = _resolve_no_delete
+        file_conflict_resolver = _resolve_no_delete
     elif args.remote_first:
-        file_confilict_resolver = _resolve_remote_first
+        file_conflict_resolver = _resolve_remote_first
     else:
-        file_confilict_resolver = resolve_prompt_user
+        file_conflict_resolver = resolve_prompt_user
 
     pferd.enable_logging()
 
@@ -149,7 +149,7 @@ def main() -> None:
         dir_filter=dir_filter,
         username=username,
         password=password,
-        file_conflict_resolver=file_confilict_resolver,
+        file_conflict_resolver=file_conflict_resolver,
         transform=sanitize_windows_path
     )
 
