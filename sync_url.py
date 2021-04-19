@@ -81,6 +81,8 @@ def main() -> None:
                         help="Don't prompt for confirmation, delete and overwrite local files")
     parser.add_argument('--no-delete', action="store_true",
                         help="Don't prompt for confirmation, overwrite local files, don't delete")
+    parser.add_argument('--only-summarize', action="store_true",
+                        help="Only print the final summary")
     parser.add_argument('url', help="URL to the course page")
     parser.add_argument('folder', nargs='?', default=None, help="Folder to put stuff into")
     args = parser.parse_args()
@@ -139,7 +141,8 @@ def main() -> None:
     else:
         file_confilict_resolver = resolve_prompt_user
 
-    pferd.enable_logging()
+    if not args.only_summarize:
+        pferd.enable_logging()
 
     # fetch
     pferd.ilias_kit_folder(
@@ -153,6 +156,8 @@ def main() -> None:
         transform=sanitize_windows_path
     )
 
+    if args.only_summarize:
+        pferd.enable_logging()
     pferd.print_summary()
 
 
