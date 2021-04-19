@@ -130,7 +130,7 @@ def re_rename(regex: Regex, target: str) -> Transform:
     return inner
 
 
-def sanitize_windows_path(path: PurePath) -> Optional[PurePath]:
+def sanitize_windows_path(path: PurePath) -> PurePath:
     """
     A small function to escape characters that are forbidden in windows path names.
     This method is a no-op on other operating systems.
