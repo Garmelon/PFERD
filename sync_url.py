@@ -121,7 +121,8 @@ def main() -> None:
     # files may not escape the pferd_root with relative paths
     # note: Path(Path.cwd, Path(folder)) == Path(folder) if it is an absolute path
     pferd_root = Path(Path.cwd(), Path(folder)).parent
-    target = folder.resolve().name
+    # Folder might be a *PurePath* at this point
+    target = Path(folder).resolve().name
     pferd = Pferd(pferd_root, test_run=args.test_run)
 
     def dir_filter(_: Path, element: IliasElementType) -> bool:
