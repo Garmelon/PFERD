@@ -24,9 +24,9 @@ class IliasAuthenticator(abc.ABC):
     """
 
     @abc.abstractmethod
-    def authenticate(self, client: httpx.Client) -> None:
+    async def authenticate(self, client: httpx.AsyncClient) -> None:
         """
-        Log a httpx client into this authenticator's ILIAS account.
+        Log a httpx AsyncClient into this authenticator's ILIAS account.
         """
 
 
@@ -45,7 +45,7 @@ class KitShibbolethAuthenticator(IliasAuthenticator):
 
         self._tfa_auth = TfaAuthenticator("KIT ILIAS Shibboleth")
 
-    def authenticate(self, sess: httpx.Client) -> None:
+    async def authenticate(self, client: httpx.AsyncClient) -> None:
         """
         Performs the ILIAS Shibboleth authentication dance and saves the login
         cookies it receieves.
@@ -65,7 +65,7 @@ class KitShibbolethAuthenticator(IliasAuthenticator):
             "target": "/shib_login.php",
             "home_organization_selection": "Mit KIT-Account anmelden",
         }
-        soup = soupify(sess.post(url, data=data))
+        soup = soupify(await client.post(url, data=data))
 
         # Attempt to login using credentials, if necessary
         while not self._login_successful(soup):
@@ -86,10 +86,10 @@ class KitShibbolethAuthenticator(IliasAuthenticator):
                 "j_password": self._auth.password,
                 "csrf_token": csrf_token
             }
-            soup = soupify(sess.post(url, data=data))
+            soup = soupify(await client.post(url, data=data))
 
             if self._tfa_required(soup):
-                soup = self._authenticate_tfa(sess, soup)
+                soup = await self._authenticate_tfa(client, soup)
 
             if not self._login_successful(soup):
                 print("Incorrect credentials.")
@@ -105,11 +105,11 @@ class KitShibbolethAuthenticator(IliasAuthenticator):
             "RelayState": relay_state["value"],
             "SAMLResponse": saml_response["value"],
         }
-        sess.post(url, data=data)
+        await client.post(url, data=data)
 
-    def _authenticate_tfa(
+    async def _authenticate_tfa(
             self,
-            client: httpx.Client,
+            client: httpx.AsyncClient,
             soup: bs4.BeautifulSoup
     ) -> bs4.BeautifulSoup:
         # Searching the form here so that this fails before asking for
@@ -125,7 +125,7 @@ class KitShibbolethAuthenticator(IliasAuthenticator):
             "_eventId_proceed": "",
             "j_tokenNumber": self._tfa_auth.get_token()
         }
-        return soupify(client.post(url, data=data))
+        return soupify(await client.post(url, data=data))
 
     @staticmethod
     def _login_successful(soup: bs4.BeautifulSoup) -> bool:

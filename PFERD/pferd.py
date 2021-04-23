@@ -4,7 +4,8 @@ Convenience functions for using PFERD.
 
 import logging
 from pathlib import Path
-from typing import Callable, List, Optional, Union
+from typing import Callable, Awaitable, List, Optional, Union
+import asyncio
 
 from .authenticators import UserPassAuthenticator
 from .cookie_jar import CookieJar
@@ -72,11 +73,11 @@ class Pferd(Location):
         inner_auth = UserPassAuthenticator("ILIAS - Pferd.py", username, password)
         return KitShibbolethAuthenticator(inner_auth)
 
-    def _ilias(
+    async def _ilias(
             self,
             target: PathLike,
             base_url: str,
-            crawl_function: Callable[[IliasCrawler], List[IliasDownloadInfo]],
+            crawl_function: Callable[[IliasCrawler], Awaitable[List[IliasDownloadInfo]]],
             authenticator: IliasAuthenticator,
             cookies: Optional[PathLike],
             dir_filter: IliasDirectoryFilter,
@@ -89,28 +90,31 @@ class Pferd(Location):
         # pylint: disable=too-many-locals
         cookie_jar = CookieJar(to_path(cookies) if cookies else None)
         client = cookie_jar.create_client()
+        async_client = cookie_jar.create_async_client()
         tmp_dir = self._tmp_dir.new_subdir()
         organizer = Organizer(self.resolve(to_path(target)), file_conflict_resolver)
 
-        crawler = IliasCrawler(base_url, client, authenticator, dir_filter)
+        crawler = IliasCrawler(base_url, async_client, authenticator, dir_filter)
         downloader = IliasDownloader(tmp_dir, organizer, client,
                                      authenticator, download_strategy, timeout)
 
         cookie_jar.load_cookies()
-        info = crawl_function(crawler)
+        info = await crawl_function(crawler)
         cookie_jar.save_cookies()
+
 
         transformed = apply_transform(transform, info)
         if self._test_run:
             self._print_transformables(transformed)
             return organizer
 
-        downloader.download_all(transformed)
+        await downloader.download_all(transformed)
         cookie_jar.save_cookies()
 
         if clean:
             organizer.cleanup()
 
+        await async_client.aclose()
         return organizer
 
     @swallow_and_print_errors
@@ -161,7 +165,7 @@ class Pferd(Location):
         authenticator = Pferd._get_authenticator(username=username, password=password)
         PRETTY.starting_synchronizer(target, "ILIAS", course_id)
 
-        organizer = self._ilias(
+        organizer = asyncio.run(self._ilias(
             target=target,
             base_url="https://ilias.studium.kit.edu/",
             crawl_function=lambda crawler: crawler.crawl_course(course_id),
@@ -173,7 +177,7 @@ class Pferd(Location):
             clean=clean,
             timeout=timeout,
             file_conflict_resolver=file_conflict_resolver
-        )
+        ))
 
         self._download_summary.merge(organizer.download_summary)
 
@@ -230,7 +234,7 @@ class Pferd(Location):
         authenticator = Pferd._get_authenticator(username, password)
         PRETTY.starting_synchronizer(target, "ILIAS", "Personal Desktop")
 
-        organizer = self._ilias(
+        organizer = asyncio.run(self._ilias(
             target=target,
             base_url="https://ilias.studium.kit.edu/",
             crawl_function=lambda crawler: crawler.crawl_personal_desktop(),
@@ -242,7 +246,7 @@ class Pferd(Location):
             clean=clean,
             timeout=timeout,
             file_conflict_resolver=file_conflict_resolver
-        )
+        ))
 
         self._download_summary.merge(organizer.download_summary)
 
@@ -298,7 +302,7 @@ class Pferd(Location):
         if not full_url.startswith("https://ilias.studium.kit.edu"):
             raise FatalException("Not a valid KIT ILIAS URL")
 
-        organizer = self._ilias(
+        organizer = asyncio.run(self._ilias(
             target=target,
             base_url="https://ilias.studium.kit.edu/",
             crawl_function=lambda crawler: crawler.recursive_crawl_url(full_url),
@@ -310,7 +314,7 @@ class Pferd(Location):
             clean=clean,
             timeout=timeout,
             file_conflict_resolver=file_conflict_resolver
-        )
+        ))
 
         self._download_summary.merge(organizer.download_summary)
 

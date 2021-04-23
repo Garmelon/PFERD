@@ -65,3 +65,10 @@ class CookieJar:
         client.cookies = self.cookies  # type: ignore
 
         return client
+
+    def create_async_client(self) -> httpx.AsyncClient:
+        """Create a new async client using the cookie jar."""
+        # TODO: timeout=None was the default behaviour of requests. An approprite value should probably be set
+        client = httpx.AsyncClient(timeout=None)
+        client.cookies = self.cookies
+        return client
