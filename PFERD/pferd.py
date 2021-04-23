@@ -156,8 +156,7 @@ class Pferd(Location):
                 be downloaded. Can save bandwidth and reduce the number of httpx.
                 (default: {download_modified_or_new})
             clean {bool} -- Whether to clean up when the method finishes.
-            timeout {int} -- The download timeout for opencast videos. Sadly needed due to a
-                httpx bug.
+            timeout {int} -- The download timeout for opencast videos.
             file_conflict_resolver {FileConflictResolver} -- A function specifying how to deal
                 with overwriting or deleting files. The default always asks the user.
         """
@@ -290,8 +289,7 @@ class Pferd(Location):
                 be downloaded. Can save bandwidth and reduce the number of httpx.
                 (default: {download_modified_or_new})
             clean {bool} -- Whether to clean up when the method finishes.
-            timeout {int} -- The download timeout for opencast videos. Sadly needed due to a
-                httpx bug.
+            timeout {int} -- The download timeout for opencast videos.
             file_conflict_resolver {FileConflictResolver} -- A function specifying how to deal
                 with overwriting or deleting files. The default always asks the user.
         """

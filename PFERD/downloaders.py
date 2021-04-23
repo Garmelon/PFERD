@@ -6,7 +6,6 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 import httpx
-import httpx.auth
 
 from .organizer import Organizer
 from .tmp_dir import TmpDir
@@ -42,12 +41,9 @@ class HttpDownloader:
         self._client = self._build_client()
 
     def _build_client(self) -> httpx.Client:
-        client = httpx.Client()
         if self._username and self._password:
-            client.auth = httpx.auth.HTTPBasicAuth(
-                self._username, self._password
-            )
-        return client
+            return httpx.Client(auth=(self._username, self._password))
+        return httpx.Client()
 
     def download_all(self, infos: List[HttpDownloadInfo]) -> None:
         """
