@@ -286,7 +286,7 @@ class Pferd(Location):
             password {Optional[str]} -- The SCC password. If none is given, it will prompt
                 the user. (default: {None})
             download_strategy {DownloadStrategy} -- A function to determine which files need to
-                be downloaded. Can save bandwidth and reduce the number of httpx.
+                be downloaded. Can save bandwidth and reduce the number of requests.
                 (default: {download_modified_or_new})
             clean {bool} -- Whether to clean up when the method finishes.
             timeout {int} -- The download timeout for opencast videos.
@@ -339,7 +339,7 @@ class Pferd(Location):
             transform {Transform} -- A transformation function for the output paths. Return None
                 to ignore a file. (default: {lambdax:x})
             download_strategy {DivaDownloadStrategy} -- A function to determine which files need to
-                be downloaded. Can save bandwidth and reduce the number of httpx.
+                be downloaded. Can save bandwidth and reduce the number of requests.
                 (default: {diva_download_new})
             clean {bool} -- Whether to clean up when the method finishes.
             file_conflict_resolver {FileConflictResolver} -- A function specifying how to deal
@@ -397,7 +397,7 @@ class Pferd(Location):
             transform {Transform} -- A transformation function for the output paths. Return None
                 to ignore a file. (default: {lambdax:x})
             download_strategy {DivaDownloadStrategy} -- A function to determine which files need to
-                be downloaded. Can save bandwidth and reduce the number of httpx.
+                be downloaded. Can save bandwidth and reduce the number of requests.
                 (default: {diva_download_new})
             clean {bool} -- Whether to clean up when the method finishes.
             file_conflict_resolver {FileConflictResolver} -- A function specifying how to deal
