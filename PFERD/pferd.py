@@ -153,7 +153,7 @@ class Pferd(Location):
             password {Optional[str]} -- The SCC password. If none is given, it will prompt
                 the user. (default: {None})
             download_strategy {DownloadStrategy} -- A function to determine which files need to
-                be downloaded. Can save bandwidth and reduce the number of httpx.
+                be downloaded. Can save bandwidth and reduce the number of requests.
                 (default: {download_modified_or_new})
             clean {bool} -- Whether to clean up when the method finishes.
             timeout {int} -- The download timeout for opencast videos.
