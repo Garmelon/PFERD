@@ -13,7 +13,7 @@ from urllib.parse import (parse_qs, urlencode, urljoin, urlparse, urlsplit,
                           urlunsplit)
 
 import bs4
-import requests
+import httpx
 
 from ..errors import FatalException, retry_on_io_exception
 from ..logging import PrettyLogger
@@ -96,7 +96,7 @@ class IliasCrawler:
     def __init__(
             self,
             base_url: str,
-            session: requests.Session,
+            client: httpx.Client,
             authenticator: IliasAuthenticator,
             dir_filter: IliasDirectoryFilter
     ):
@@ -105,7 +105,7 @@ class IliasCrawler:
         """
 
         self._base_url = base_url
-        self._session = session
+        self._client = client
         self._authenticator = authenticator
         self.dir_filter = dir_filter
 
@@ -157,9 +157,9 @@ class IliasCrawler:
         return self._iterate_entries_to_download_infos(entries)
 
     def _is_course_id_valid(self, root_url: str, course_id: str) -> bool:
-        response: requests.Response = self._session.get(root_url)
+        response: httpx.Response = self._client.get(root_url)
         # We were redirected ==> Non-existant ID
-        if course_id not in response.url:
+        if course_id not in str(response.url):
             return False
 
         link_element: bs4.Tag = self._get_page(root_url, {}).find(id="current_perma_link")
@@ -564,7 +564,7 @@ class IliasCrawler:
             # on the page, but defined in a JS object inside a script tag, passed to the player
             # library.
             # We do the impossible and RegEx the stream JSON object out of the page's HTML source
-            video_page_soup = soupify(self._session.get(play_url))
+            video_page_soup = soupify(self._client.get(play_url))
             regex: re.Pattern = re.compile(
                 r"({\"streams\"[\s\S]+?),\s*{\"paella_config_file", re.IGNORECASE
             )
@@ -639,7 +639,7 @@ class IliasCrawler:
 
         LOGGER.debug("Fetching %r", url)
 
-        response = self._session.get(url, params=params)
+        response = self._client.get(url, params=params)
         content_type = response.headers["content-type"]
 
         if not content_type.startswith("text/html"):
@@ -655,7 +655,7 @@ class IliasCrawler:
 
         LOGGER.info("Not authenticated, changing that...")
 
-        self._authenticator.authenticate(self._session)
+        self._authenticator.authenticate(self._client)
 
         return self._get_page(url, params, retry_count + 1)
 

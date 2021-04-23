@@ -5,7 +5,7 @@ setup(
     version="2.6.1",
     packages=find_packages(),
     install_requires=[
-        "requests>=2.21.0",
+        "httpx>=0.17.1",
         "beautifulsoup4>=4.7.1",
         "rich>=2.1.0",
         "keyring>=21.5.0"

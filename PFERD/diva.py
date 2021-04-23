@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, List, Optional
 
-import requests
+import httpx
 
 from .errors import FatalException
 from .logging import PrettyLogger
@@ -69,7 +69,7 @@ class DivaPlaylistCrawler:
             )
         base_name = match.group(1)
 
-        response = requests.get(cls._PLAYLIST_BASE_URL + base_name + ".json")
+        response = httpx.get(cls._PLAYLIST_BASE_URL + base_name + ".json")
 
         if response.status_code != 200:
             raise FatalException(
@@ -88,7 +88,7 @@ class DivaPlaylistCrawler:
         """
         Crawls the playlist given in the constructor.
         """
-        response = requests.get(self._COLLECTION_BASE_URL, params={"collection": self._id})
+        response = httpx.get(self._COLLECTION_BASE_URL, params={"collection": self._id})
         if response.status_code != 200:
             raise FatalException(f"Server returned status {response.status_code}.")
 
@@ -143,7 +143,7 @@ class DivaDownloader:
         self._tmp_dir = tmp_dir
         self._organizer = organizer
         self._strategy = strategy
-        self._session = requests.session()
+        self._client = httpx.Client()
 
     def download_all(self, infos: List[DivaDownloadInfo]) -> None:
         """
@@ -160,7 +160,7 @@ class DivaDownloader:
             self._organizer.mark(info.path)
             return
 
-        with self._session.get(info.url, stream=True) as response:
+        with self._client.stream("GET", info.url) as response:
             if response.status_code == 200:
                 tmp_file = self._tmp_dir.new_path()
                 stream_to_path(response, tmp_file, info.path.name)

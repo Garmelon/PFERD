@@ -5,8 +5,8 @@ General downloaders useful in many situations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-import requests
-import requests.auth
+import httpx
+import httpx.auth
 
 from .organizer import Organizer
 from .tmp_dir import TmpDir
@@ -39,15 +39,15 @@ class HttpDownloader:
         self._tmp_dir = tmp_dir
         self._username = username
         self._password = password
-        self._session = self._build_session()
+        self._client = self._build_client()
 
-    def _build_session(self) -> requests.Session:
-        session = requests.Session()
+    def _build_client(self) -> httpx.Client:
+        client = httpx.Client()
         if self._username and self._password:
-            session.auth = requests.auth.HTTPBasicAuth(
+            client.auth = httpx.auth.HTTPBasicAuth(
                 self._username, self._password
             )
-        return session
+        return client
 
     def download_all(self, infos: List[HttpDownloadInfo]) -> None:
         """
@@ -62,7 +62,7 @@ class HttpDownloader:
         Download a single file.
         """
 
-        with self._session.get(info.url, params=info.parameters, stream=True) as response:
+        with self._client.stream("GET", info.url, params=info.parameters) as response:
             if response.status_code == 200:
                 tmp_file = self._tmp_dir.new_path()
                 stream_to_path(response, tmp_file, info.path.name)

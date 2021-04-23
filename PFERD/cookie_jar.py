@@ -1,11 +1,11 @@
-"""A helper for requests cookies."""
+"""A helper for httpx cookies."""
 
 import logging
 from http.cookiejar import LoadError, LWPCookieJar
 from pathlib import Path
 from typing import Optional
 
-import requests
+import httpx
 
 LOGGER = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ class CookieJar:
 
     @property
     def cookies(self) -> LWPCookieJar:
-        """Return the requests cookie jar."""
+        """Return the httpx cookie jar."""
         return self._cookies
 
     def load_cookies(self) -> None:
@@ -57,13 +57,11 @@ class CookieJar:
         # TODO possibly catch a few more exceptions
         self._cookies.save(ignore_discard=True)
 
-    def create_session(self) -> requests.Session:
-        """Create a new session using the cookie jar."""
-        sess = requests.Session()
+    def create_client(self) -> httpx.Client:
+        """Create a new client using the cookie jar."""
+        # TODO: timeout=None was the default behaviour of requests. An approprite value should probably be set
+        client = httpx.Client(timeout=None)
 
-        # From the request docs: "All requests code should work out of the box
-        # with externally provided instances of CookieJar, e.g. LWPCookieJar
-        # and FileCookieJar."
-        sess.cookies = self.cookies  # type: ignore
+        client.cookies = self.cookies  # type: ignore
 
-        return sess
+        return client

@@ -8,7 +8,7 @@ from pathlib import Path, PurePath
 from typing import Callable, List, Optional, Union
 
 import bs4
-import requests
+import httpx
 
 from ..errors import retry_on_io_exception
 from ..logging import PrettyLogger
@@ -82,21 +82,18 @@ class IliasDownloader:
             self,
             tmp_dir: TmpDir,
             organizer: Organizer,
-            session: requests.Session,
+            client: httpx.Client,
             authenticator: IliasAuthenticator,
             strategy: IliasDownloadStrategy,
             timeout: int = 5
     ):
         """
         Create a new IliasDownloader.
-
-        The timeout applies to the download request only, as bwcloud uses IPv6
-        and requests has a problem with that: https://github.com/psf/requests/issues/5522
         """
 
         self._tmp_dir = tmp_dir
         self._organizer = organizer
-        self._session = session
+        self._client = client
         self._authenticator = authenticator
         self._strategy = strategy
         self._timeout = timeout
@@ -128,7 +125,7 @@ class IliasDownloader:
         def download_impl() -> bool:
             if not self._try_download(info, tmp_file):
                 LOGGER.info("Re-Authenticating due to download failure: %r", info)
-                self._authenticator.authenticate(self._session)
+                self._authenticator.authenticate(self._client)
                 raise IOError("Scheduled retry")
             else:
                 return True
@@ -153,7 +150,7 @@ class IliasDownloader:
             PRETTY.warning(f"Could not download {str(info.path)!r} as I got no URL :/")
             return True
 
-        with self._session.get(url, stream=True, timeout=self._timeout) as response:
+        with self._client.stream("GET", url, timeout=self._timeout) as response:
             content_type = response.headers["content-type"]
             has_content_disposition = "content-disposition" in response.headers
 

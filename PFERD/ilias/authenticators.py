@@ -7,7 +7,7 @@ import logging
 from typing import Optional
 
 import bs4
-import requests
+import httpx
 
 from ..authenticators import TfaAuthenticator, UserPassAuthenticator
 from ..utils import soupify
@@ -19,14 +19,14 @@ class IliasAuthenticator(abc.ABC):
     # pylint: disable=too-few-public-methods
 
     """
-    An authenticator that logs an existing requests session into an ILIAS
+    An authenticator that logs an existing httpx client into an ILIAS
     account.
     """
 
     @abc.abstractmethod
-    def authenticate(self, sess: requests.Session) -> None:
+    def authenticate(self, client: httpx.Client) -> None:
         """
-        Log a requests session into this authenticator's ILIAS account.
+        Log a httpx client into this authenticator's ILIAS account.
         """
 
 
@@ -45,7 +45,7 @@ class KitShibbolethAuthenticator(IliasAuthenticator):
 
         self._tfa_auth = TfaAuthenticator("KIT ILIAS Shibboleth")
 
-    def authenticate(self, sess: requests.Session) -> None:
+    def authenticate(self, sess: httpx.Client) -> None:
         """
         Performs the ILIAS Shibboleth authentication dance and saves the login
         cookies it receieves.
@@ -109,7 +109,7 @@ class KitShibbolethAuthenticator(IliasAuthenticator):
 
     def _authenticate_tfa(
             self,
-            session: requests.Session,
+            client: httpx.Client,
             soup: bs4.BeautifulSoup
     ) -> bs4.BeautifulSoup:
         # Searching the form here so that this fails before asking for
@@ -125,7 +125,7 @@ class KitShibbolethAuthenticator(IliasAuthenticator):
             "_eventId_proceed": "",
             "j_tokenNumber": self._tfa_auth.get_token()
         }
-        return soupify(session.post(url, data=data))
+        return soupify(client.post(url, data=data))
 
     @staticmethod
     def _login_successful(soup: bs4.BeautifulSoup) -> bool:

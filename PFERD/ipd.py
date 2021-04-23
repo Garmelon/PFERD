@@ -11,7 +11,7 @@ from typing import Callable, List, Optional
 from urllib.parse import urljoin
 
 import bs4
-import requests
+import httpx
 
 from PFERD.errors import FatalException
 from PFERD.utils import soupify
@@ -78,7 +78,7 @@ class IpdCrawler:
         """
         Crawls the playlist given in the constructor.
         """
-        page = soupify(requests.get(self._base_url))
+        page = soupify(httpx.get(self._base_url))
 
         items: List[IpdDownloadInfo] = []
 
@@ -116,7 +116,7 @@ class IpdDownloader:
         self._tmp_dir = tmp_dir
         self._organizer = organizer
         self._strategy = strategy
-        self._session = requests.session()
+        self._client = httpx.Client()
 
     def download_all(self, infos: List[IpdDownloadInfo]) -> None:
         """
@@ -133,7 +133,7 @@ class IpdDownloader:
             self._organizer.mark(info.path)
             return
 
-        with self._session.get(info.url, stream=True) as response:
+        with self._client.stream("GET", info.url) as response:
             if response.status_code == 200:
                 tmp_file = self._tmp_dir.new_path()
                 stream_to_path(response, tmp_file, info.path.name)

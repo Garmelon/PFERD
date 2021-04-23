@@ -86,7 +86,7 @@ def main() -> None:
     args = parser.parse_args()
 
     cookie_jar = CookieJar(to_path(args.cookies) if args.cookies else None)
-    session = cookie_jar.create_session()
+    client = cookie_jar.create_client()
 
     if args.keyring:
         if not args.username:
@@ -103,7 +103,7 @@ def main() -> None:
 
     url = urlparse(args.url)
 
-    crawler = IliasCrawler(url.scheme + '://' + url.netloc, session,
+    crawler = IliasCrawler(url.scheme + '://' + url.netloc, client,
                            authenticator, lambda x, y: True)
 
     cookie_jar.load_cookies()

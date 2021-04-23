@@ -23,7 +23,7 @@ jobs:
         python-version: '3.x'
 
     - name: "Install dependencies"
-      run: "pip install setuptools keyring pyinstaller rich requests beautifulsoup4 -f --upgrade"
+      run: "pip install setuptools keyring pyinstaller rich httpx beautifulsoup4 -f --upgrade"
 
     - name: "Install sync_url.py"
       run: "pyinstaller sync_url.py -F"

@@ -88,12 +88,12 @@ class Pferd(Location):
     ) -> Organizer:
         # pylint: disable=too-many-locals
         cookie_jar = CookieJar(to_path(cookies) if cookies else None)
-        session = cookie_jar.create_session()
+        client = cookie_jar.create_client()
         tmp_dir = self._tmp_dir.new_subdir()
         organizer = Organizer(self.resolve(to_path(target)), file_conflict_resolver)
 
-        crawler = IliasCrawler(base_url, session, authenticator, dir_filter)
-        downloader = IliasDownloader(tmp_dir, organizer, session,
+        crawler = IliasCrawler(base_url, client, authenticator, dir_filter)
+        downloader = IliasDownloader(tmp_dir, organizer, client,
                                      authenticator, download_strategy, timeout)
 
         cookie_jar.load_cookies()
@@ -149,11 +149,11 @@ class Pferd(Location):
             password {Optional[str]} -- The SCC password. If none is given, it will prompt
                 the user. (default: {None})
             download_strategy {DownloadStrategy} -- A function to determine which files need to
-                be downloaded. Can save bandwidth and reduce the number of requests.
+                be downloaded. Can save bandwidth and reduce the number of httpx.
                 (default: {download_modified_or_new})
             clean {bool} -- Whether to clean up when the method finishes.
             timeout {int} -- The download timeout for opencast videos. Sadly needed due to a
-                requests bug.
+                httpx bug.
             file_conflict_resolver {FileConflictResolver} -- A function specifying how to deal
                 with overwriting or deleting files. The default always asks the user.
         """
@@ -222,8 +222,7 @@ class Pferd(Location):
                 be downloaded. Can save bandwidth and reduce the number of requests.
                 (default: {download_modified_or_new})
             clean {bool} -- Whether to clean up when the method finishes.
-            timeout {int} -- The download timeout for opencast videos. Sadly needed due to a
-                requests bug.
+            timeout {int} -- The download timeout for opencast videos. 
             file_conflict_resolver {FileConflictResolver} -- A function specifying how to deal
                 with overwriting or deleting files. The default always asks the user.
         """
@@ -284,11 +283,11 @@ class Pferd(Location):
             password {Optional[str]} -- The SCC password. If none is given, it will prompt
                 the user. (default: {None})
             download_strategy {DownloadStrategy} -- A function to determine which files need to
-                be downloaded. Can save bandwidth and reduce the number of requests.
+                be downloaded. Can save bandwidth and reduce the number of httpx.
                 (default: {download_modified_or_new})
             clean {bool} -- Whether to clean up when the method finishes.
             timeout {int} -- The download timeout for opencast videos. Sadly needed due to a
-                requests bug.
+                httpx bug.
             file_conflict_resolver {FileConflictResolver} -- A function specifying how to deal
                 with overwriting or deleting files. The default always asks the user.
         """
@@ -338,7 +337,7 @@ class Pferd(Location):
             transform {Transform} -- A transformation function for the output paths. Return None
                 to ignore a file. (default: {lambdax:x})
             download_strategy {DivaDownloadStrategy} -- A function to determine which files need to
-                be downloaded. Can save bandwidth and reduce the number of requests.
+                be downloaded. Can save bandwidth and reduce the number of httpx.
                 (default: {diva_download_new})
             clean {bool} -- Whether to clean up when the method finishes.
             file_conflict_resolver {FileConflictResolver} -- A function specifying how to deal
@@ -396,7 +395,7 @@ class Pferd(Location):
             transform {Transform} -- A transformation function for the output paths. Return None
                 to ignore a file. (default: {lambdax:x})
             download_strategy {DivaDownloadStrategy} -- A function to determine which files need to
-                be downloaded. Can save bandwidth and reduce the number of requests.
+                be downloaded. Can save bandwidth and reduce the number of httpx.
                 (default: {diva_download_new})
             clean {bool} -- Whether to clean up when the method finishes.
             file_conflict_resolver {FileConflictResolver} -- A function specifying how to deal

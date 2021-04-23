@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from types import TracebackType
 from typing import Optional, Type
 
-import requests
+import httpx
 from rich.console import Console
 from rich.progress import (BarColumn, DownloadColumn, Progress, TaskID,
                            TextColumn, TimeRemainingColumn,
@@ -27,12 +27,12 @@ _progress: Progress = Progress(
 )
 
 
-def size_from_headers(response: requests.Response) -> Optional[int]:
+def size_from_headers(response: httpx.Response) -> Optional[int]:
     """
     Return the size of the download based on the response headers.
 
     Arguments:
-        response {requests.Response} -- the response
+        response {httpx.Response} -- the response
 
     Returns:
         Optional[int] -- the size
