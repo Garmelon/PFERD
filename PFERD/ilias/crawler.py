@@ -689,7 +689,7 @@ class IliasCrawler:
 
         LOGGER.info("Not authenticated, changing that...")
 
-        self._authenticator.authenticate(self._client)
+        await self._authenticator.authenticate(self._client)
 
         return await self._get_page(url, params, retry_count + 1)
 
