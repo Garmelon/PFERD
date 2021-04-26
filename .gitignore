@@ -1,15 +1,2 @@
-__pycache__/
-.venv/
-venv/
-.idea/
-build/
-.mypy_cache/
-.tmp/
-.env
-.vscode
-ilias_cookies.txt
-PFERD.egg-info/
-
-# PyInstaller
-sync_url.spec
-dist/
+/.mypy_cache/
+/.venv/
