@@ -40,7 +40,7 @@ class CookieJar:
         except (FileNotFoundError, LoadError):
             LOGGER.warning(
                 "No valid cookie file found at %s, continuing with no cookies",
-                self._cookies.filename
+                self._cookies.filename,
             )
 
     def save_cookies(self, reason: Optional[str] = None) -> None:
@@ -69,6 +69,5 @@ class CookieJar:
     def create_async_client(self) -> httpx.AsyncClient:
         """Create a new async client using the cookie jar."""
         # TODO: timeout=None was the default behaviour of requests. An approprite value should probably be set
-        client = httpx.AsyncClient(timeout=None)
-        client.cookies = self.cookies
+        client = httpx.AsyncClient(timeout=None, cookies=self.cookies)
         return client

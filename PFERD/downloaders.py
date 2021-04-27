@@ -27,11 +27,11 @@ class HttpDownloader:
     """A HTTP downloader that can handle HTTP basic auth."""
 
     def __init__(
-            self,
-            tmp_dir: TmpDir,
-            organizer: Organizer,
-            username: Optional[str],
-            password: Optional[str],
+        self,
+        tmp_dir: TmpDir,
+        organizer: Organizer,
+        username: Optional[str],
+        password: Optional[str],
     ):
         """Create a new http downloader."""
         self._organizer = organizer
@@ -65,4 +65,6 @@ class HttpDownloader:
                 self._organizer.accept_file(tmp_file, info.path)
             else:
                 # TODO use proper exception
-                raise Exception(f"Could not download file, got response {response.status_code}")
+                raise Exception(
+                    f"Could not download file, got response {response.status_code}"
+                )

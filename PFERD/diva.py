@@ -25,6 +25,7 @@ class DivaDownloadInfo(Transformable):
     """
     Information about a DIVA video
     """
+
     url: str
 
 
@@ -49,7 +50,9 @@ class DivaPlaylistCrawler:
     """
 
     _PLAYLIST_BASE_URL = "https://mediaservice.bibliothek.kit.edu/asset/detail/"
-    _COLLECTION_BASE_URL = "https://mediaservice.bibliothek.kit.edu/asset/collection.json"
+    _COLLECTION_BASE_URL = (
+        "https://mediaservice.bibliothek.kit.edu/asset/collection.json"
+    )
 
     def __init__(self, playlist_id: str):
         self._id = playlist_id
@@ -108,15 +111,16 @@ class DivaPlaylistCrawler:
             title = video["title"]
             collection_title = self._follow_path(["collection", "title"], video)
             url = self._follow_path(
-                ["resourceList", "derivateList", "mp4", "url"],
-                video
+                ["resourceList", "derivateList", "mp4", "url"], video
             )
 
             if url and collection_title and title:
                 path = Path(collection_title, title + ".mp4")
                 download_infos.append(DivaDownloadInfo(path, url))
             else:
-                PRETTY.warning(f"Incomplete video found: {title!r} {collection_title!r} {url!r}")
+                PRETTY.warning(
+                    f"Incomplete video found: {title!r} {collection_title!r} {url!r}"
+                )
 
         return download_infos
 
@@ -139,7 +143,9 @@ class DivaDownloader:
     A downloader for DIVA videos.
     """
 
-    def __init__(self, tmp_dir: TmpDir, organizer: Organizer, strategy: DivaDownloadStrategy):
+    def __init__(
+        self, tmp_dir: TmpDir, organizer: Organizer, strategy: DivaDownloadStrategy
+    ):
         self._tmp_dir = tmp_dir
         self._organizer = organizer
         self._strategy = strategy
@@ -166,4 +172,6 @@ class DivaDownloader:
                 stream_to_path(response, tmp_file, info.path.name)
                 self._organizer.accept_file(tmp_file, info.path)
             else:
-                PRETTY.warning(f"Could not download file, got response {response.status_code}")
+                PRETTY.warning(
+                    f"Could not download file, got response {response.status_code}"
+                )

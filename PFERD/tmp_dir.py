@@ -25,16 +25,16 @@ class TmpDir(Location):
         """Format the folder as a string."""
         return f"Folder at {self.path}"
 
-    def __enter__(self) -> 'TmpDir':
+    def __enter__(self) -> "TmpDir":
         """Context manager entry function."""
         return self
 
     # pylint: disable=useless-return
     def __exit__(
-            self,
-            exc_type: Optional[Type[BaseException]],
-            exc_value: Optional[BaseException],
-            traceback: Optional[TracebackType],
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_value: Optional[BaseException],
+        traceback: Optional[TracebackType],
     ) -> Optional[bool]:
         """Context manager exit function. Calls cleanup()."""
         self.cleanup()
@@ -52,7 +52,7 @@ class TmpDir(Location):
 
         return self.resolve(Path(name))
 
-    def new_subdir(self, prefix: Optional[str] = None) -> 'TmpDir':
+    def new_subdir(self, prefix: Optional[str] = None) -> "TmpDir":
         """
         Create a new nested temporary folder and return it.
         """

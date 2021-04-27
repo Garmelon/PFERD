@@ -44,9 +44,9 @@ def soupify(response: httpx.Response) -> bs4.BeautifulSoup:
 
 
 def stream_to_path(
-        response: httpx.Response,
-        target: Path,
-        progress_name: Optional[str] = None,
+    response: httpx.Response,
+    target: Path,
+    progress_name: Optional[str] = None,
 ) -> None:
     """
     Download a httpx response content to a file by streaming it. This
@@ -62,7 +62,7 @@ def stream_to_path(
     else:
         settings = None
 
-    with open(target, 'wb') as file_descriptor:
+    with open(target, "wb") as file_descriptor:
         with progress_for(settings) as progress:
             for chunk in response.iter_bytes():
                 file_descriptor.write(chunk)

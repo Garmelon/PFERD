@@ -19,13 +19,14 @@ class FatalException(Exception):
     """
 
 
-TFun = TypeVar('TFun', bound=Callable[..., Any])
+TFun = TypeVar("TFun", bound=Callable[..., Any])
 
 
 def swallow_and_print_errors(function: TFun) -> TFun:
     """
     Decorates a function, swallows all errors, logs them and returns none if one occurred.
     """
+
     def inner(*args: Any, **kwargs: Any) -> Any:
         # pylint: disable=broad-except
         try:
@@ -36,6 +37,7 @@ def swallow_and_print_errors(function: TFun) -> TFun:
         except Exception as error:
             Console().print_exception()
             return None
+
     return cast(TFun, inner)
 
 
@@ -43,6 +45,7 @@ def retry_on_io_exception(max_retries: int, message: str) -> Callable[[TFun], TF
     """
     Decorates a function and retries it on any exception until the max retries count is hit.
     """
+
     def retry(function: TFun) -> TFun:
         def inner(*args: Any, **kwargs: Any) -> Any:
             for i in range(0, max_retries):
@@ -52,6 +55,9 @@ def retry_on_io_exception(max_retries: int, message: str) -> Callable[[TFun], TF
                 except IOError as error:
                     PRETTY.warning(f"Error duing operation '{message}': {error}")
                     PRETTY.warning(
-                        f"Retrying operation '{message}'. Remaining retries: {max_retries - 1 - i}")
+                        f"Retrying operation '{message}'. Remaining retries: {max_retries - 1 - i}"
+                    )
+
         return cast(TFun, inner)
+
     return retry

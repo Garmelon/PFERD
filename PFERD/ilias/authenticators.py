@@ -84,7 +84,7 @@ class KitShibbolethAuthenticator(IliasAuthenticator):
                 "_eventId_proceed": "",
                 "j_username": self._auth.username,
                 "j_password": self._auth.password,
-                "csrf_token": csrf_token
+                "csrf_token": csrf_token,
             }
             soup = soupify(await client.post(url, data=data))
 
@@ -108,9 +108,7 @@ class KitShibbolethAuthenticator(IliasAuthenticator):
         await client.post(url, data=data)
 
     async def _authenticate_tfa(
-            self,
-            client: httpx.AsyncClient,
-            soup: bs4.BeautifulSoup
+        self, client: httpx.AsyncClient, soup: bs4.BeautifulSoup
     ) -> bs4.BeautifulSoup:
         # Searching the form here so that this fails before asking for
         # credentials rather than after asking.
@@ -121,10 +119,7 @@ class KitShibbolethAuthenticator(IliasAuthenticator):
         # https://idp.scc.kit.edu/idp/profile/SAML2/Redirect/SSO
         LOGGER.debug("Attempt to log in to Shibboleth with TFA token")
         url = "https://idp.scc.kit.edu" + action
-        data = {
-            "_eventId_proceed": "",
-            "j_tokenNumber": self._tfa_auth.get_token()
-        }
+        data = {"_eventId_proceed": "", "j_tokenNumber": self._tfa_auth.get_token()}
         return soupify(await client.post(url, data=data))
 
     @staticmethod

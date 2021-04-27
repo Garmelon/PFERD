@@ -7,6 +7,7 @@ from pathlib import Path, PurePath
 
 class ResolveException(Exception):
     """An exception while resolving a file."""
+
     # TODO take care of this when doing exception handling
 
 
