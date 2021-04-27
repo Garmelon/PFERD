@@ -1,4 +1,4 @@
-/.mypy_cache/
+.mypy_cache/
 /.venv/
 /PFERD.egg-info/
 __pycache__/
