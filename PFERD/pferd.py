@@ -4,20 +4,35 @@ Convenience functions for using PFERD.
 
 import logging
 from pathlib import Path
-from typing import Callable, Awaitable, List, Optional, Union
+from typing import List, Optional, Union
 import asyncio
 
 from .authenticators import UserPassAuthenticator
-from .cookie_jar import CookieJar
-from .diva import (DivaDownloader, DivaDownloadStrategy, DivaPlaylistCrawler,
-                   diva_download_new)
+from .diva import (
+    DivaDownloader,
+    DivaDownloadStrategy,
+    DivaPlaylistCrawler,
+    diva_download_new,
+)
 from .download_summary import DownloadSummary
 from .errors import FatalException, swallow_and_print_errors
-from .ilias import (IliasAuthenticator, IliasCrawler, IliasDirectoryFilter,
-                    IliasDownloader, IliasDownloadInfo, IliasDownloadStrategy,
-                    KitShibbolethAuthenticator, download_modified_or_new)
-from .ipd import (IpdCrawler, IpdDownloader, IpdDownloadInfo,
-                  IpdDownloadStrategy, ipd_download_new_or_modified)
+from .ilias import (
+    IliasDirectoryFilter,
+    IliasDownloader,
+    IliasDownloadInfo,
+    IliasDownloadStrategy,
+    KitShibbolethAuthenticator,
+    download_modified_or_new,
+    IliasSycronizer,
+    ResultContainer,
+)
+from .ipd import (
+    IpdCrawler,
+    IpdDownloader,
+    IpdDownloadInfo,
+    IpdDownloadStrategy,
+    ipd_download_new_or_modified,
+)
 from .location import Location
 from .logging import PrettyLogger, enable_logging
 from .organizer import FileConflictResolver, Organizer, resolve_prompt_user
@@ -32,6 +47,36 @@ LOGGER = logging.getLogger(__name__)
 PRETTY = PrettyLogger(LOGGER)
 
 
+class IliasTarget:
+    """
+    Used to store associated options for a crawl target and hold the a reference to the results container
+    """
+
+    def __init__(
+        self,
+        results: ResultContainer,
+        target: PathLike,
+        transform: Transform = lambda x: x,
+        download_strategy: IliasDownloadStrategy = download_modified_or_new,
+        clean: bool = True,
+        timeout: int = 5,
+        file_conflict_resolver: FileConflictResolver = resolve_prompt_user,
+    ):
+        self.results = results
+        self.target = target
+        self.transform = transform
+        self.download_strategy = download_strategy
+        self.clean = clean
+        self.timeout = timeout
+        self.file_conflict_resolver = file_conflict_resolver
+
+    def get_results(self) -> List[IliasDownloadInfo]:
+        """
+        Returns the results of the associated crawl target
+        """
+        return self.results.get_results()
+
+
 class Pferd(Location):
     # pylint: disable=too-many-arguments
     """
@@ -40,16 +85,14 @@ class Pferd(Location):
     """
 
     def __init__(
-            self,
-            base_dir: Path,
-            tmp_dir: Path = Path(".tmp"),
-            test_run: bool = False
+        self, base_dir: Path, tmp_dir: Path = Path(".tmp"), test_run: bool = False
     ):
         super().__init__(Path(base_dir))
 
         self._download_summary = DownloadSummary()
         self._tmp_dir = TmpDir(self.resolve(tmp_dir))
         self._test_run = test_run
+        self._ilias_targets: List[IliasTarget] = []
 
     @staticmethod
     def enable_logging() -> None:
@@ -68,119 +111,174 @@ class Pferd(Location):
 
     @staticmethod
     def _get_authenticator(
-            username: Optional[str], password: Optional[str]
+        username: Optional[str], password: Optional[str]
     ) -> KitShibbolethAuthenticator:
         inner_auth = UserPassAuthenticator("ILIAS - Pferd.py", username, password)
         return KitShibbolethAuthenticator(inner_auth)
 
-    async def _ilias(
-            self,
-            target: PathLike,
-            base_url: str,
-            crawl_function: Callable[[IliasCrawler], Awaitable[List[IliasDownloadInfo]]],
-            authenticator: IliasAuthenticator,
-            cookies: Optional[PathLike],
-            dir_filter: IliasDirectoryFilter,
-            transform: Transform,
-            download_strategy: IliasDownloadStrategy,
-            timeout: int,
-            clean: bool = True,
-            file_conflict_resolver: FileConflictResolver = resolve_prompt_user
-    ) -> Organizer:
-        # pylint: disable=too-many-locals
-        cookie_jar = CookieJar(to_path(cookies) if cookies else None)
-        client = cookie_jar.create_client()
-        async_client = cookie_jar.create_async_client()
-        tmp_dir = self._tmp_dir.new_subdir()
-        organizer = Organizer(self.resolve(to_path(target)), file_conflict_resolver)
-
-        crawler = IliasCrawler(base_url, async_client, authenticator, dir_filter)
-        downloader = IliasDownloader(tmp_dir, organizer, client,
-                                     authenticator, download_strategy, timeout)
-
-        cookie_jar.load_cookies()
-        info = await crawl_function(crawler)
-        cookie_jar.save_cookies()
-
-
-        transformed = apply_transform(transform, info)
-        if self._test_run:
-            self._print_transformables(transformed)
-            return organizer
-
-        await downloader.download_all(transformed)
-        cookie_jar.save_cookies()
-
-        if clean:
-            organizer.cleanup()
-
-        await async_client.aclose()
-        return organizer
-
     @swallow_and_print_errors
     def ilias_kit(
-            self,
-            target: PathLike,
-            course_id: str,
-            dir_filter: IliasDirectoryFilter = lambda x, y: True,
-            transform: Transform = lambda x: x,
-            cookies: Optional[PathLike] = None,
-            username: Optional[str] = None,
-            password: Optional[str] = None,
-            download_strategy: IliasDownloadStrategy = download_modified_or_new,
-            clean: bool = True,
-            timeout: int = 5,
-            file_conflict_resolver: FileConflictResolver = resolve_prompt_user
-    ) -> Organizer:
+        self,
+        dir_filter: IliasDirectoryFilter = lambda x, y: True,
+        cookies: Optional[PathLike] = None,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+    ) -> IliasSycronizer:
         """
-        Synchronizes a folder with the ILIAS instance of the KIT.
-
-        Arguments:
-            target {Path} -- the target path to write the data to
-            course_id {str} -- the id of the main course page (found in the URL after ref_id
-                when opening the course homepage)
+        Create a ILIAS Sycronizer for the ILIAS instance of the KIT.
 
         Keyword Arguments:
             dir_filter {IliasDirectoryFilter} -- A filter for directories. Will be applied on the
                 crawler level, these directories and all of their content is skipped.
                 (default: {lambdax:True})
-            transform {Transform} -- A transformation function for the output paths. Return None
-                to ignore a file. (default: {lambdax:x})
             cookies {Optional[Path]} -- The path to store and load cookies from.
                 (default: {None})
             username {Optional[str]} -- The SCC username. If none is given, it will prompt
                 the user. (default: {None})
             password {Optional[str]} -- The SCC password. If none is given, it will prompt
                 the user. (default: {None})
+        """
+
+        # This authenticator only works with the KIT ilias instance.
+        authenticator = Pferd._get_authenticator(username=username, password=password)
+        return IliasSycronizer(
+            "https://ilias.studium.kit.edu/", authenticator, cookies, dir_filter
+        )
+        # TODO: Format crawler output
+        ##PRETTY.starting_synchronizer(target, "ILIAS", course_id)
+
+    def add_ilias_personal_desktop(
+        self,
+        ilias: IliasSycronizer,
+        target: PathLike,
+        transform: Transform = lambda x: x,
+        download_strategy: IliasDownloadStrategy = download_modified_or_new,
+        clean: bool = True,
+        timeout: int = 5,
+        file_conflict_resolver: FileConflictResolver = resolve_prompt_user,
+    ):
+        """
+        Add the ILIAS "personal desktop" as a crawl target.
+        Arguments:
+            ilias {IliasSycronizer} -- the ILIAS Instance
+            target {Path} -- the target path to write the data to
+        Keyword Arguments:
+            transform {Transform} -- A transformation function for the output paths. Return None
+                to ignore a file. (default: {lambdax:x})
             download_strategy {DownloadStrategy} -- A function to determine which files need to
                 be downloaded. Can save bandwidth and reduce the number of requests.
                 (default: {download_modified_or_new})
             clean {bool} -- Whether to clean up when the method finishes.
-            timeout {int} -- The download timeout for opencast videos.
+            timeout {int} -- The download timeout for opencast videos. Sadly needed due to a
+                requests bug.
             file_conflict_resolver {FileConflictResolver} -- A function specifying how to deal
                 with overwriting or deleting files. The default always asks the user.
         """
-        # This authenticator only works with the KIT ilias instance.
-        authenticator = Pferd._get_authenticator(username=username, password=password)
-        PRETTY.starting_synchronizer(target, "ILIAS", course_id)
+        results = ilias.add_target(
+            lambda crawler: crawler.crawl_personal_desktop(),
+        )
+        target = IliasTarget(
+            results,
+            target,
+            transform,
+            download_strategy,
+            clean,
+            timeout,
+            file_conflict_resolver,
+        )
+        self._ilias_targets.append(target)
 
-        organizer = asyncio.run(self._ilias(
-            target=target,
-            base_url="https://ilias.studium.kit.edu/",
-            crawl_function=lambda crawler: crawler.crawl_course(course_id),
-            authenticator=authenticator,
-            cookies=cookies,
-            dir_filter=dir_filter,
-            transform=transform,
-            download_strategy=download_strategy,
-            clean=clean,
-            timeout=timeout,
-            file_conflict_resolver=file_conflict_resolver
-        ))
+    def add_ilias_folder(
+        self,
+        ilias: IliasSycronizer,
+        target: PathLike,
+        course_id: str,
+        transform: Transform = lambda x: x,
+        download_strategy: IliasDownloadStrategy = download_modified_or_new,
+        clean: bool = True,
+        timeout: int = 5,
+        file_conflict_resolver: FileConflictResolver = resolve_prompt_user,
+    ):
+        """
+        Add a course to syncronize
 
-        self._download_summary.merge(organizer.download_summary)
+        Arguments:
+            ilias {IliasSycronizer} -- the ILIAS Instance
+            target {Path} -- the target path to write the data to
+            course_id {str} -- the id of the main course page (found in the URL after ref_id
+                when opening the course homepage)
+        Keyword Arguments:
+            transform {Transform} -- A transformation function for the output paths. Return None
+                to ignore a file. (default: {lambdax:x})
+            download_strategy {DownloadStrategy} -- A function to determine which files need to
+                be downloaded. Can save bandwidth and reduce the number of requests.
+                (default: {download_modified_or_new})
+            clean {bool} -- Whether to clean up when the method finishes.
+            timeout {int} -- The download timeout for opencast videos. Sadly needed due to a
+                requests bug.
+            file_conflict_resolver {FileConflictResolver} -- A function specifying how to deal
+                with overwriting or deleting files. The default always asks the user.
+        """
 
-        return organizer
+        results = ilias.add_target(
+            lambda crawler: crawler.crawl_course(course_id),
+        )
+        target = IliasTarget(
+            results,
+            target,
+            transform,
+            download_strategy,
+            clean,
+            timeout,
+            file_conflict_resolver,
+        )
+        self._ilias_targets.append(target)
+
+    async def _syncronize_ilias(self, ilias: IliasSycronizer):
+        await ilias.syncronize()
+
+        cookie_jar = ilias.get_cookie_jar()
+        cookie_jar.save_cookies()
+        authenticator = ilias.get_authenticator()
+
+        client = cookie_jar.create_client()
+        for entry in self._ilias_targets:
+            tmp_dir = self._tmp_dir.new_subdir()
+            organizer = Organizer(
+                self.resolve(to_path(entry.target)), entry.file_conflict_resolver
+            )
+
+            downloader = IliasDownloader(
+                tmp_dir,
+                organizer,
+                client,
+                authenticator,
+                entry.download_strategy,
+                entry.timeout,
+            )
+
+            transformed = apply_transform(entry.transform, entry.get_results())
+            if self._test_run:
+                self._print_transformables(transformed)
+                return organizer
+
+            await downloader.download_all(transformed)
+
+            if entry.clean:
+                organizer.cleanup()
+
+            self._download_summary.merge(organizer.download_summary)
+
+        await ilias.close_client()
+
+    def syncronize_ilias(self, ilias: IliasSycronizer):
+        """
+        Syncronize a given ilias instance
+
+        Arguments:
+            ilias {IliasSycronizer} -- the ILIAS Instance
+        """
+        asyncio.run(self._syncronize_ilias(ilias))
 
     def print_summary(self) -> None:
         """
@@ -189,144 +287,14 @@ class Pferd(Location):
         PRETTY.summary(self._download_summary)
 
     @swallow_and_print_errors
-    def ilias_kit_personal_desktop(
-            self,
-            target: PathLike,
-            dir_filter: IliasDirectoryFilter = lambda x, y: True,
-            transform: Transform = lambda x: x,
-            cookies: Optional[PathLike] = None,
-            username: Optional[str] = None,
-            password: Optional[str] = None,
-            download_strategy: IliasDownloadStrategy = download_modified_or_new,
-            clean: bool = True,
-            timeout: int = 5,
-            file_conflict_resolver: FileConflictResolver = resolve_prompt_user
-    ) -> Organizer:
-        """
-        Synchronizes a folder with the ILIAS instance of the KIT. This method will crawl the ILIAS
-        "personal desktop" instead of a single course.
-
-        Arguments:
-            target {Path} -- the target path to write the data to
-
-        Keyword Arguments:
-            dir_filter {IliasDirectoryFilter} -- A filter for directories. Will be applied on the
-                crawler level, these directories and all of their content is skipped.
-                (default: {lambdax:True})
-            transform {Transform} -- A transformation function for the output paths. Return None
-                to ignore a file. (default: {lambdax:x})
-            cookies {Optional[Path]} -- The path to store and load cookies from.
-                (default: {None})
-            username {Optional[str]} -- The SCC username. If none is given, it will prompt
-                the user. (default: {None})
-            password {Optional[str]} -- The SCC password. If none is given, it will prompt
-                the user. (default: {None})
-            download_strategy {DownloadStrategy} -- A function to determine which files need to
-                be downloaded. Can save bandwidth and reduce the number of requests.
-                (default: {download_modified_or_new})
-            clean {bool} -- Whether to clean up when the method finishes.
-            timeout {int} -- The download timeout for opencast videos. 
-            file_conflict_resolver {FileConflictResolver} -- A function specifying how to deal
-                with overwriting or deleting files. The default always asks the user.
-        """
-        # This authenticator only works with the KIT ilias instance.
-        authenticator = Pferd._get_authenticator(username, password)
-        PRETTY.starting_synchronizer(target, "ILIAS", "Personal Desktop")
-
-        organizer = asyncio.run(self._ilias(
-            target=target,
-            base_url="https://ilias.studium.kit.edu/",
-            crawl_function=lambda crawler: crawler.crawl_personal_desktop(),
-            authenticator=authenticator,
-            cookies=cookies,
-            dir_filter=dir_filter,
-            transform=transform,
-            download_strategy=download_strategy,
-            clean=clean,
-            timeout=timeout,
-            file_conflict_resolver=file_conflict_resolver
-        ))
-
-        self._download_summary.merge(organizer.download_summary)
-
-        return organizer
-
-    @swallow_and_print_errors
-    def ilias_kit_folder(
-            self,
-            target: PathLike,
-            full_url: str,
-            dir_filter: IliasDirectoryFilter = lambda x, y: True,
-            transform: Transform = lambda x: x,
-            cookies: Optional[PathLike] = None,
-            username: Optional[str] = None,
-            password: Optional[str] = None,
-            download_strategy: IliasDownloadStrategy = download_modified_or_new,
-            clean: bool = True,
-            timeout: int = 5,
-            file_conflict_resolver: FileConflictResolver = resolve_prompt_user
-    ) -> Organizer:
-        """
-        Synchronizes a folder with a given folder on the ILIAS instance of the KIT.
-
-        Arguments:
-            target {Path}  -- the target path to write the data to
-            full_url {str} -- the full url of the folder/videos/course to crawl
-
-        Keyword Arguments:
-            dir_filter {IliasDirectoryFilter} -- A filter for directories. Will be applied on the
-                crawler level, these directories and all of their content is skipped.
-                (default: {lambdax:True})
-            transform {Transform} -- A transformation function for the output paths. Return None
-                to ignore a file. (default: {lambdax:x})
-            cookies {Optional[Path]} -- The path to store and load cookies from.
-                (default: {None})
-            username {Optional[str]} -- The SCC username. If none is given, it will prompt
-                the user. (default: {None})
-            password {Optional[str]} -- The SCC password. If none is given, it will prompt
-                the user. (default: {None})
-            download_strategy {DownloadStrategy} -- A function to determine which files need to
-                be downloaded. Can save bandwidth and reduce the number of requests.
-                (default: {download_modified_or_new})
-            clean {bool} -- Whether to clean up when the method finishes.
-            timeout {int} -- The download timeout for opencast videos.
-            file_conflict_resolver {FileConflictResolver} -- A function specifying how to deal
-                with overwriting or deleting files. The default always asks the user.
-        """
-        # This authenticator only works with the KIT ilias instance.
-        authenticator = Pferd._get_authenticator(username=username, password=password)
-        PRETTY.starting_synchronizer(target, "ILIAS", "An ILIAS element by url")
-
-        if not full_url.startswith("https://ilias.studium.kit.edu"):
-            raise FatalException("Not a valid KIT ILIAS URL")
-
-        organizer = asyncio.run(self._ilias(
-            target=target,
-            base_url="https://ilias.studium.kit.edu/",
-            crawl_function=lambda crawler: crawler.recursive_crawl_url(full_url),
-            authenticator=authenticator,
-            cookies=cookies,
-            dir_filter=dir_filter,
-            transform=transform,
-            download_strategy=download_strategy,
-            clean=clean,
-            timeout=timeout,
-            file_conflict_resolver=file_conflict_resolver
-        ))
-
-        self._download_summary.merge(organizer.download_summary)
-
-        return organizer
-
-    @swallow_and_print_errors
     def ipd_kit(
-            self,
-            target: Union[PathLike, Organizer],
-            url: str,
-            transform: Transform = lambda x: x,
-            download_strategy: IpdDownloadStrategy = ipd_download_new_or_modified,
-            clean: bool = True,
-            file_conflict_resolver: FileConflictResolver = resolve_prompt_user
+        self,
+        target: Union[PathLike, Organizer],
+        url: str,
+        transform: Transform = lambda x: x,
+        download_strategy: IpdDownloadStrategy = ipd_download_new_or_modified,
+        clean: bool = True,
+        file_conflict_resolver: FileConflictResolver = resolve_prompt_user,
     ) -> Organizer:
         """
         Synchronizes a folder with a DIVA playlist.
@@ -365,7 +333,9 @@ class Pferd(Location):
             self._print_transformables(transformed)
             return organizer
 
-        downloader = IpdDownloader(tmp_dir=tmp_dir, organizer=organizer, strategy=download_strategy)
+        downloader = IpdDownloader(
+            tmp_dir=tmp_dir, organizer=organizer, strategy=download_strategy
+        )
         downloader.download_all(transformed)
 
         if clean:
@@ -377,13 +347,13 @@ class Pferd(Location):
 
     @swallow_and_print_errors
     def diva_kit(
-            self,
-            target: Union[PathLike, Organizer],
-            playlist_location: str,
-            transform: Transform = lambda x: x,
-            download_strategy: DivaDownloadStrategy = diva_download_new,
-            clean: bool = True,
-            file_conflict_resolver: FileConflictResolver = resolve_prompt_user
+        self,
+        target: Union[PathLike, Organizer],
+        playlist_location: str,
+        transform: Transform = lambda x: x,
+        download_strategy: DivaDownloadStrategy = diva_download_new,
+        clean: bool = True,
+        file_conflict_resolver: FileConflictResolver = resolve_prompt_user,
     ) -> Organizer:
         """
         Synchronizes a folder with a DIVA playlist.

@@ -42,13 +42,17 @@ class DownloadSummary:
         """
         return self._deleted_files.copy()
 
-    def merge(self, summary: 'DownloadSummary') -> None:
+    def merge(self, summary: "DownloadSummary") -> None:
         """
         Merges ourselves with the passed summary. Modifies this object, but not the passed one.
         """
         self._new_files = _mergeNoDuplicate(self._new_files, summary.new_files)
-        self._modified_files = _mergeNoDuplicate(self._modified_files, summary.modified_files)
-        self._deleted_files = _mergeNoDuplicate(self._deleted_files, summary.deleted_files)
+        self._modified_files = _mergeNoDuplicate(
+            self._modified_files, summary.modified_files
+        )
+        self._deleted_files = _mergeNoDuplicate(
+            self._deleted_files, summary.deleted_files
+        )
 
     def add_deleted_file(self, path: Path) -> None:
         """

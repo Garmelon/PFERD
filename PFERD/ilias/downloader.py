@@ -7,9 +7,9 @@ import os
 from pathlib import Path, PurePath
 from typing import Callable, Awaitable, List, Optional, Union
 
+import asyncio
 import bs4
 import httpx
-import asyncio
 
 from ..errors import retry_on_io_exception
 from ..logging import PrettyLogger
@@ -33,10 +33,10 @@ class IliasDownloadInfo(Transformable):
     """
 
     def __init__(
-            self,
-            path: PurePath,
-            url: Union[str, Callable[[], Awaitable[Optional[str]]]],
-            modifcation_date: Optional[datetime.datetime]
+        self,
+        path: PurePath,
+        url: Union[str, Callable[[], Awaitable[Optional[str]]]],
+        modifcation_date: Optional[datetime.datetime],
     ):
         super().__init__(path)
         if isinstance(url, str):
@@ -81,13 +81,13 @@ class IliasDownloader:
     """A downloader for ILIAS."""
 
     def __init__(
-            self,
-            tmp_dir: TmpDir,
-            organizer: Organizer,
-            client: httpx.Client,
-            authenticator: IliasAuthenticator,
-            strategy: IliasDownloadStrategy,
-            timeout: int = 5
+        self,
+        tmp_dir: TmpDir,
+        organizer: Organizer,
+        client: httpx.Client,
+        authenticator: IliasAuthenticator,
+        strategy: IliasDownloadStrategy,
+        timeout: int = 5,
     ):
         """
         Create a new IliasDownloader.
@@ -133,7 +133,9 @@ class IliasDownloader:
                 return True
 
         if not await download_impl():
-            PRETTY.error(f"Download of file {info.path} failed too often! Skipping it...")
+            PRETTY.error(
+                f"Download of file {info.path} failed too often! Skipping it..."
+            )
             return
 
         dst_path = self._organizer.accept_file(tmp_file, info.path)
@@ -142,8 +144,8 @@ class IliasDownloader:
                 dst_path,
                 times=(
                     math.ceil(info.modification_date.timestamp()),
-                    math.ceil(info.modification_date.timestamp())
-                )
+                    math.ceil(info.modification_date.timestamp()),
+                ),
             )
 
     async def _try_download(self, info: IliasDownloadInfo, target: Path) -> bool:
@@ -158,7 +160,9 @@ class IliasDownloader:
 
             if content_type.startswith("text/html") and not has_content_disposition:
                 if self._is_logged_in(soupify(response)):
-                    raise ContentTypeException("Attempting to download a web page, not a file")
+                    raise ContentTypeException(
+                        "Attempting to download a web page, not a file"
+                    )
 
                 return False
 

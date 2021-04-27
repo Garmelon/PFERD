@@ -29,6 +29,7 @@ class ConflictType(Enum):
     MARKED_FILE_OVERWRITTEN: A file is written for the second+ time in this run
     FILE_DELETED: The file was deleted
     """
+
     FILE_OVERWRITTEN = "overwritten"
     MARKED_FILE_OVERWRITTEN = "marked_file_overwritten"
     FILE_DELETED = "deleted"
@@ -56,7 +57,9 @@ class FileConflictResolution(Enum):
 FileConflictResolver = Callable[[PurePath, ConflictType], FileConflictResolution]
 
 
-def resolve_prompt_user(_path: PurePath, conflict: ConflictType) -> FileConflictResolution:
+def resolve_prompt_user(
+    _path: PurePath, conflict: ConflictType
+) -> FileConflictResolution:
     """
     Resolves conflicts by asking the user if a file was written twice or will be deleted.
     """
@@ -72,7 +75,9 @@ class FileAcceptException(Exception):
 class Organizer(Location):
     """A helper for managing downloaded files."""
 
-    def __init__(self, path: Path, conflict_resolver: FileConflictResolver = resolve_prompt_user):
+    def __init__(
+        self, path: Path, conflict_resolver: FileConflictResolver = resolve_prompt_user
+    ):
         """Create a new organizer for a given path."""
         super().__init__(path)
         self._known_files: Set[Path] = set()
@@ -98,7 +103,7 @@ class Organizer(Location):
         # your path...
         # See:
         # https://docs.microsoft.com/en-us/windows/win32/fileio/naming-a-file#maximum-path-length-limitation
-        if os.name == 'nt':
+        if os.name == "nt":
             src_absolute = Path("\\\\?\\" + str(src.resolve()))
             dst_absolute = Path("\\\\?\\" + str(self.resolve(dst)))
         else:
@@ -116,7 +121,9 @@ class Organizer(Location):
         if self._is_marked(dst):
             PRETTY.warning(f"File {str(dst_absolute)!r} was already written!")
             conflict = ConflictType.MARKED_FILE_OVERWRITTEN
-            if self._resolve_conflict("Overwrite file?", dst_absolute, conflict, default=False):
+            if self._resolve_conflict(
+                "Overwrite file?", dst_absolute, conflict, default=False
+            ):
                 PRETTY.ignored_file(dst_absolute, "file was written previously")
                 return None
 
@@ -201,14 +208,16 @@ class Organizer(Location):
     def _delete_file_if_confirmed(self, path: Path) -> None:
         prompt = f"Do you want to delete {path}"
 
-        if self._resolve_conflict(prompt, path, ConflictType.FILE_DELETED, default=False):
+        if self._resolve_conflict(
+            prompt, path, ConflictType.FILE_DELETED, default=False
+        ):
             self.download_summary.add_deleted_file(path)
             path.unlink()
         else:
             PRETTY.ignored_file(path, "user conflict resolution")
 
     def _resolve_conflict(
-            self, prompt: str, path: Path, conflict: ConflictType, default: bool
+        self, prompt: str, path: Path, conflict: ConflictType, default: bool
     ) -> bool:
         if not self.conflict_resolver:
             return prompt_yes_no(prompt, default=default)
