@@ -26,9 +26,10 @@ _LOGGER = logging.getLogger("sync_url")
 _PRETTY = PrettyLogger(_LOGGER)
 
 
-def _extract_credentials(file_path: Optional[str]) -> UserPassAuthenticator:
+def _extract_credentials(file_path: Optional[str],
+                         username: Optional[str], password: Optional[str]) -> UserPassAuthenticator:
     if not file_path:
-        return UserPassAuthenticator("KIT ILIAS Shibboleth", None, None)
+        return UserPassAuthenticator("KIT ILIAS Shibboleth", username, password)
 
     if not Path(file_path).exists():
         _PRETTY.error("Credential file does not exist")
@@ -96,7 +97,7 @@ def main() -> None:
             "KIT ILIAS Shibboleth", username=args.username, password=args.password
         )
     else:
-        inner_auth = _extract_credentials(args.credential_file)
+        inner_auth = _extract_credentials(args.credential_file, args.username, args.password)
 
     username, password = inner_auth.get_credentials()
     authenticator = KitShibbolethAuthenticator(inner_auth)
