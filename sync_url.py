@@ -4,6 +4,7 @@
 A simple script to download a course by name from ILIAS.
 """
 
+import asyncio
 import argparse
 import logging
 import sys
@@ -86,7 +87,11 @@ def main() -> None:
     args = parser.parse_args()
 
     cookie_jar = CookieJar(to_path(args.cookies) if args.cookies else None)
-    client = cookie_jar.create_client()
+    client = cookie_jar.create_async_client()
+
+    if not args.url.startswith("https://ilias.studium.kit.edu"):
+        _PRETTY.error("Not a valid KIT ILIAS URL")
+        return
 
     if args.keyring:
         if not args.username:
@@ -103,13 +108,14 @@ def main() -> None:
 
     url = urlparse(args.url)
 
+    loop = asyncio.get_event_loop()
     crawler = IliasCrawler(url.scheme + '://' + url.netloc, client,
                            authenticator, lambda x, y: True)
 
     cookie_jar.load_cookies()
 
     if args.folder is None:
-        element_name = crawler.find_element_name(args.url)
+        element_name = loop.run_until_complete(crawler.find_element_name(args.url))
         if not element_name:
             print("Error, could not get element name. Please specify a folder yourself.")
             return
@@ -142,16 +148,23 @@ def main() -> None:
     pferd.enable_logging()
 
     # fetch
-    pferd.ilias_kit_folder(
-        target=target,
-        full_url=args.url,
-        cookies=args.cookies,
+
+    ilias = pferd.ilias_kit(
         dir_filter=dir_filter,
+        cookies=args.cookies,
         username=username,
         password=password,
+    )
+
+    pferd.add_ilias_folder(
+        ilias=ilias,
+        target=target,
+        full_url=args.url,
         file_conflict_resolver=file_confilict_resolver,
         transform=sanitize_windows_path
     )
+
+    pferd.syncronize_ilias(ilias)
 
     pferd.print_summary()
 

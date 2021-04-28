@@ -136,6 +136,10 @@ class IliasCrawler:
         self._authenticator = authenticator
         self.dir_filter = dir_filter
 
+        # Setup authentication locks
+        self.auth_event = asyncio.Event()
+        self.auth_lock = asyncio.Lock()
+
     @staticmethod
     def _url_set_query_param(url: str, param: str, value: str) -> str:
         """
@@ -188,7 +192,7 @@ class IliasCrawler:
         """
         Returns the name of the element at the given URL, if it can find one.
         """
-        focus_element: bs4.Tag = await self._get_page(url, {}).find(
+        focus_element: bs4.Tag = (await self._get_page(url, {})).find(
             id="il_mhead_t_focus"
         )
         if not focus_element:
@@ -273,10 +277,6 @@ class IliasCrawler:
         self, entries: List[Tuple[IliasCrawlerEntry, ResultContainer]]
     ):
         crawl_queue = asyncio.Queue()
-
-        # Setup authentication locks
-        self._auth_event = asyncio.Event()
-        self._auth_lock = asyncio.Lock()
 
         for entry in entries:
             crawl_queue.put_nowait(entry)
@@ -784,16 +784,16 @@ class IliasCrawler:
         if self._is_logged_in(soup):
             return soup
 
-        if self._auth_lock.locked():
+        if self.auth_lock.locked():
             # Some other future is already logging in
             await self._auth_event.wait()
         else:
-            await self._auth_lock.acquire()
-            self._auth_event.clear()
+            await self.auth_lock.acquire()
+            self.auth_event.clear()
             LOGGER.info("Not authenticated, changing that...")
             await self._authenticator.authenticate(self._client)
-            self._auth_event.set()
-            self._auth_lock.release()
+            self.auth_event.set()
+            self.auth_lock.release()
 
         return await self._get_page(
             url,

@@ -94,6 +94,11 @@ class Pferd(Location):
         self._test_run = test_run
         self._ilias_targets: List[IliasTarget] = []
 
+        # Initiate event loop
+        # This is needed, because ILIASCrawler sets up syncronization primitives
+        # which are tied to the event loop, so it shouldnt cant change
+        self._loop = asyncio.get_event_loop()
+
     @staticmethod
     def enable_logging() -> None:
         """
@@ -188,7 +193,7 @@ class Pferd(Location):
         )
         self._ilias_targets.append(target)
 
-    def add_ilias_folder(
+    def add_ilias_course(
         self,
         ilias: IliasSycronizer,
         target: PathLike,
@@ -222,6 +227,53 @@ class Pferd(Location):
 
         results = ilias.add_target(
             lambda crawler: crawler.crawl_course(course_id),
+        )
+        target = IliasTarget(
+            results,
+            target,
+            transform,
+            download_strategy,
+            clean,
+            timeout,
+            file_conflict_resolver,
+        )
+        self._ilias_targets.append(target)
+
+
+    def add_ilias_folder(
+            self,
+            ilias: IliasSycronizer,
+            target: PathLike,
+            full_url: str,
+            transform: Transform = lambda x: x,
+            download_strategy: IliasDownloadStrategy = download_modified_or_new,
+            clean: bool = True,
+            timeout: int = 5,
+            file_conflict_resolver: FileConflictResolver = resolve_prompt_user
+    ) -> Organizer:
+        """
+        Synchronizes a folder with a given folder on the given ILIAS instance.
+        Arguments:
+            ilias {IliasSycronizer} -- the ILIAS Instance
+            target {Path}  -- the target path to write the data to
+            full_url {str} -- the full url of the folder/videos/course to crawl
+        Keyword Arguments:
+            transform {Transform} -- A transformation function for the output paths. Return None
+                to ignore a file. (default: {lambdax:x})
+            download_strategy {DownloadStrategy} -- A function to determine which files need to
+                be downloaded. Can save bandwidth and reduce the number of requests.
+                (default: {download_modified_or_new})
+            clean {bool} -- Whether to clean up when the method finishes.
+            timeout {int} -- The download timeout for opencast videos. Sadly needed due to a
+                requests bug.
+            file_conflict_resolver {FileConflictResolver} -- A function specifying how to deal
+                with overwriting or deleting files. The default always asks the user.
+        """
+        PRETTY.starting_synchronizer(target, "ILIAS", "An ILIAS element by url")
+
+
+        results = ilias.add_target(
+            lambda crawler: crawler.recursive_crawl_url(full_url),
         )
         target = IliasTarget(
             results,
@@ -279,7 +331,7 @@ class Pferd(Location):
         Arguments:
             ilias {IliasSycronizer} -- the ILIAS Instance
         """
-        asyncio.run(self._syncronize_ilias(ilias))
+        self._loop.run_until_complete(self._syncronize_ilias(ilias))
 
     def print_summary(self) -> None:
         """
