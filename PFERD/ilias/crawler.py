@@ -791,7 +791,7 @@ class IliasCrawler:
 
         if self.auth_lock.locked():
             # Some other future is already logging in
-            await self._auth_event.wait()
+            await self.auth_event.wait()
         else:
             await self.auth_lock.acquire()
             self.auth_event.clear()
