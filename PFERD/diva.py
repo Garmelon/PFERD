@@ -83,7 +83,8 @@ class DivaPlaylistCrawler:
         body = response.json()
 
         if body["error"]:
-            raise FatalException(f"DIVA: Server returned error {body['error']!r}.")
+            raise FatalException(
+                f"DIVA: Server returned error {body['error']!r}.")
 
         return body["result"]["collection"]["id"]
 
@@ -91,9 +92,11 @@ class DivaPlaylistCrawler:
         """
         Crawls the playlist given in the constructor.
         """
-        response = httpx.get(self._COLLECTION_BASE_URL, params={"collection": self._id})
+        response = httpx.get(self._COLLECTION_BASE_URL,
+                             params={"collection": self._id})
         if response.status_code != 200:
-            raise FatalException(f"Server returned status {response.status_code}.")
+            raise FatalException(
+                f"Server returned status {response.status_code}.")
 
         body = response.json()
 
@@ -109,7 +112,8 @@ class DivaPlaylistCrawler:
 
         for video in result["resultList"]:
             title = video["title"]
-            collection_title = self._follow_path(["collection", "title"], video)
+            collection_title = self._follow_path(
+                ["collection", "title"], video)
             url = self._follow_path(
                 ["resourceList", "derivateList", "mp4", "url"], video
             )

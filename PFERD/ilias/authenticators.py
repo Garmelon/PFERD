@@ -71,7 +71,8 @@ class KitShibbolethAuthenticator(IliasAuthenticator):
         while not self._login_successful(soup):
             # Searching the form here so that this fails before asking for
             # credentials rather than after asking.
-            form = soup.find("form", {"class": "full content", "method": "post"})
+            form = soup.find(
+                "form", {"class": "full content", "method": "post"})
             action = form["action"]
 
             csrf_token = form.find("input", {"name": "csrf_token"})["value"]
@@ -119,7 +120,8 @@ class KitShibbolethAuthenticator(IliasAuthenticator):
         # https://idp.scc.kit.edu/idp/profile/SAML2/Redirect/SSO
         LOGGER.debug("Attempt to log in to Shibboleth with TFA token")
         url = "https://idp.scc.kit.edu" + action
-        data = {"_eventId_proceed": "", "j_tokenNumber": self._tfa_auth.get_token()}
+        data = {"_eventId_proceed": "",
+                "j_tokenNumber": self._tfa_auth.get_token()}
         return soupify(await client.post(url, data=data))
 
     @staticmethod

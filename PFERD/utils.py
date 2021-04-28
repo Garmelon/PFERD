@@ -58,7 +58,8 @@ def stream_to_path(
 
     length = size_from_headers(response)
     if progress_name and length and int(length) > 1024 * 1024 * 10:  # 10 MiB
-        settings: Optional[ProgressSettings] = ProgressSettings(progress_name, length)
+        settings: Optional[ProgressSettings] = ProgressSettings(
+            progress_name, length)
     else:
         settings = None
 

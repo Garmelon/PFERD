@@ -159,6 +159,7 @@ def sanitize_windows_path(path: PurePath) -> PurePath:
     """
     # Escape windows illegal path characters
     if os.name == "nt":
-        sanitized_parts = [re.sub(r'[<>:"/|?]', "_", x) for x in list(path.parts)]
+        sanitized_parts = [re.sub(r'[<>:"/|?]', "_", x)
+                           for x in list(path.parts)]
         return PurePath(*sanitized_parts)
     return path

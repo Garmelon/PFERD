@@ -38,7 +38,8 @@ def demangle_date(date: str) -> Optional[datetime.datetime]:
         date = re.sub(
             "Heute|Today", datetime.date.today().strftime("%d. %b %Y"), date, re.I
         )
-        date = re.sub("Morgen|Tomorrow", _tomorrow().strftime("%d. %b %Y"), date, re.I)
+        date = re.sub("Morgen|Tomorrow", _tomorrow().strftime(
+            "%d. %b %Y"), date, re.I)
         return datetime.datetime.strptime(date, "%d. %b %Y, %H:%M")
     except ValueError:
         PRETTY.warning(f"Could not parse date {date!r}")

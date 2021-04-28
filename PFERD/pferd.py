@@ -113,7 +113,8 @@ class Pferd(Location):
     def _get_authenticator(
         username: Optional[str], password: Optional[str]
     ) -> KitShibbolethAuthenticator:
-        inner_auth = UserPassAuthenticator("ILIAS - Pferd.py", username, password)
+        inner_auth = UserPassAuthenticator(
+            "ILIAS - Pferd.py", username, password)
         return KitShibbolethAuthenticator(inner_auth)
 
     @swallow_and_print_errors
@@ -140,7 +141,8 @@ class Pferd(Location):
         """
 
         # This authenticator only works with the KIT ilias instance.
-        authenticator = Pferd._get_authenticator(username=username, password=password)
+        authenticator = Pferd._get_authenticator(
+            username=username, password=password)
         return IliasSycronizer(
             "https://ilias.studium.kit.edu/", authenticator, cookies, dir_filter
         )
@@ -243,7 +245,8 @@ class Pferd(Location):
         for entry in self._ilias_targets:
             tmp_dir = self._tmp_dir.new_subdir()
             organizer = Organizer(
-                self.resolve(to_path(entry.target)), entry.file_conflict_resolver
+                self.resolve(to_path(entry.target)
+                             ), entry.file_conflict_resolver
             )
 
             downloader = IliasDownloader(
@@ -320,7 +323,8 @@ class Pferd(Location):
         if isinstance(target, Organizer):
             organizer = target
         else:
-            organizer = Organizer(self.resolve(to_path(target)), file_conflict_resolver)
+            organizer = Organizer(self.resolve(
+                to_path(target)), file_conflict_resolver)
 
         PRETTY.starting_synchronizer(organizer.path, "IPD", url)
 
@@ -374,7 +378,8 @@ class Pferd(Location):
         tmp_dir = self._tmp_dir.new_subdir()
 
         if playlist_location.startswith("http"):
-            playlist_id = DivaPlaylistCrawler.fetch_id(playlist_link=playlist_location)
+            playlist_id = DivaPlaylistCrawler.fetch_id(
+                playlist_link=playlist_location)
         else:
             playlist_id = playlist_location
 
@@ -385,7 +390,8 @@ class Pferd(Location):
         if isinstance(target, Organizer):
             organizer = target
         else:
-            organizer = Organizer(self.resolve(to_path(target)), file_conflict_resolver)
+            organizer = Organizer(self.resolve(
+                to_path(target)), file_conflict_resolver)
 
         PRETTY.starting_synchronizer(organizer.path, "DIVA", playlist_id)
 

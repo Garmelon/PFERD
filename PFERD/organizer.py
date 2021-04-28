@@ -54,7 +54,8 @@ class FileConflictResolution(Enum):
     PROMPT = "prompt"
 
 
-FileConflictResolver = Callable[[PurePath, ConflictType], FileConflictResolution]
+FileConflictResolver = Callable[[
+    PurePath, ConflictType], FileConflictResolution]
 
 
 def resolve_prompt_user(
@@ -124,7 +125,8 @@ class Organizer(Location):
             if self._resolve_conflict(
                 "Overwrite file?", dst_absolute, conflict, default=False
             ):
-                PRETTY.ignored_file(dst_absolute, "file was written previously")
+                PRETTY.ignored_file(
+                    dst_absolute, "file was written previously")
                 return None
 
         # Destination file is directory

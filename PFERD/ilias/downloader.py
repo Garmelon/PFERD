@@ -72,7 +72,8 @@ def download_modified_or_new(organizer: Organizer, info: IliasDownloadInfo) -> b
     if info.modification_date.timestamp() > resolved_mod_time_seconds:
         return True
 
-    PRETTY.ignored_file(info.path, "local file has newer or equal modification time")
+    PRETTY.ignored_file(
+        info.path, "local file has newer or equal modification time")
     return False
 
 
@@ -126,7 +127,8 @@ class IliasDownloader:
         @retry_on_io_exception(3, "downloading file")
         async def download_impl() -> bool:
             if not await self._try_download(info, tmp_file):
-                LOGGER.info("Re-Authenticating due to download failure: %r", info)
+                LOGGER.info(
+                    "Re-Authenticating due to download failure: %r", info)
                 self._authenticator.authenticate(self._client)
                 raise IOError("Scheduled retry")
             else:
@@ -151,7 +153,8 @@ class IliasDownloader:
     async def _try_download(self, info: IliasDownloadInfo, target: Path) -> bool:
         url = await info.url()
         if url is None:
-            PRETTY.warning(f"Could not download {str(info.path)!r} as I got no URL :/")
+            PRETTY.warning(
+                f"Could not download {str(info.path)!r} as I got no URL :/")
             return True
 
         with self._client.stream("GET", url, timeout=self._timeout) as response:

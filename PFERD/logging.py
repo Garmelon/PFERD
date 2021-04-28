@@ -43,7 +43,8 @@ class RichLoggingHandler(logging.Handler):
         self.console = Console(
             theme=Theme({"logging.level.warning": Style(color="yellow")})
         )
-        self._log_render = LogRender(show_level=True, show_time=False, show_path=False)
+        self._log_render = LogRender(
+            show_level=True, show_time=False, show_path=False)
 
     def emit(self, record: logging.LogRecord) -> None:
         """
@@ -104,14 +105,16 @@ class PrettyLogger:
         A new file has been downloaded.
         """
 
-        self.logger.info(f"[bold green]Created {self._format_path(path)}.[/bold green]")
+        self.logger.info(
+            f"[bold green]Created {self._format_path(path)}.[/bold green]")
 
     def deleted_file(self, path: PathLike) -> None:
         """
         A file has been deleted.
         """
 
-        self.logger.info(f"[bold red]Deleted {self._format_path(path)}.[/bold red]")
+        self.logger.info(
+            f"[bold red]Deleted {self._format_path(path)}.[/bold red]")
 
     def ignored_file(self, path: PathLike, reason: str) -> None:
         """

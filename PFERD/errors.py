@@ -53,7 +53,8 @@ def retry_on_io_exception(max_retries: int, message: str) -> Callable[[TFun], TF
                 try:
                     return function(*args, **kwargs)
                 except IOError as error:
-                    PRETTY.warning(f"Error duing operation '{message}': {error}")
+                    PRETTY.warning(
+                        f"Error duing operation '{message}': {error}")
                     PRETTY.warning(
                         f"Retrying operation '{message}'. Remaining retries: {max_retries - 1 - i}"
                     )

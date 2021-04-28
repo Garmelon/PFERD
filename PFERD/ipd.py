@@ -47,7 +47,8 @@ def ipd_download_new_or_modified(organizer: Organizer, info: IpdDownloadInfo) ->
     if not resolved_file.exists():
         return True
     if not info.modification_date:
-        PRETTY.ignored_file(info.path, "could not find modification time, file exists")
+        PRETTY.ignored_file(
+            info.path, "could not find modification time, file exists")
         return False
 
     resolved_mod_time_seconds = resolved_file.stat().st_mtime
@@ -56,7 +57,8 @@ def ipd_download_new_or_modified(organizer: Organizer, info: IpdDownloadInfo) ->
     if info.modification_date.timestamp() > resolved_mod_time_seconds:
         return True
 
-    PRETTY.ignored_file(info.path, "local file has newer or equal modification time")
+    PRETTY.ignored_file(
+        info.path, "local file has newer or equal modification time")
     return False
 
 
@@ -163,7 +165,8 @@ class IpdDownloader:
                     )
 
             elif response.status_code == 403:
-                raise FatalException("Received 403. Are you not using the KIT VPN?")
+                raise FatalException(
+                    "Received 403. Are you not using the KIT VPN?")
             else:
                 PRETTY.warning(
                     f"Could not download file, got response {response.status_code}"

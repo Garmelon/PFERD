@@ -315,7 +315,8 @@ class IliasCrawler:
         if soup.find(id="headerimage"):
             element: bs4.Tag = soup.find(id="headerimage")
             if "opencast" in element.attrs["src"].lower():
-                PRETTY.warning(f"Switched to crawling a video at {folder_path}")
+                PRETTY.warning(
+                    f"Switched to crawling a video at {folder_path}")
                 if not self.dir_filter(folder_path, IliasElementType.VIDEO_FOLDER):
                     PRETTY.not_searching(folder_path, "user filter")
                     return []
@@ -330,7 +331,8 @@ class IliasCrawler:
             element_path = Path(
                 folder_path, _sanitize_path_name(link.getText().strip())
             )
-            element_type = self._find_type_from_link(element_path, link, abs_url)
+            element_type = self._find_type_from_link(
+                element_path, link, abs_url)
 
             if element_type == IliasElementType.REGULAR_FILE:
                 result += self._crawl_file(folder_path, link, abs_url)
@@ -341,13 +343,14 @@ class IliasCrawler:
 
                 if not date_portion:
                     result += [
-                        IliasCrawlerEntry(element_path, abs_url, element_type, None)
+                        IliasCrawlerEntry(
+                            element_path, abs_url, element_type, None)
                     ]
                     continue
 
                 rest_of_name = meeting_name
                 if rest_of_name.startswith(date_portion_str):
-                    rest_of_name = rest_of_name[len(date_portion_str) :]
+                    rest_of_name = rest_of_name[len(date_portion_str):]
 
                 new_name = (
                     datetime.datetime.strftime(date_portion, "%Y-%m-%d, %H:%M")
@@ -360,9 +363,11 @@ class IliasCrawler:
                     )
                 ]
             elif element_type is not None:
-                result += [IliasCrawlerEntry(element_path, abs_url, element_type, None)]
+                result += [IliasCrawlerEntry(element_path,
+                                             abs_url, element_type, None)]
             else:
-                PRETTY.warning(f"Found element without a type at {str(element_path)!r}")
+                PRETTY.warning(
+                    f"Found element without a type at {str(element_path)!r}")
 
         return result
 
@@ -424,7 +429,8 @@ class IliasCrawler:
             return None
 
         # Find the small descriptive icon to figure out the type
-        img_tag: Optional[bs4.Tag] = found_parent.select_one("img.ilListItemIcon")
+        img_tag: Optional[bs4.Tag] = found_parent.select_one(
+            "img.ilListItemIcon")
 
         if img_tag is None:
             PRETTY.warning(f"Could not find image tag for {url!r}")
@@ -462,7 +468,8 @@ class IliasCrawler:
         ).select_one(".il_ItemProperties")
         # The first one is always the filetype
         file_type = (
-            properties_parent.select_one("span.il_ItemProperty").getText().strip()
+            properties_parent.select_one(
+                "span.il_ItemProperty").getText().strip()
         )
 
         # The rest does not have a stable order. Grab the whole text and reg-ex the date
@@ -474,7 +481,8 @@ class IliasCrawler:
         )
         if modification_date_match is None:
             modification_date = None
-            PRETTY.warning(f"Could not extract start date from {all_properties_text!r}")
+            PRETTY.warning(
+                f"Could not extract start date from {all_properties_text!r}")
         else:
             modification_date_str = modification_date_match.group(1)
             modification_date = demangle_date(modification_date_str)
@@ -598,7 +606,8 @@ class IliasCrawler:
                 results += self._crawl_single_video(video_dir_path, link, True)
         else:
             for link in video_links:
-                results += self._crawl_single_video(video_dir_path, link, False)
+                results += self._crawl_single_video(
+                    video_dir_path, link, False)
 
         return results
 
@@ -667,7 +676,8 @@ class IliasCrawler:
             json_match = regex.search(str(video_page_soup))
 
             if json_match is None:
-                PRETTY.warning(f"Could not find json stream info for {play_url!r}")
+                PRETTY.warning(
+                    f"Could not find json stream info for {play_url!r}")
                 return None
             json_str = json_match.group(1)
 
@@ -713,7 +723,8 @@ class IliasCrawler:
             for file_link in files:
                 # Two divs, side by side. Left is the name, right is the link ==> get left
                 # sibling
-                file_name = file_link.parent.findPrevious(name="div").getText().strip()
+                file_name = file_link.parent.findPrevious(
+                    name="div").getText().strip()
                 file_name = _sanitize_path_name(file_name)
                 url = self._abs_url_from_link(file_link)
 
