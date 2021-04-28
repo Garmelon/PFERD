@@ -8,12 +8,12 @@ import logging
 import re
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Union
-from urllib.parse import (parse_qs, urlencode, urljoin, urlparse, urlsplit,
-                          urlunsplit)
+from typing import Any, Callable, Awaitable, Dict, List, Optional, Union, Tuple
+from urllib.parse import parse_qs, urlencode, urljoin, urlparse, urlsplit, urlunsplit
 
+import asyncio
 import bs4
-import requests
+import httpx
 
 from ..errors import FatalException, retry_on_io_exception
 from ..logging import PrettyLogger
@@ -30,10 +30,23 @@ def _sanitize_path_name(name: str) -> str:
     return name.replace("/", "-").replace("\\", "-")
 
 
+class ResultContainer:
+    def __init__(self):
+        self._results = []
+
+    def add_result(self, result: IliasDownloadInfo):
+        self._results.append(result)
+
+    def get_results(self) -> List[IliasDownloadInfo]:
+        return self._results
+
+
 class IliasElementType(Enum):
     """
     The type of an ilias element.
     """
+
+    COURSE = "COURSE"
     REGULAR_FOLDER = "REGULAR_FOLDER"
     VIDEO_FOLDER = "VIDEO_FOLDER"
     EXERCISE_FOLDER = "EXERCISE_FOLDER"
@@ -53,6 +66,17 @@ class IliasElementType(Enum):
 IliasDirectoryFilter = Callable[[Path, IliasElementType], bool]
 
 
+class InvalidCourseError(FatalException):
+    """
+    A invalid Course ID was encountered
+    """
+
+    def __init__(course_id: str):
+        super(
+            f"Invalid course id {course_id}? I didn't find anything looking like a course!"
+        )
+
+
 class IliasCrawlerEntry:
     # pylint: disable=too-few-public-methods
     """
@@ -60,16 +84,17 @@ class IliasCrawlerEntry:
     """
 
     def __init__(
-            self,
-            path: Path,
-            url: Union[str, Callable[[], Optional[str]]],
-            entry_type: IliasElementType,
-            modification_date: Optional[datetime.datetime]
+        self,
+        path: Path,
+        url: Union[str, Callable[[], Awaitable[Optional[str]]]],
+        entry_type: IliasElementType,
+        modification_date: Optional[datetime.datetime],
     ):
         self.path = path
         if isinstance(url, str):
-            str_url = url
-            self.url: Callable[[], Optional[str]] = lambda: str_url
+            future = asyncio.Future()
+            future.set_result(url)
+            self.url: Callable[[], Awaitable[Optional[str]]] = lambda: future
         else:
             self.url = url
         self.entry_type = entry_type
@@ -80,7 +105,10 @@ class IliasCrawlerEntry:
         Converts this crawler entry to an IliasDownloadInfo, if possible.
         This method will only succeed for *File* types.
         """
-        if self.entry_type in [IliasElementType.REGULAR_FILE, IliasElementType.VIDEO_FILE]:
+        if self.entry_type in [
+            IliasElementType.REGULAR_FILE,
+            IliasElementType.VIDEO_FILE,
+        ]:
             return IliasDownloadInfo(self.path, self.url, self.modification_date)
         return None
 
@@ -94,20 +122,28 @@ class IliasCrawler:
 
     # pylint: disable=too-many-arguments
     def __init__(
-            self,
-            base_url: str,
-            session: requests.Session,
-            authenticator: IliasAuthenticator,
-            dir_filter: IliasDirectoryFilter
+        self,
+        base_url: str,
+        client: httpx.AsyncClient,
+        authenticator: IliasAuthenticator,
+        dir_filter: IliasDirectoryFilter,
     ):
         """
         Create a new ILIAS crawler.
+        Warning: This will create syncronization primitives
+                 that are tied to the currently running event
+                 loop. This means you cant use asyncio.run but
+                 will need to use run_until_completion when using
+                 methodes.
         """
-
         self._base_url = base_url
-        self._session = session
+        self._client = client
         self._authenticator = authenticator
         self.dir_filter = dir_filter
+
+        # Setup authentication locks
+        self.auth_event = asyncio.Event()
+        self.auth_lock = asyncio.Lock()
 
     @staticmethod
     def _url_set_query_param(url: str, param: str, value: str) -> str:
@@ -121,54 +157,33 @@ class IliasCrawler:
 
         return urlunsplit((scheme, netloc, path, new_query_string, fragment))
 
-    def recursive_crawl_url(self, url: str) -> List[IliasDownloadInfo]:
+    async def recursive_crawl_url(self, url: str) -> IliasCrawlerEntry:
         """
-        Crawls a given url *and all reachable elements in it*.
+        Creates a crawl target for a given url *and all reachable elements in it*.
 
         Args:
             url {str} -- the *full* url to crawl
         """
-        start_entries: List[IliasCrawlerEntry] = self._crawl_folder(Path(""), url)
-        return self._iterate_entries_to_download_infos(start_entries)
 
-    def crawl_course(self, course_id: str) -> List[IliasDownloadInfo]:
+        return IliasCrawlerEntry(Path(""), url, IliasElementType.REGULAR_FOLDER, None)
+
+    async def crawl_course(self, course_id: str) -> IliasCrawlerEntry:
         """
-        Starts the crawl process for a course, yielding a list of elements to (potentially)
+        Creates a crawl target for a course, yielding a list of elements to (potentially)
         download.
 
         Arguments:
             course_id {str} -- the course id
 
-        Raises:
-            FatalException: if an unrecoverable error occurs or the course id is not valid
         """
         # Start crawling at the given course
         root_url = self._url_set_query_param(
             self._base_url + "/goto.php", "target", f"crs_{course_id}"
         )
 
-        if not self._is_course_id_valid(root_url, course_id):
-            raise FatalException(
-                "Invalid course id? I didn't find anything looking like a course!"
-            )
+        return IliasCrawlerEntry(Path(""), root_url, IliasElementType.COURSE, None)
 
-        # And treat it as a folder
-        entries: List[IliasCrawlerEntry] = self._crawl_folder(Path(""), root_url)
-        return self._iterate_entries_to_download_infos(entries)
-
-    def _is_course_id_valid(self, root_url: str, course_id: str) -> bool:
-        response: requests.Response = self._session.get(root_url)
-        # We were redirected ==> Non-existant ID
-        if course_id not in response.url:
-            return False
-
-        link_element: bs4.Tag = self._get_page(root_url, {}).find(id="current_perma_link")
-        if not link_element:
-            return False
-        # It wasn't a course but a category list, forum, etc.
-        return "crs_" in link_element.get("value")
-
-    def find_course_name(self, course_id: str) -> Optional[str]:
+    async def find_course_name(self, course_id: str) -> Optional[str]:
         """
         Returns the name of a given course. None if it is not a valid course
         or it could not be found.
@@ -176,86 +191,137 @@ class IliasCrawler:
         course_url = self._url_set_query_param(
             self._base_url + "/goto.php", "target", f"crs_{course_id}"
         )
-        return self.find_element_name(course_url)
+        return await self.find_element_name(course_url)
 
-    def find_element_name(self, url: str) -> Optional[str]:
+    async def find_element_name(self, url: str) -> Optional[str]:
         """
         Returns the name of the element at the given URL, if it can find one.
         """
-        focus_element: bs4.Tag = self._get_page(url, {}).find(id="il_mhead_t_focus")
+        focus_element: bs4.Tag = (await self._get_page(url, {})).find(
+            id="il_mhead_t_focus"
+        )
         if not focus_element:
             return None
         return focus_element.text
 
-    def crawl_personal_desktop(self) -> List[IliasDownloadInfo]:
+    async def crawl_personal_desktop(self) -> IliasCrawlerEntry:
         """
-        Crawls the ILIAS personal desktop (and every subelements that can be reached from there).
-
-        Raises:
-            FatalException: if an unrecoverable error occurs
+        Creates a crawl target for the ILIAS personal desktop (and every subelements that can be reached from there).
+        download.
         """
-        entries: List[IliasCrawlerEntry] = self._crawl_folder(
-            Path(""), self._base_url + "?baseClass=ilPersonalDesktopGUI"
+        return IliasCrawlerEntry(
+            Path(""),
+            self._base_url + "?baseClass=ilPersonalDesktopGUI",
+            IliasElementType.REGULAR_FOLDER,
+            None,
         )
-        return self._iterate_entries_to_download_infos(entries)
 
-    def _iterate_entries_to_download_infos(
-            self,
-            entries: List[IliasCrawlerEntry]
-    ) -> List[IliasDownloadInfo]:
-        result: List[IliasDownloadInfo] = []
-        entries_to_process: List[IliasCrawlerEntry] = entries.copy()
-        while len(entries_to_process) > 0:
-            entry = entries_to_process.pop()
+    async def _crawl_worker(self, entries_to_process: asyncio.Queue):
+        while True:
+            (entry, results) = await entries_to_process.get()
 
             if entry.entry_type == IliasElementType.EXTERNAL_LINK:
                 PRETTY.not_searching(entry.path, "external link")
+                entries_to_process.task_done()
                 continue
             if entry.entry_type == IliasElementType.FORUM:
                 PRETTY.not_searching(entry.path, "forum")
+                entries_to_process.task_done()
                 continue
 
-            if entry.entry_type.is_folder() and not self.dir_filter(entry.path, entry.entry_type):
+            if entry.entry_type.is_folder() and not self.dir_filter(
+                entry.path, entry.entry_type
+            ):
                 PRETTY.not_searching(entry.path, "user filter")
+                entries_to_process.task_done()
                 continue
 
             download_info = entry.to_download_info()
             if download_info is not None:
-                result.append(download_info)
+                results.add_result(download_info)
+                entries_to_process.task_done()
                 continue
 
-            url = entry.url()
+            url = await entry.url()
 
             if url is None:
-                PRETTY.warning(f"Could not find url for {str(entry.path)!r}, skipping it")
+                PRETTY.warning(
+                    f"Could not find url for {str(entry.path)!r}, skipping it"
+                )
+                entries_to_process.task_done()
                 continue
 
             PRETTY.searching(entry.path)
 
             if entry.entry_type == IliasElementType.EXERCISE_FOLDER:
-                entries_to_process += self._crawl_exercises(entry.path, url)
+                for task in await self._crawl_exercises(entry.path, url):
+                    entries_to_process.put_nowait((task, results))
+                entries_to_process.task_done()
                 continue
             if entry.entry_type == IliasElementType.REGULAR_FOLDER:
-                entries_to_process += self._crawl_folder(entry.path, url)
+                for task in await self._crawl_folder(entry.path, url):
+                    entries_to_process.put_nowait((task, results))
+                entries_to_process.task_done()
+                continue
+            if entry.entry_type == IliasElementType.COURSE:
+                for task in await self._crawl_folder(
+                    entry.path, url, url.split("crs_")[1]
+                ):
+                    entries_to_process.put_nowait((task, results))
+                entries_to_process.task_done()
                 continue
             if entry.entry_type == IliasElementType.VIDEO_FOLDER:
-                entries_to_process += self._crawl_video_directory(entry.path, url)
+                for task in await self._crawl_video_directory(entry.path, url):
+                    entries_to_process.put_nowait((task, results))
+                entries_to_process.task_done()
                 continue
 
             PRETTY.warning(f"Unknown type: {entry.entry_type}!")
 
-        return result
+    async def iterate_entries_to_download_infos(
+        self, entries: List[Tuple[IliasCrawlerEntry, ResultContainer]]
+    ):
+        crawl_queue = asyncio.Queue()
 
-    def _crawl_folder(self, folder_path: Path, url: str) -> List[IliasCrawlerEntry]:
+        for entry in entries:
+            crawl_queue.put_nowait(entry)
+
+        workers = []
+
+        # TODO: Find proper worker limit
+        for _ in range(20):
+            worker = asyncio.create_task(self._crawl_worker(crawl_queue))
+            workers.append(worker)
+
+        await crawl_queue.join()
+
+        for worker in workers:
+            worker.cancel()
+
+        # Wait until all worker tasks are cancelled.
+        await asyncio.gather(*workers, return_exceptions=True)
+
+    async def _crawl_folder(
+        self, folder_path: Path, url: str, course: Optional[str] = None
+    ) -> List[IliasCrawlerEntry]:
         """
         Crawl all files in a folder-like element.
+
+        Raises a InvalidCourseError if the folder is a non existent course.
         """
-        soup = self._get_page(url, {})
+        soup = await self._get_page(url, {}, check_course_id_valid=course)
+
+        if course is not None:
+            link_element: bs4.Tag = soup.find(id="current_perma_link")
+            # It wasn't a course but a category list, forum, etc.
+            if not link_element or "crs_" not in link_element.get("value"):
+                raise InvalidCourseError(course)
 
         if soup.find(id="headerimage"):
             element: bs4.Tag = soup.find(id="headerimage")
             if "opencast" in element.attrs["src"].lower():
-                PRETTY.warning(f"Switched to crawling a video at {folder_path}")
+                PRETTY.warning(
+                    f"Switched to crawling a video at {folder_path}")
                 if not self.dir_filter(folder_path, IliasElementType.VIDEO_FOLDER):
                     PRETTY.not_searching(folder_path, "user filter")
                     return []
@@ -267,8 +333,11 @@ class IliasCrawler:
         links: List[bs4.Tag] = soup.select("a.il_ContainerItemTitle")
         for link in links:
             abs_url = self._abs_url_from_link(link)
-            element_path = Path(folder_path, _sanitize_path_name(link.getText().strip()))
-            element_type = self._find_type_from_link(element_path, link, abs_url)
+            element_path = Path(
+                folder_path, _sanitize_path_name(link.getText().strip())
+            )
+            element_type = self._find_type_from_link(
+                element_path, link, abs_url)
 
             if element_type == IliasElementType.REGULAR_FILE:
                 result += self._crawl_file(folder_path, link, abs_url)
@@ -278,23 +347,32 @@ class IliasCrawler:
                 date_portion = demangle_date(date_portion_str)
 
                 if not date_portion:
-                    result += [IliasCrawlerEntry(element_path, abs_url, element_type, None)]
+                    result += [
+                        IliasCrawlerEntry(
+                            element_path, abs_url, element_type, None)
+                    ]
                     continue
 
                 rest_of_name = meeting_name
                 if rest_of_name.startswith(date_portion_str):
                     rest_of_name = rest_of_name[len(date_portion_str):]
 
-                new_name = datetime.datetime.strftime(date_portion, "%Y-%m-%d, %H:%M") \
+                new_name = (
+                    datetime.datetime.strftime(date_portion, "%Y-%m-%d, %H:%M")
                     + rest_of_name
+                )
                 new_path = Path(folder_path, _sanitize_path_name(new_name))
                 result += [
-                    IliasCrawlerEntry(new_path, abs_url, IliasElementType.REGULAR_FOLDER, None)
+                    IliasCrawlerEntry(
+                        new_path, abs_url, IliasElementType.REGULAR_FOLDER, None
+                    )
                 ]
             elif element_type is not None:
-                result += [IliasCrawlerEntry(element_path, abs_url, element_type, None)]
+                result += [IliasCrawlerEntry(element_path,
+                                             abs_url, element_type, None)]
             else:
-                PRETTY.warning(f"Found element without a type at {str(element_path)!r}")
+                PRETTY.warning(
+                    f"Found element without a type at {str(element_path)!r}")
 
         return result
 
@@ -306,9 +384,7 @@ class IliasCrawler:
 
     @staticmethod
     def _find_type_from_link(
-            path: Path,
-            link_element: bs4.Tag,
-            url: str
+        path: Path, link_element: bs4.Tag, url: str
     ) -> Optional[IliasElementType]:
         """
         Decides which sub crawler to use for a given top level element.
@@ -336,7 +412,9 @@ class IliasCrawler:
         return None
 
     @staticmethod
-    def _find_type_from_folder_like(link_element: bs4.Tag, url: str) -> Optional[IliasElementType]:
+    def _find_type_from_folder_like(
+        link_element: bs4.Tag, url: str
+    ) -> Optional[IliasElementType]:
         """
         Try crawling something that looks like a folder.
         """
@@ -356,7 +434,8 @@ class IliasCrawler:
             return None
 
         # Find the small descriptive icon to figure out the type
-        img_tag: Optional[bs4.Tag] = found_parent.select_one("img.ilListItemIcon")
+        img_tag: Optional[bs4.Tag] = found_parent.select_one(
+            "img.ilListItemIcon")
 
         if img_tag is None:
             PRETTY.warning(f"Could not find image tag for {url!r}")
@@ -380,7 +459,9 @@ class IliasCrawler:
         return IliasElementType.REGULAR_FOLDER
 
     @staticmethod
-    def _crawl_file(path: Path, link_element: bs4.Tag, url: str) -> List[IliasCrawlerEntry]:
+    def _crawl_file(
+        path: Path, link_element: bs4.Tag, url: str
+    ) -> List[IliasCrawlerEntry]:
         """
         Crawls a file.
         """
@@ -391,18 +472,22 @@ class IliasCrawler:
             "div", {"class": lambda x: "il_ContainerListItem" in x}
         ).select_one(".il_ItemProperties")
         # The first one is always the filetype
-        file_type = properties_parent.select_one("span.il_ItemProperty").getText().strip()
+        file_type = (
+            properties_parent.select_one(
+                "span.il_ItemProperty").getText().strip()
+        )
 
         # The rest does not have a stable order. Grab the whole text and reg-ex the date
         # out of it
         all_properties_text = properties_parent.getText().strip()
         modification_date_match = re.search(
             r"(((\d+\. \w+ \d+)|(Gestern|Yesterday)|(Heute|Today)|(Morgen|Tomorrow)), \d+:\d+)",
-            all_properties_text
+            all_properties_text,
         )
         if modification_date_match is None:
             modification_date = None
-            PRETTY.warning(f"Could not extract start date from {all_properties_text!r}")
+            PRETTY.warning(
+                f"Could not extract start date from {all_properties_text!r}")
         else:
             modification_date_str = modification_date_match.group(1)
             modification_date = demangle_date(modification_date_str)
@@ -412,23 +497,27 @@ class IliasCrawler:
         full_path = Path(path, name + "." + file_type)
 
         return [
-            IliasCrawlerEntry(full_path, url, IliasElementType.REGULAR_FILE, modification_date)
+            IliasCrawlerEntry(
+                full_path, url, IliasElementType.REGULAR_FILE, modification_date
+            )
         ]
 
-    def _crawl_video_directory(self, video_dir_path: Path, url: str) -> List[IliasCrawlerEntry]:
+    async def _crawl_video_directory(
+        self, video_dir_path: Path, url: str
+    ) -> List[IliasCrawlerEntry]:
         """
         Crawl the video overview site.
         """
-        initial_soup = self._get_page(url, {})
+        initial_soup = await self._get_page(url, {})
 
         # The page is actually emtpy but contains a much needed token in the link below.
         # That token can be used to fetch the *actual* video listing
         content_link: bs4.Tag = initial_soup.select_one("#tab_series a")
         # Fetch the actual video listing. The given parameters return all videos (max 800)
         # in a standalone html page
-        video_list_soup = self._get_page(
+        video_list_soup = await self._get_page(
             self._abs_url_from_link(content_link),
-            {"limit": 800, "cmd": "asyncGetTableGUI", "cmdMode": "asynch"}
+            {"limit": 800, "cmd": "asyncGetTableGUI", "cmdMode": "asynch"},
         )
 
         # If we find a page selected, we probably need to respect pagination
@@ -445,11 +534,11 @@ class IliasCrawler:
     def _is_paginated_video_page(soup: bs4.BeautifulSoup) -> bool:
         return soup.find(id=re.compile(r"tab_page_sel.+")) is not None
 
-    def _crawl_paginated_video_directory(
-            self,
-            video_dir_path: Path,
-            paged_video_list_soup: bs4.BeautifulSoup,
-            second_stage_url: str
+    async def _crawl_paginated_video_directory(
+        self,
+        video_dir_path: Path,
+        paged_video_list_soup: bs4.BeautifulSoup,
+        second_stage_url: str,
     ) -> List[IliasCrawlerEntry]:
         LOGGER.info("Found paginated video page, trying 800 elements")
 
@@ -464,7 +553,9 @@ class IliasCrawler:
                 "Could not increase elements per page (table not found)."
                 " Some might not be crawled!"
             )
-            return self._crawl_video_directory_second_stage(video_dir_path, paged_video_list_soup)
+            return self._crawl_video_directory_second_stage(
+                video_dir_path, paged_video_list_soup
+            )
 
         match = re.match(r"tbl_xoct_(.+)", table_element.attrs["id"])
         if match is None:
@@ -472,12 +563,18 @@ class IliasCrawler:
                 "Could not increase elements per page (table id not found)."
                 " Some might not be crawled!"
             )
-            return self._crawl_video_directory_second_stage(video_dir_path, paged_video_list_soup)
+            return self._crawl_video_directory_second_stage(
+                video_dir_path, paged_video_list_soup
+            )
         table_id = match.group(1)
 
-        extended_video_page = self._get_page(
+        extended_video_page = await self._get_page(
             second_stage_url,
-            {f"tbl_xoct_{table_id}_trows": 800, "cmd": "asyncGetTableGUI", "cmdMode": "asynch"}
+            {
+                f"tbl_xoct_{table_id}_trows": 800,
+                "cmd": "asyncGetTableGUI",
+                "cmdMode": "asynch",
+            },
         )
 
         if self._is_paginated_video_page(extended_video_page):
@@ -486,12 +583,12 @@ class IliasCrawler:
                 " I will miss elements."
             )
 
-        return self._crawl_video_directory_second_stage(video_dir_path, extended_video_page)
+        return self._crawl_video_directory_second_stage(
+            video_dir_path, extended_video_page
+        )
 
     def _crawl_video_directory_second_stage(
-            self,
-            video_dir_path: Path,
-            video_list_soup: bs4.BeautifulSoup
+        self, video_dir_path: Path, video_list_soup: bs4.BeautifulSoup
     ) -> List[IliasCrawlerEntry]:
         """
         Crawls the "second stage" video page. This page contains the actual video urls.
@@ -514,29 +611,33 @@ class IliasCrawler:
                 results += self._crawl_single_video(video_dir_path, link, True)
         else:
             for link in video_links:
-                results += self._crawl_single_video(video_dir_path, link, False)
+                results += self._crawl_single_video(
+                    video_dir_path, link, False)
 
         return results
 
     def _crawl_single_video(
-            self,
-            parent_path: Path,
-            link: bs4.Tag,
-            direct_download: bool
+        self, parent_path: Path, link: bs4.Tag, direct_download: bool
     ) -> List[IliasCrawlerEntry]:
         """
         Crawl a single video based on its "Abspielen" link from the video listing.
         """
         # The link is part of a table with multiple columns, describing metadata.
         # 6th child (1 indexed) is the modification time string
-        modification_string = link.parent.parent.parent.select_one(
-            "td.std:nth-child(6)"
-        ).getText().strip()
-        modification_time = datetime.datetime.strptime(modification_string, "%d.%m.%Y - %H:%M")
+        modification_string = (
+            link.parent.parent.parent.select_one("td.std:nth-child(6)")
+            .getText()
+            .strip()
+        )
+        modification_time = datetime.datetime.strptime(
+            modification_string, "%d.%m.%Y - %H:%M"
+        )
 
-        title = link.parent.parent.parent.select_one(
-            "td.std:nth-child(3)"
-        ).getText().strip()
+        title = (
+            link.parent.parent.parent.select_one("td.std:nth-child(3)")
+            .getText()
+            .strip()
+        )
         title += ".mp4"
 
         video_path: Path = Path(parent_path, _sanitize_path_name(title))
@@ -546,32 +647,42 @@ class IliasCrawler:
         # The video had a direct download button we can use instead
         if direct_download:
             LOGGER.debug("Using direct download for video %r", str(video_path))
-            return [IliasCrawlerEntry(
-                video_path, video_url, IliasElementType.VIDEO_FILE, modification_time
-            )]
+            return [
+                IliasCrawlerEntry(
+                    video_path,
+                    video_url,
+                    IliasElementType.VIDEO_FILE,
+                    modification_time,
+                )
+            ]
 
-        return [IliasCrawlerEntry(
-            video_path,
-            self._crawl_video_url_from_play_link(video_url),
-            IliasElementType.VIDEO_FILE,
-            modification_time
-        )]
+        return [
+            IliasCrawlerEntry(
+                video_path,
+                self._crawl_video_url_from_play_link(video_url),
+                IliasElementType.VIDEO_FILE,
+                modification_time,
+            )
+        ]
 
-    def _crawl_video_url_from_play_link(self, play_url: str) -> Callable[[], Optional[str]]:
-        def inner() -> Optional[str]:
+    def _crawl_video_url_from_play_link(
+        self, play_url: str
+    ) -> Callable[[], Awaitable[Optional[str]]]:
+        async def inner() -> Optional[str]:
             # Fetch the actual video page. This is a small wrapper page initializing a javscript
             # player. Sadly we can not execute that JS. The actual video stream url is nowhere
             # on the page, but defined in a JS object inside a script tag, passed to the player
             # library.
             # We do the impossible and RegEx the stream JSON object out of the page's HTML source
-            video_page_soup = soupify(self._session.get(play_url))
+            video_page_soup = soupify(await self._client.get(play_url))
             regex: re.Pattern = re.compile(
                 r"({\"streams\"[\s\S]+?),\s*{\"paella_config_file", re.IGNORECASE
             )
             json_match = regex.search(str(video_page_soup))
 
             if json_match is None:
-                PRETTY.warning(f"Could not find json stream info for {play_url!r}")
+                PRETTY.warning(
+                    f"Could not find json stream info for {play_url!r}")
                 return None
             json_str = json_match.group(1)
 
@@ -580,28 +691,35 @@ class IliasCrawler:
             # and fetch the video url!
             video_url = json_object["streams"][0]["sources"]["mp4"][0]["src"]
             return video_url
+
         return inner
 
-    def _crawl_exercises(self, element_path: Path, url: str) -> List[IliasCrawlerEntry]:
+    async def _crawl_exercises(
+        self, element_path: Path, url: str
+    ) -> List[IliasCrawlerEntry]:
         """
         Crawl files offered for download in exercises.
         """
-        soup = self._get_page(url, {})
+        soup = await self._get_page(url, {})
 
         results: List[IliasCrawlerEntry] = []
 
         # Each assignment is in an accordion container
-        assignment_containers: List[bs4.Tag] = soup.select(".il_VAccordionInnerContainer")
+        assignment_containers: List[bs4.Tag] = soup.select(
+            ".il_VAccordionInnerContainer"
+        )
 
         for container in assignment_containers:
             # Fetch the container name out of the header to use it in the path
-            container_name = container.select_one(".ilAssignmentHeader").getText().strip()
+            container_name = (
+                container.select_one(".ilAssignmentHeader").getText().strip()
+            )
             # Find all download links in the container (this will contain all the files)
             files: List[bs4.Tag] = container.findAll(
                 name="a",
                 # download links contain the given command class
                 attrs={"href": lambda x: x and "cmdClass=ilexsubmissiongui" in x},
-                text="Download"
+                text="Download",
             )
 
             LOGGER.debug("Found exercise container %r", container_name)
@@ -610,36 +728,54 @@ class IliasCrawler:
             for file_link in files:
                 # Two divs, side by side. Left is the name, right is the link ==> get left
                 # sibling
-                file_name = file_link.parent.findPrevious(name="div").getText().strip()
+                file_name = file_link.parent.findPrevious(
+                    name="div").getText().strip()
                 file_name = _sanitize_path_name(file_name)
                 url = self._abs_url_from_link(file_link)
 
                 LOGGER.debug("Found file %r at %r", file_name, url)
 
-                results.append(IliasCrawlerEntry(
-                    Path(element_path, container_name, file_name),
-                    url,
-                    IliasElementType.REGULAR_FILE,
-                    None  # We do not have any timestamp
-                ))
+                results.append(
+                    IliasCrawlerEntry(
+                        Path(element_path, container_name, file_name),
+                        url,
+                        IliasElementType.REGULAR_FILE,
+                        None,  # We do not have any timestamp
+                    )
+                )
 
         return results
 
     @retry_on_io_exception(3, "fetching webpage")
-    def _get_page(self, url: str, params: Dict[str, Any],
-                  retry_count: int = 0) -> bs4.BeautifulSoup:
+    async def _get_page(
+        self,
+        url: str,
+        params: Dict[str, Any],
+        retry_count: int = 0,
+        check_course_id_valid: Optional[str] = None,
+    ) -> bs4.BeautifulSoup:
         """
         Fetches a page from ILIAS, authenticating when needed.
+
+        Raises a InvalidCourseError if the page is a non existent course.
         """
 
         if retry_count >= 4:
-            raise FatalException("Could not get a proper page after 4 tries. "
-                                 "Maybe your URL is wrong, authentication fails continuously, "
-                                 "your ILIAS connection is spotty or ILIAS is not well.")
+            raise FatalException(
+                "Could not get a proper page after 4 tries. "
+                "Maybe your URL is wrong, authentication fails continuously, "
+                "your ILIAS connection is spotty or ILIAS is not well."
+            )
 
         LOGGER.debug("Fetching %r", url)
 
-        response = self._session.get(url, params=params)
+        response = await self._client.get(url, params=params)
+
+        if check_course_id_valid is not None:
+            # We were redirected ==> Non-existant ID
+            if check_course_id_valid not in str(response.url):
+                raise InvalidCourseError(check_course_id_valid)
+
         content_type = response.headers["content-type"]
 
         if not content_type.startswith("text/html"):
@@ -653,11 +789,23 @@ class IliasCrawler:
         if self._is_logged_in(soup):
             return soup
 
-        LOGGER.info("Not authenticated, changing that...")
+        if self.auth_lock.locked():
+            # Some other future is already logging in
+            await self.auth_event.wait()
+        else:
+            await self.auth_lock.acquire()
+            self.auth_event.clear()
+            LOGGER.info("Not authenticated, changing that...")
+            await self._authenticator.authenticate(self._client)
+            self.auth_event.set()
+            self.auth_lock.release()
 
-        self._authenticator.authenticate(self._session)
-
-        return self._get_page(url, params, retry_count + 1)
+        return await self._get_page(
+            url,
+            params,
+            check_course_id_valid=check_course_id_valid,
+            retry_count=retry_count + 1,
+        )
 
     @staticmethod
     def _is_logged_in(soup: bs4.BeautifulSoup) -> bool:
@@ -671,7 +819,7 @@ class IliasCrawler:
         video_table = soup.find(
             recursive=True,
             name="table",
-            attrs={"id": lambda x: x is not None and x.startswith("tbl_xoct")}
+            attrs={"id": lambda x: x is not None and x.startswith("tbl_xoct")},
         )
         if video_table is not None:
             LOGGER.debug("Auth: Found #tbl_xoct.+")

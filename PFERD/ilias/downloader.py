@@ -5,10 +5,11 @@ import logging
 import math
 import os
 from pathlib import Path, PurePath
-from typing import Callable, List, Optional, Union
+from typing import Callable, Awaitable, List, Optional, Union
 
+import asyncio
 import bs4
-import requests
+import httpx
 
 from ..errors import retry_on_io_exception
 from ..logging import PrettyLogger
@@ -32,15 +33,16 @@ class IliasDownloadInfo(Transformable):
     """
 
     def __init__(
-            self,
-            path: PurePath,
-            url: Union[str, Callable[[], Optional[str]]],
-            modifcation_date: Optional[datetime.datetime]
+        self,
+        path: PurePath,
+        url: Union[str, Callable[[], Awaitable[Optional[str]]]],
+        modifcation_date: Optional[datetime.datetime],
     ):
         super().__init__(path)
         if isinstance(url, str):
-            string_url = url
-            self.url: Callable[[], Optional[str]] = lambda: string_url
+            future = asyncio.Future()
+            future.set_result(url)
+            self.url: Callable[[], Optional[str]] = lambda: future
         else:
             self.url = url
         self.modification_date = modifcation_date
@@ -70,7 +72,8 @@ def download_modified_or_new(organizer: Organizer, info: IliasDownloadInfo) -> b
     if info.modification_date.timestamp() > resolved_mod_time_seconds:
         return True
 
-    PRETTY.ignored_file(info.path, "local file has newer or equal modification time")
+    PRETTY.ignored_file(
+        info.path, "local file has newer or equal modification time")
     return False
 
 
@@ -79,37 +82,34 @@ class IliasDownloader:
     """A downloader for ILIAS."""
 
     def __init__(
-            self,
-            tmp_dir: TmpDir,
-            organizer: Organizer,
-            session: requests.Session,
-            authenticator: IliasAuthenticator,
-            strategy: IliasDownloadStrategy,
-            timeout: int = 5
+        self,
+        tmp_dir: TmpDir,
+        organizer: Organizer,
+        client: httpx.Client,
+        authenticator: IliasAuthenticator,
+        strategy: IliasDownloadStrategy,
+        timeout: int = 5,
     ):
         """
         Create a new IliasDownloader.
-
-        The timeout applies to the download request only, as bwcloud uses IPv6
-        and requests has a problem with that: https://github.com/psf/requests/issues/5522
         """
 
         self._tmp_dir = tmp_dir
         self._organizer = organizer
-        self._session = session
+        self._client = client
         self._authenticator = authenticator
         self._strategy = strategy
         self._timeout = timeout
 
-    def download_all(self, infos: List[IliasDownloadInfo]) -> None:
+    async def download_all(self, infos: List[IliasDownloadInfo]) -> None:
         """
         Download multiple files one after the other.
         """
 
-        for info in infos:
-            self.download(info)
+        tasks = [self.download(info) for info in infos]
+        await asyncio.gather(*tasks)
 
-    def download(self, info: IliasDownloadInfo) -> None:
+    async def download(self, info: IliasDownloadInfo) -> None:
         """
         Download a file from ILIAS.
 
@@ -125,16 +125,19 @@ class IliasDownloader:
         tmp_file = self._tmp_dir.new_path()
 
         @retry_on_io_exception(3, "downloading file")
-        def download_impl() -> bool:
-            if not self._try_download(info, tmp_file):
-                LOGGER.info("Re-Authenticating due to download failure: %r", info)
-                self._authenticator.authenticate(self._session)
+        async def download_impl() -> bool:
+            if not await self._try_download(info, tmp_file):
+                LOGGER.info(
+                    "Re-Authenticating due to download failure: %r", info)
+                self._authenticator.authenticate(self._client)
                 raise IOError("Scheduled retry")
             else:
                 return True
 
-        if not download_impl():
-            PRETTY.error(f"Download of file {info.path} failed too often! Skipping it...")
+        if not await download_impl():
+            PRETTY.error(
+                f"Download of file {info.path} failed too often! Skipping it..."
+            )
             return
 
         dst_path = self._organizer.accept_file(tmp_file, info.path)
@@ -143,23 +146,26 @@ class IliasDownloader:
                 dst_path,
                 times=(
                     math.ceil(info.modification_date.timestamp()),
-                    math.ceil(info.modification_date.timestamp())
-                )
+                    math.ceil(info.modification_date.timestamp()),
+                ),
             )
 
-    def _try_download(self, info: IliasDownloadInfo, target: Path) -> bool:
-        url = info.url()
+    async def _try_download(self, info: IliasDownloadInfo, target: Path) -> bool:
+        url = await info.url()
         if url is None:
-            PRETTY.warning(f"Could not download {str(info.path)!r} as I got no URL :/")
+            PRETTY.warning(
+                f"Could not download {str(info.path)!r} as I got no URL :/")
             return True
 
-        with self._session.get(url, stream=True, timeout=self._timeout) as response:
+        with self._client.stream("GET", url, timeout=self._timeout) as response:
             content_type = response.headers["content-type"]
             has_content_disposition = "content-disposition" in response.headers
 
             if content_type.startswith("text/html") and not has_content_disposition:
                 if self._is_logged_in(soupify(response)):
-                    raise ContentTypeException("Attempting to download a web page, not a file")
+                    raise ContentTypeException(
+                        "Attempting to download a web page, not a file"
+                    )
 
                 return False
 

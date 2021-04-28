@@ -75,8 +75,13 @@ def main() -> None:
     pferd = Pferd(Path(__file__).parent, test_run=args.test_run)
     pferd.enable_logging()
 
+    ilias = pferd.ilias_kit(
+                cookies="PFERD/ilias_cookies.txt",
+            )
+
     if not args.synchronizers or "numerik" in args.synchronizers:
-        pferd.ilias_kit(
+        pferd.add_ilias_course(
+            ilias,
             target="Numerik",
             course_id="1083036",
             transform=tf_ss_2020_numerik,
@@ -84,7 +89,8 @@ def main() -> None:
         )
 
     if not args.synchronizers or "db" in args.synchronizers:
-        pferd.ilias_kit(
+        pferd.add_ilias_course(
+            ilias,
             target="DB",
             course_id="1101554",
             transform=tf_ss_2020_db,
@@ -92,7 +98,8 @@ def main() -> None:
         )
 
     if not args.synchronizers or "rechnernetze" in args.synchronizers:
-        pferd.ilias_kit(
+        pferd.add_ilias_course(
+            ilias,
             target="Rechnernetze",
             course_id="1099996",
             transform=tf_ss_2020_rechnernetze,
@@ -100,7 +107,8 @@ def main() -> None:
         )
 
     if not args.synchronizers or "sicherheit" in args.synchronizers:
-        pferd.ilias_kit(
+        pferd.add_ilias_course(
+            ilias,
             target="Sicherheit",
             course_id="1101980",
             transform=tf_ss_2020_sicherheit,
@@ -108,7 +116,8 @@ def main() -> None:
         )
 
     if not args.synchronizers or "pg" in args.synchronizers:
-        pferd.ilias_kit(
+        pferd.add_ilias_course(
+            ilias,
             target="PG",
             course_id="1106095",
             transform=tf_ss_2020_pg,
@@ -116,7 +125,8 @@ def main() -> None:
         )
 
     if not args.synchronizers or "or1" in args.synchronizers:
-        pferd.ilias_kit(
+        pferd.add_ilias_course(
+            ilias,
             target="OR1",
             course_id="1105941",
             dir_filter=df_ss_2020_or1,
@@ -124,6 +134,7 @@ def main() -> None:
             cookies="ilias_cookies.txt",
         )
 
+    pferd.syncronize_ilias(ilias)
     # Prints a summary listing all new, modified or deleted files
     pferd.print_summary()
 

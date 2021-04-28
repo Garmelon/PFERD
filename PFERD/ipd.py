@@ -11,7 +11,7 @@ from typing import Callable, List, Optional
 from urllib.parse import urljoin
 
 import bs4
-import requests
+import httpx
 
 from PFERD.errors import FatalException
 from PFERD.utils import soupify
@@ -31,6 +31,7 @@ class IpdDownloadInfo(Transformable):
     """
     Information about an ipd entry.
     """
+
     url: str
     modification_date: Optional[datetime.datetime]
 
@@ -46,7 +47,8 @@ def ipd_download_new_or_modified(organizer: Organizer, info: IpdDownloadInfo) ->
     if not resolved_file.exists():
         return True
     if not info.modification_date:
-        PRETTY.ignored_file(info.path, "could not find modification time, file exists")
+        PRETTY.ignored_file(
+            info.path, "could not find modification time, file exists")
         return False
 
     resolved_mod_time_seconds = resolved_file.stat().st_mtime
@@ -55,7 +57,8 @@ def ipd_download_new_or_modified(organizer: Organizer, info: IpdDownloadInfo) ->
     if info.modification_date.timestamp() > resolved_mod_time_seconds:
         return True
 
-    PRETTY.ignored_file(info.path, "local file has newer or equal modification time")
+    PRETTY.ignored_file(
+        info.path, "local file has newer or equal modification time")
     return False
 
 
@@ -78,14 +81,21 @@ class IpdCrawler:
         """
         Crawls the playlist given in the constructor.
         """
-        page = soupify(requests.get(self._base_url))
+        page = soupify(httpx.get(self._base_url))
 
         items: List[IpdDownloadInfo] = []
 
         def is_relevant_url(x: str) -> bool:
-            return x.endswith(".pdf") or x.endswith(".c") or x.endswith(".java") or x.endswith(".zip")
+            return (
+                x.endswith(".pdf")
+                or x.endswith(".c")
+                or x.endswith(".java")
+                or x.endswith(".zip")
+            )
 
-        for link in page.findAll(name="a", attrs={"href": lambda x: x and is_relevant_url(x)}):
+        for link in page.findAll(
+            name="a", attrs={"href": lambda x: x and is_relevant_url(x)}
+        ):
             href: str = link.attrs.get("href")
             name = href.split("/")[-1]
 
@@ -94,15 +104,19 @@ class IpdCrawler:
                 enclosing_row: bs4.Tag = link.findParent(name="tr")
                 if enclosing_row:
                     date_text = enclosing_row.find(name="td").text
-                    modification_date = datetime.datetime.strptime(date_text, "%d.%m.%Y")
+                    modification_date = datetime.datetime.strptime(
+                        date_text, "%d.%m.%Y"
+                    )
             except ValueError:
                 modification_date = None
 
-            items.append(IpdDownloadInfo(
-                Path(name),
-                url=self._abs_url_from_link(link),
-                modification_date=modification_date
-            ))
+            items.append(
+                IpdDownloadInfo(
+                    Path(name),
+                    url=self._abs_url_from_link(link),
+                    modification_date=modification_date,
+                )
+            )
 
         return items
 
@@ -112,11 +126,13 @@ class IpdDownloader:
     A downloader for ipd files.
     """
 
-    def __init__(self, tmp_dir: TmpDir, organizer: Organizer, strategy: IpdDownloadStrategy):
+    def __init__(
+        self, tmp_dir: TmpDir, organizer: Organizer, strategy: IpdDownloadStrategy
+    ):
         self._tmp_dir = tmp_dir
         self._organizer = organizer
         self._strategy = strategy
-        self._session = requests.session()
+        self._client = httpx.Client()
 
     def download_all(self, infos: List[IpdDownloadInfo]) -> None:
         """
@@ -133,7 +149,7 @@ class IpdDownloader:
             self._organizer.mark(info.path)
             return
 
-        with self._session.get(info.url, stream=True) as response:
+        with self._client.stream("GET", info.url) as response:
             if response.status_code == 200:
                 tmp_file = self._tmp_dir.new_path()
                 stream_to_path(response, tmp_file, info.path.name)
@@ -144,11 +160,14 @@ class IpdDownloader:
                         dst_path,
                         times=(
                             math.ceil(info.modification_date.timestamp()),
-                            math.ceil(info.modification_date.timestamp())
-                        )
+                            math.ceil(info.modification_date.timestamp()),
+                        ),
                     )
 
             elif response.status_code == 403:
-                raise FatalException("Received 403. Are you not using the KIT VPN?")
+                raise FatalException(
+                    "Received 403. Are you not using the KIT VPN?")
             else:
-                PRETTY.warning(f"Could not download file, got response {response.status_code}")
+                PRETTY.warning(
+                    f"Could not download file, got response {response.status_code}"
+                )

@@ -40,10 +40,11 @@ class RichLoggingHandler(logging.Handler):
 
     def __init__(self, level: int) -> None:
         super().__init__(level=level)
-        self.console = Console(theme=Theme({
-            "logging.level.warning": Style(color="yellow")
-        }))
-        self._log_render = LogRender(show_level=True, show_time=False, show_path=False)
+        self.console = Console(
+            theme=Theme({"logging.level.warning": Style(color="yellow")})
+        )
+        self._log_render = LogRender(
+            show_level=True, show_time=False, show_path=False)
 
     def emit(self, record: logging.LogRecord) -> None:
         """
@@ -81,18 +82,14 @@ class PrettyLogger:
         """
         Print an error message indicating some operation fatally failed.
         """
-        self.logger.error(
-            f"[bold red]{message}[/bold red]"
-        )
+        self.logger.error(f"[bold red]{message}[/bold red]")
 
     def warning(self, message: str) -> None:
         """
         Print a warning message indicating some operation failed, but the error can be recovered
         or ignored.
         """
-        self.logger.warning(
-            f"[bold yellow]{message}[/bold yellow]"
-        )
+        self.logger.warning(f"[bold yellow]{message}[/bold yellow]")
 
     def modified_file(self, path: PathLike) -> None:
         """
@@ -109,8 +106,7 @@ class PrettyLogger:
         """
 
         self.logger.info(
-            f"[bold green]Created {self._format_path(path)}.[/bold green]"
-        )
+            f"[bold green]Created {self._format_path(path)}.[/bold green]")
 
     def deleted_file(self, path: PathLike) -> None:
         """
@@ -118,8 +114,7 @@ class PrettyLogger:
         """
 
         self.logger.info(
-            f"[bold red]Deleted {self._format_path(path)}.[/bold red]"
-        )
+            f"[bold red]Deleted {self._format_path(path)}.[/bold red]")
 
     def ignored_file(self, path: PathLike, reason: str) -> None:
         """
@@ -127,8 +122,7 @@ class PrettyLogger:
         """
 
         self.logger.info(
-            f"[dim]Ignored {self._format_path(path)} "
-            f"([/dim]{reason}[dim]).[/dim]"
+            f"[dim]Ignored {self._format_path(path)} " f"([/dim]{reason}[dim]).[/dim]"
         )
 
     def searching(self, path: PathLike) -> None:
@@ -166,10 +160,10 @@ class PrettyLogger:
             self.deleted_file(deleted_files)
 
     def starting_synchronizer(
-            self,
-            target_directory: PathLike,
-            synchronizer_name: str,
-            subject: Optional[str] = None,
+        self,
+        target_directory: PathLike,
+        synchronizer_name: str,
+        subject: Optional[str] = None,
     ) -> None:
         """
         A special message marking that a synchronizer has been started.
@@ -177,8 +171,10 @@ class PrettyLogger:
 
         subject_str = f"{subject} " if subject else ""
         self.logger.info("")
-        self.logger.info((
-            f"[bold cyan]Synchronizing "
-            f"{subject_str}to {self._format_path(target_directory)} "
-            f"using the {synchronizer_name} synchronizer.[/bold cyan]"
-        ))
+        self.logger.info(
+            (
+                f"[bold cyan]Synchronizing "
+                f"{subject_str}to {self._format_path(target_directory)} "
+                f"using the {synchronizer_name} synchronizer.[/bold cyan]"
+            )
+        )

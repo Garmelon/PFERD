@@ -23,12 +23,16 @@ def main() -> None:
     pferd = Pferd(Path(__file__).parent, test_run=args.test_run)
     pferd.enable_logging()
 
-    # Synchronize the personal desktop into the "ILIAS" directory.
     # It saves the cookies, so you only need to log in again when the ILIAS cookies expire.
-    pferd.ilias_kit_personal_desktop(
+    ilias = pferd.ilias_kit(cookies="ilias_cookies.txt")
+    # Synchronize the personal desktop into the "ILIAS" directory.
+    
+    pferd.add_ilias_personal_desktop(
+        ilias,
         "ILIAS",
-        cookies="ilias_cookies.txt",
     )
+
+    pferd.syncronize_ilias(ilias)
 
     # Prints a summary listing all new, modified or deleted files
     pferd.print_summary()

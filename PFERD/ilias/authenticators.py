@@ -7,7 +7,7 @@ import logging
 from typing import Optional
 
 import bs4
-import requests
+import httpx
 
 from ..authenticators import TfaAuthenticator, UserPassAuthenticator
 from ..utils import soupify
@@ -19,14 +19,14 @@ class IliasAuthenticator(abc.ABC):
     # pylint: disable=too-few-public-methods
 
     """
-    An authenticator that logs an existing requests session into an ILIAS
+    An authenticator that logs an existing httpx client into an ILIAS
     account.
     """
 
     @abc.abstractmethod
-    def authenticate(self, sess: requests.Session) -> None:
+    async def authenticate(self, client: httpx.AsyncClient) -> None:
         """
-        Log a requests session into this authenticator's ILIAS account.
+        Log a httpx AsyncClient into this authenticator's ILIAS account.
         """
 
 
@@ -45,7 +45,7 @@ class KitShibbolethAuthenticator(IliasAuthenticator):
 
         self._tfa_auth = TfaAuthenticator("KIT ILIAS Shibboleth")
 
-    def authenticate(self, sess: requests.Session) -> None:
+    async def authenticate(self, client: httpx.AsyncClient) -> None:
         """
         Performs the ILIAS Shibboleth authentication dance and saves the login
         cookies it receieves.
@@ -65,13 +65,14 @@ class KitShibbolethAuthenticator(IliasAuthenticator):
             "target": "/shib_login.php",
             "home_organization_selection": "Mit KIT-Account anmelden",
         }
-        soup = soupify(sess.post(url, data=data))
+        soup = soupify(await client.post(url, data=data))
 
         # Attempt to login using credentials, if necessary
         while not self._login_successful(soup):
             # Searching the form here so that this fails before asking for
             # credentials rather than after asking.
-            form = soup.find("form", {"class": "full content", "method": "post"})
+            form = soup.find(
+                "form", {"class": "full content", "method": "post"})
             action = form["action"]
 
             csrf_token = form.find("input", {"name": "csrf_token"})["value"]
@@ -84,12 +85,12 @@ class KitShibbolethAuthenticator(IliasAuthenticator):
                 "_eventId_proceed": "",
                 "j_username": self._auth.username,
                 "j_password": self._auth.password,
-                "csrf_token": csrf_token
+                "csrf_token": csrf_token,
             }
-            soup = soupify(sess.post(url, data=data))
+            soup = soupify(await client.post(url, data=data))
 
             if self._tfa_required(soup):
-                soup = self._authenticate_tfa(sess, soup)
+                soup = await self._authenticate_tfa(client, soup)
 
             if not self._login_successful(soup):
                 print("Incorrect credentials.")
@@ -105,12 +106,10 @@ class KitShibbolethAuthenticator(IliasAuthenticator):
             "RelayState": relay_state["value"],
             "SAMLResponse": saml_response["value"],
         }
-        sess.post(url, data=data)
+        await client.post(url, data=data)
 
-    def _authenticate_tfa(
-            self,
-            session: requests.Session,
-            soup: bs4.BeautifulSoup
+    async def _authenticate_tfa(
+        self, client: httpx.AsyncClient, soup: bs4.BeautifulSoup
     ) -> bs4.BeautifulSoup:
         # Searching the form here so that this fails before asking for
         # credentials rather than after asking.
@@ -121,11 +120,9 @@ class KitShibbolethAuthenticator(IliasAuthenticator):
         # https://idp.scc.kit.edu/idp/profile/SAML2/Redirect/SSO
         LOGGER.debug("Attempt to log in to Shibboleth with TFA token")
         url = "https://idp.scc.kit.edu" + action
-        data = {
-            "_eventId_proceed": "",
-            "j_tokenNumber": self._tfa_auth.get_token()
-        }
-        return soupify(session.post(url, data=data))
+        data = {"_eventId_proceed": "",
+                "j_tokenNumber": self._tfa_auth.get_token()}
+        return soupify(await client.post(url, data=data))
 
     @staticmethod
     def _login_successful(soup: bs4.BeautifulSoup) -> bool:

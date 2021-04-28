@@ -6,11 +6,17 @@ from dataclasses import dataclass
 from types import TracebackType
 from typing import Optional, Type
 
-import requests
+import httpx
 from rich.console import Console
-from rich.progress import (BarColumn, DownloadColumn, Progress, TaskID,
-                           TextColumn, TimeRemainingColumn,
-                           TransferSpeedColumn)
+from rich.progress import (
+    BarColumn,
+    DownloadColumn,
+    Progress,
+    TaskID,
+    TextColumn,
+    TimeRemainingColumn,
+    TransferSpeedColumn,
+)
 
 _progress: Progress = Progress(
     TextColumn("[bold blue]{task.fields[name]}", justify="right"),
@@ -23,16 +29,16 @@ _progress: Progress = Progress(
     "•",
     TimeRemainingColumn(),
     console=Console(file=sys.stdout),
-    transient=True
+    transient=True,
 )
 
 
-def size_from_headers(response: requests.Response) -> Optional[int]:
+def size_from_headers(response: httpx.Response) -> Optional[int]:
     """
     Return the size of the download based on the response headers.
 
     Arguments:
-        response {requests.Response} -- the response
+        response {httpx.Response} -- the response
 
     Returns:
         Optional[int] -- the size
@@ -47,11 +53,12 @@ class ProgressSettings:
     """
     Settings you can pass to customize the progress bar.
     """
+
     name: str
     max_size: int
 
 
-def progress_for(settings: Optional[ProgressSettings]) -> 'ProgressContextManager':
+def progress_for(settings: Optional[ProgressSettings]) -> "ProgressContextManager":
     """
     Returns a context manager that displays progress
 
@@ -70,25 +77,23 @@ class ProgressContextManager:
         self._settings = settings
         self._task_id: Optional[TaskID] = None
 
-    def __enter__(self) -> 'ProgressContextManager':
+    def __enter__(self) -> "ProgressContextManager":
         """Context manager entry function."""
         if not self._settings:
             return self
 
         _progress.start()
         self._task_id = _progress.add_task(
-            self._settings.name,
-            total=self._settings.max_size,
-            name=self._settings.name
+            self._settings.name, total=self._settings.max_size, name=self._settings.name
         )
         return self
 
     # pylint: disable=useless-return
     def __exit__(
-            self,
-            exc_type: Optional[Type[BaseException]],
-            exc_value: Optional[BaseException],
-            traceback: Optional[TracebackType],
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_value: Optional[BaseException],
+        traceback: Optional[TracebackType],
     ) -> Optional[bool]:
         """Context manager exit function. Removes the task."""
         if self._task_id is None:

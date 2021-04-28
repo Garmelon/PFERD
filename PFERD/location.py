@@ -7,6 +7,7 @@ from pathlib import Path, PurePath
 
 class ResolveException(Exception):
     """An exception while resolving a file."""
+
     # TODO take care of this when doing exception handling
 
 
@@ -36,6 +37,7 @@ class Location:
 
         # TODO Make this less inefficient
         if self.path not in absolute_path.parents:
-            raise ResolveException(f"Path {target} is not inside directory {self.path}")
+            raise ResolveException(
+                f"Path {target} is not inside directory {self.path}")
 
         return absolute_path

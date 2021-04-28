@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, List, Optional
 
-import requests
+import httpx
 
 from .errors import FatalException
 from .logging import PrettyLogger
@@ -25,6 +25,7 @@ class DivaDownloadInfo(Transformable):
     """
     Information about a DIVA video
     """
+
     url: str
 
 
@@ -49,7 +50,9 @@ class DivaPlaylistCrawler:
     """
 
     _PLAYLIST_BASE_URL = "https://mediaservice.bibliothek.kit.edu/asset/detail/"
-    _COLLECTION_BASE_URL = "https://mediaservice.bibliothek.kit.edu/asset/collection.json"
+    _COLLECTION_BASE_URL = (
+        "https://mediaservice.bibliothek.kit.edu/asset/collection.json"
+    )
 
     def __init__(self, playlist_id: str):
         self._id = playlist_id
@@ -69,7 +72,7 @@ class DivaPlaylistCrawler:
             )
         base_name = match.group(1)
 
-        response = requests.get(cls._PLAYLIST_BASE_URL + base_name + ".json")
+        response = httpx.get(cls._PLAYLIST_BASE_URL + base_name + ".json")
 
         if response.status_code != 200:
             raise FatalException(
@@ -80,7 +83,8 @@ class DivaPlaylistCrawler:
         body = response.json()
 
         if body["error"]:
-            raise FatalException(f"DIVA: Server returned error {body['error']!r}.")
+            raise FatalException(
+                f"DIVA: Server returned error {body['error']!r}.")
 
         return body["result"]["collection"]["id"]
 
@@ -88,9 +92,11 @@ class DivaPlaylistCrawler:
         """
         Crawls the playlist given in the constructor.
         """
-        response = requests.get(self._COLLECTION_BASE_URL, params={"collection": self._id})
+        response = httpx.get(self._COLLECTION_BASE_URL,
+                             params={"collection": self._id})
         if response.status_code != 200:
-            raise FatalException(f"Server returned status {response.status_code}.")
+            raise FatalException(
+                f"Server returned status {response.status_code}.")
 
         body = response.json()
 
@@ -106,17 +112,19 @@ class DivaPlaylistCrawler:
 
         for video in result["resultList"]:
             title = video["title"]
-            collection_title = self._follow_path(["collection", "title"], video)
+            collection_title = self._follow_path(
+                ["collection", "title"], video)
             url = self._follow_path(
-                ["resourceList", "derivateList", "mp4", "url"],
-                video
+                ["resourceList", "derivateList", "mp4", "url"], video
             )
 
             if url and collection_title and title:
                 path = Path(collection_title, title + ".mp4")
                 download_infos.append(DivaDownloadInfo(path, url))
             else:
-                PRETTY.warning(f"Incomplete video found: {title!r} {collection_title!r} {url!r}")
+                PRETTY.warning(
+                    f"Incomplete video found: {title!r} {collection_title!r} {url!r}"
+                )
 
         return download_infos
 
@@ -139,11 +147,13 @@ class DivaDownloader:
     A downloader for DIVA videos.
     """
 
-    def __init__(self, tmp_dir: TmpDir, organizer: Organizer, strategy: DivaDownloadStrategy):
+    def __init__(
+        self, tmp_dir: TmpDir, organizer: Organizer, strategy: DivaDownloadStrategy
+    ):
         self._tmp_dir = tmp_dir
         self._organizer = organizer
         self._strategy = strategy
-        self._session = requests.session()
+        self._client = httpx.Client()
 
     def download_all(self, infos: List[DivaDownloadInfo]) -> None:
         """
@@ -160,10 +170,12 @@ class DivaDownloader:
             self._organizer.mark(info.path)
             return
 
-        with self._session.get(info.url, stream=True) as response:
+        with self._client.stream("GET", info.url) as response:
             if response.status_code == 200:
                 tmp_file = self._tmp_dir.new_path()
                 stream_to_path(response, tmp_file, info.path.name)
                 self._organizer.accept_file(tmp_file, info.path)
             else:
-                PRETTY.warning(f"Could not download file, got response {response.status_code}")
+                PRETTY.warning(
+                    f"Could not download file, got response {response.status_code}"
+                )

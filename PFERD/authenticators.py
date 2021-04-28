@@ -48,10 +48,10 @@ class UserPassAuthenticator:
     """
 
     def __init__(
-            self,
-            reason: str,
-            username: Optional[str] = None,
-            password: Optional[str] = None,
+        self,
+        reason: str,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
     ) -> None:
         """
         reason   - what the credentials are used for
