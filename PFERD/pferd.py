@@ -239,7 +239,6 @@ class Pferd(Location):
         )
         self._ilias_targets.append(target)
 
-
     def add_ilias_folder(
             self,
             ilias: IliasSycronizer,
@@ -269,8 +268,8 @@ class Pferd(Location):
             file_conflict_resolver {FileConflictResolver} -- A function specifying how to deal
                 with overwriting or deleting files. The default always asks the user.
         """
-        PRETTY.starting_synchronizer(target, "ILIAS", "An ILIAS element by url")
-
+        PRETTY.starting_synchronizer(
+            target, "ILIAS", "An ILIAS element by url")
 
         results = ilias.add_target(
             lambda crawler: crawler.recursive_crawl_url(full_url),

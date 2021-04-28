@@ -130,6 +130,11 @@ class IliasCrawler:
     ):
         """
         Create a new ILIAS crawler.
+        Warning: This will create syncronization primitives
+                 that are tied to the currently running event
+                 loop. This means you cant use asyncio.run but
+                 will need to use run_until_completion when using
+                 methodes.
         """
         self._base_url = base_url
         self._client = client
