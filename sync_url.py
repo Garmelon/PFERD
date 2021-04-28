@@ -27,9 +27,10 @@ _LOGGER = logging.getLogger("sync_url")
 _PRETTY = PrettyLogger(_LOGGER)
 
 
-def _extract_credentials(file_path: Optional[str]) -> UserPassAuthenticator:
+def _extract_credentials(file_path: Optional[str],
+                         username: Optional[str], password: Optional[str]) -> UserPassAuthenticator:
     if not file_path:
-        return UserPassAuthenticator("KIT ILIAS Shibboleth", None, None)
+        return UserPassAuthenticator("KIT ILIAS Shibboleth", username, password)
 
     if not Path(file_path).exists():
         _PRETTY.error("Credential file does not exist")
@@ -101,7 +102,7 @@ def main() -> None:
             "KIT ILIAS Shibboleth", username=args.username, password=args.password
         )
     else:
-        inner_auth = _extract_credentials(args.credential_file)
+        inner_auth = _extract_credentials(args.credential_file, args.username, args.password)
 
     username, password = inner_auth.get_credentials()
     authenticator = KitShibbolethAuthenticator(inner_auth)
@@ -137,13 +138,13 @@ def main() -> None:
         return True
 
     if args.local_first:
-        file_confilict_resolver: FileConflictResolver = _resolve_local_first
+        file_conflict_resolver: FileConflictResolver = _resolve_local_first
     elif args.no_delete:
-        file_confilict_resolver = _resolve_no_delete
+        file_conflict_resolver = _resolve_no_delete
     elif args.remote_first:
-        file_confilict_resolver = _resolve_remote_first
+        file_conflict_resolver = _resolve_remote_first
     else:
-        file_confilict_resolver = resolve_prompt_user
+        file_conflict_resolver = resolve_prompt_user
 
     pferd.enable_logging()
 
@@ -153,14 +154,14 @@ def main() -> None:
         dir_filter=dir_filter,
         cookies=args.cookies,
         username=username,
-        password=password,
+        password=password
     )
 
     pferd.add_ilias_folder(
         ilias=ilias,
         target=target,
         full_url=args.url,
-        file_conflict_resolver=file_confilict_resolver,
+        file_conflict_resolver=file_conflict_resolver,
         transform=sanitize_windows_path
     )
 
