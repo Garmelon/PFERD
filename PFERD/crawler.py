@@ -49,7 +49,7 @@ class Crawler(ABC):
 
         self._conductor.print(text)
 
-    def exclusive_output(self):
+    def exclusive_output(self) -> AsyncContextManager[None]:
         """
         Acquire exclusive rights™ to the terminal output. While this context
         manager is held, output such as printing and progress bars from other

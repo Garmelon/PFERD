@@ -1,6 +1,6 @@
-import functools
-import contextvars
 import asyncio
+import contextvars
+import functools
 import getpass
 from typing import Any, Callable, Optional, TypeVar
 
@@ -13,14 +13,14 @@ async def to_thread(func: Callable[..., T], *args: Any, **kwargs: Any) -> T:
     loop = asyncio.get_event_loop()
     ctx = contextvars.copy_context()
     func_call = functools.partial(ctx.run, func, *args, **kwargs)
-    return await loop.run_in_executor(None, func_call)
+    return await loop.run_in_executor(None, func_call)  # type: ignore
 
 
-async def ainput(prompt: Optional[str] = None) -> str:
+async def ainput(prompt: str) -> str:
     return await to_thread(lambda: input(prompt))
 
 
-async def agetpass(prompt: Optional[str] = None) -> str:
+async def agetpass(prompt: str) -> str:
     return await to_thread(lambda: getpass.getpass(prompt))
 
 
