@@ -4,6 +4,7 @@
 
 Other resources:
 
+- [Config file format](CONFIG.md)
 - [Changelog](CHANGELOG.md)
 - [Development Guide](DEV.md)
 
