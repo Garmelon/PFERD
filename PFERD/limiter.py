@@ -1,6 +1,7 @@
 import asyncio
-from contextlib import AbstractAsyncContextManager, asynccontextmanager
-from typing import AsyncIterator
+from contextlib import asynccontextmanager
+# TODO If we upgrade to python 3.9, this context manager hint is deprecated
+from typing import AsyncContextManager, AsyncIterator
 
 
 class Limiter:
@@ -15,5 +16,5 @@ class Limiter:
         finally:
             self._semaphore.release()
 
-    def limit(self) -> AbstractAsyncContextManager[None]:
+    def limit(self) -> AsyncContextManager[None]:
         return self._context_manager()

@@ -1,8 +1,9 @@
 import asyncio
-from contextlib import (AbstractAsyncContextManager, AbstractContextManager,
-                        asynccontextmanager, contextmanager)
+from contextlib import asynccontextmanager, contextmanager
 from pathlib import Path
-from typing import AsyncIterator, Iterator, List, Optional
+# TODO If we upgrade to python 3.9, these context manager hints are deprecated
+from typing import (AsyncContextManager, AsyncIterator, ContextManager,
+                    Iterator, List, Optional)
 
 import rich
 from rich.markup import escape
@@ -59,7 +60,7 @@ class TerminalConductor:
             finally:
                 self.start()
 
-    def exclusive_output(self) -> AbstractAsyncContextManager[None]:
+    def exclusive_output(self) -> AsyncContextManager[None]:
         return self._exclusive_output_cm()
 
     @contextmanager
@@ -79,5 +80,5 @@ class TerminalConductor:
             self,
             description: Path,
             steps: Optional[float],
-    ) -> AbstractContextManager[ProgressBar]:
+    ) -> ContextManager[ProgressBar]:
         return self._progress_bar_cm(escape(str(description)), steps=steps)
