@@ -1,7 +1,9 @@
 import argparse
+import asyncio
 from pathlib import Path
 
 from .config import Config, ConfigDumpException, ConfigLoadException
+from .pferd import Pferd
 
 
 def main() -> None:
@@ -37,4 +39,5 @@ def main() -> None:
             exit(1)
         exit()
 
-    print(config)
+    pferd = Pferd(config)
+    asyncio.run(pferd.run())
