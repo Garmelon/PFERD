@@ -4,6 +4,7 @@
 
 Other resources:
 
+- [Changelog](CHANGELOG.md)
 - [Development Guide](DEV.md)
 
 ## Installation with pip
