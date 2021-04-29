@@ -63,11 +63,8 @@ class Crawler(ABC):
         return self.progress_bar(desc, total=size)
 
     async def run(self) -> None:
-        await self._conductor.start()
-        try:
+        async with self._conductor:
             await self.crawl()
-        finally:
-            await self._conductor.stop()
 
     @abstractmethod
     async def crawl(self) -> None:
