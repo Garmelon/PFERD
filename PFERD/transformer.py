@@ -1,22 +1,22 @@
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import PurePath
 from typing import Dict, Optional, Union
 
 
 class Rule(ABC):
     @abstractmethod
-    def transform(self, path: Path) -> Optional[Path]:
+    def transform(self, path: PurePath) -> Optional[PurePath]:
         pass
 
 
 class NormalRule(Rule):
-    def __init__(self, left: Path, right: Path):
+    def __init__(self, left: PurePath, right: PurePath):
         self._left = left
         self._right = right
 
-    def _match_prefix(self, path: Path) -> Optional[Path]:
+    def _match_prefix(self, path: PurePath) -> Optional[PurePath]:
         left_parts = list(reversed(self._left.parts))
         path_parts = list(reversed(path.parts))
 
@@ -33,9 +33,9 @@ class NormalRule(Rule):
         if left_parts:
             return None
 
-        return Path(*path_parts)
+        return PurePath(*path_parts)
 
-    def transform(self, path: Path) -> Optional[Path]:
+    def transform(self, path: PurePath) -> Optional[PurePath]:
         if rest := self._match_prefix(path):
             return self._right / rest
 
@@ -43,11 +43,11 @@ class NormalRule(Rule):
 
 
 class ExactRule(Rule):
-    def __init__(self, left: Path, right: Path):
+    def __init__(self, left: PurePath, right: PurePath):
         self._left = left
         self._right = right
 
-    def transform(self, path: Path) -> Optional[Path]:
+    def transform(self, path: PurePath) -> Optional[PurePath]:
         if path == self._left:
             return self._right
 
@@ -59,7 +59,7 @@ class ReRule(Rule):
         self._left = left
         self._right = right
 
-    def transform(self, path: Path) -> Optional[Path]:
+    def transform(self, path: PurePath) -> Optional[PurePath]:
         if match := re.fullmatch(self._left, str(path)):
             kwargs: Dict[str, Union[int, float]] = {}
 
@@ -75,7 +75,7 @@ class ReRule(Rule):
                 except ValueError:
                     pass
 
-            return Path(self._right.format(*groups, **kwargs))
+            return PurePath(self._right.format(*groups, **kwargs))
 
         return None
 
@@ -208,9 +208,9 @@ def parse_rule(line: Line) -> Rule:
     right = parse_string(line)
 
     if arrowname == "":
-        return NormalRule(Path(left), Path(right))
+        return NormalRule(PurePath(left), PurePath(right))
     elif arrowname == "exact":
-        return ExactRule(Path(left), Path(right))
+        return ExactRule(PurePath(left), PurePath(right))
     elif arrowname == "re":
         return ReRule(left, right)
     else:
@@ -230,7 +230,7 @@ class Transformer:
             if line:
                 self._rules.append(parse_rule(Line(line, i)))
 
-    def transform(self, path: Path) -> Optional[Path]:
+    def transform(self, path: PurePath) -> Optional[PurePath]:
         for rule in self._rules:
             if result := rule.transform(path):
                 return result

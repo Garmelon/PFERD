@@ -1,6 +1,6 @@
 import asyncio
 import random
-from pathlib import Path
+from pathlib import PurePath
 from typing import Any
 
 from rich.markup import escape
@@ -37,9 +37,9 @@ DUMMY_TREE = {
 
 class DummyCrawler(Crawler):
     async def crawl(self) -> None:
-        await self._crawl_entry(Path(), DUMMY_TREE)
+        await self._crawl_entry(PurePath(), DUMMY_TREE)
 
-    async def _crawl_entry(self, path: Path, value: Any) -> None:
+    async def _crawl_entry(self, path: PurePath, value: Any) -> None:
         if value is True:
             async with self.exclusive_output():
                 await ainput(f"File {path}, please press enter: ")
