@@ -3,7 +3,6 @@ from contextlib import asynccontextmanager, contextmanager
 from types import TracebackType
 from typing import AsyncIterator, Iterator, List, Optional, Type
 
-import rich
 from rich.progress import Progress, TaskID
 
 
@@ -24,20 +23,26 @@ class TerminalConductor:
         self._lines: List[str] = []
 
     async def _start(self) -> None:
-        async with self._lock:
-            for line in self._lines:
-                rich.print(line)
-            self._lines = []
+        for task in self._progress.tasks:
+            task.visible = True
+        self._progress.start()
 
-            self._progress.start()
+        self._stopped = False
+
+        for line in self._lines:
+            self.print(line)
+        self._lines = []
 
     async def _stop(self) -> None:
-        async with self._lock:
-            self._progress.stop()
-            self._stopped = True
+        self._stopped = True
+
+        for task in self._progress.tasks:
+            task.visible = False
+        self._progress.stop()
 
     async def __aenter__(self) -> None:
-        await self._start()
+        async with self._lock:
+            await self._start()
 
     async def __aexit__(
             self,
@@ -45,23 +50,24 @@ class TerminalConductor:
             exc_value: Optional[BaseException],
             traceback: Optional[TracebackType],
     ) -> Optional[bool]:
-        await self._stop()
+        async with self._lock:
+            await self._stop()
         return None
 
     def print(self, line: str) -> None:
         if self._stopped:
             self._lines.append(line)
         else:
-            rich.print(line)
+            self._progress.console.print(line)
 
     @asynccontextmanager
     async def exclusive_output(self) -> AsyncIterator[None]:
         async with self._lock:
-            self._stop()
+            await self._stop()
             try:
                 yield
             finally:
-                self._start()
+                await self._start()
 
     @contextmanager
     def progress_bar(

@@ -38,6 +38,9 @@ class Crawler(ABC):
     def print(self, text: str) -> None:
         self._conductor.print(text)
 
+    def exclusive_output(self):
+        return self._conductor.exclusive_output()
+
     @asynccontextmanager
     async def progress_bar(
             self,

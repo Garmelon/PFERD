@@ -6,6 +6,7 @@ from typing import Any
 from rich.markup import escape
 
 from ..crawler import Crawler
+from ..utils import ainput
 
 DUMMY_TREE = {
     "Blätter": {
@@ -17,7 +18,7 @@ DUMMY_TREE = {
         "Lösungen": {
             "Blatt_01_Lösung.pdf": (),
             "Blatt_02_Lösung.pdf": (),
-            "Blatt_03_Lösung.pdf": (),
+            "Blatt_03_Lösung.pdf": True,
             "Blatt_04_Lösung.pdf": (),
             "Blatt_05_Lösung.pdf": (),
         },
@@ -39,7 +40,10 @@ class DummyCrawler(Crawler):
         await self._crawl_entry(Path(), DUMMY_TREE)
 
     async def _crawl_entry(self, path: Path, value: Any) -> None:
-        if value == ():
+        if value is True:
+            async with self.exclusive_output():
+                await ainput(f"File {path}, please press enter: ")
+        if value == () or value is True:
             n = random.randint(5, 20)
             async with self.download_bar(path, n) as bar:
                 await asyncio.sleep(random.random() / 2)
