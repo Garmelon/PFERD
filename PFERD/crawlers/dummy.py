@@ -14,11 +14,13 @@ DUMMY_TREE = {
         "Blatt_03.pdf": (),
         "Blatt_04.pdf": (),
         "Blatt_05.pdf": (),
-        "Blatt_01_Lösung.pdf": (),
-        "Blatt_02_Lösung.pdf": (),
-        "Blatt_03_Lösung.pdf": (),
-        "Blatt_04_Lösung.pdf": (),
-        "Blatt_05_Lösung.pdf": (),
+        "Lösungen": {
+            "Blatt_01_Lösung.pdf": (),
+            "Blatt_02_Lösung.pdf": (),
+            "Blatt_03_Lösung.pdf": (),
+            "Blatt_04_Lösung.pdf": (),
+            "Blatt_05_Lösung.pdf": (),
+        },
     },
     "Vorlesungsfolien": {
         "VL_01.pdf": (),
@@ -39,7 +41,7 @@ class DummyCrawler(Crawler):
     async def _crawl_entry(self, path: Path, value: Any) -> None:
         if value == ():
             n = random.randint(5, 20)
-            async with self.progress_bar(path, n) as bar:
+            async with self.download_bar(path, n) as bar:
                 await asyncio.sleep(random.random() / 2)
                 for i in range(n):
                     await asyncio.sleep(0.5)
@@ -47,7 +49,7 @@ class DummyCrawler(Crawler):
             self.print(f"[green]Downloaded {escape(str(path))}")
         else:
             t = random.random() * 2 + 1
-            async with self.progress_bar(path) as bar:
+            async with self.crawl_bar(path) as bar:
                 await asyncio.sleep(t)
             tasks = [self._crawl_entry(path / k, v) for k, v in value.items()]
             await asyncio.gather(*tasks)

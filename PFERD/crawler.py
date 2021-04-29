@@ -2,7 +2,8 @@ import configparser
 from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import AsyncIterator, Optional
+# TODO In Python 3.9 and above, AsyncContextManager is deprecated
+from typing import AsyncContextManager, AsyncIterator, Optional
 
 from rich.markup import escape
 
@@ -40,13 +41,26 @@ class Crawler(ABC):
     @asynccontextmanager
     async def progress_bar(
             self,
-            path: Path,
+            desc: str,
             total: Optional[int] = None,
     ) -> AsyncIterator[ProgressBar]:
-        desc = escape(str(path))
         async with self._limiter.limit():
             with self._conductor.progress_bar(desc, total=total) as bar:
                 yield bar
+
+    def crawl_bar(self, path: Path) -> AsyncContextManager[ProgressBar]:
+        path = escape(str(path))
+        desc = f"[bold magenta]Crawling[/bold magenta] {path}"
+        return self.progress_bar(desc)
+
+    def download_bar(
+            self,
+            path: Path,
+            size: int,
+    ) -> AsyncContextManager[ProgressBar]:
+        path = escape(str(path))
+        desc = f"[bold green]Downloading[/bold green] {path}"
+        return self.progress_bar(desc, total=size)
 
     async def run(self) -> None:
         await self._conductor.start()
