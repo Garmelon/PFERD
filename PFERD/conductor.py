@@ -1,12 +1,8 @@
 import asyncio
 from contextlib import asynccontextmanager, contextmanager
-from pathlib import Path
-# TODO If we upgrade to python 3.9, these context manager hints are deprecated
-from typing import (AsyncContextManager, AsyncIterator, ContextManager,
-                    Iterator, List, Optional)
+from typing import AsyncIterator, Iterator, List, Optional
 
 import rich
-from rich.markup import escape
 from rich.progress import Progress, TaskID
 
 
@@ -38,11 +34,11 @@ class TerminalConductor:
         self._stopped = True
 
     async def start(self) -> None:
-        with self._lock:
+        async with self._lock:
             self._start()
 
     async def stop(self) -> None:
-        with self._lock:
+        async with self._lock:
             self._stop()
 
     def print(self, line: str) -> None:
@@ -52,7 +48,7 @@ class TerminalConductor:
             rich.print(line)
 
     @asynccontextmanager
-    async def _exclusive_output_cm(self) -> AsyncIterator[None]:
+    async def exclusive_output(self) -> AsyncIterator[None]:
         async with self._lock:
             self.stop()
             try:
@@ -60,25 +56,20 @@ class TerminalConductor:
             finally:
                 self.start()
 
-    def exclusive_output(self) -> AsyncContextManager[None]:
-        return self._exclusive_output_cm()
-
     @contextmanager
-    def _progress_bar_cm(
+    def progress_bar(
             self,
             description: str,
-            steps: Optional[float],
+            total: Optional[float] = None,
     ) -> Iterator[ProgressBar]:
-        taskid = self._progress.add_task(description, steps=steps)
+        if total is None:
+            # Indeterminate progress bar
+            taskid = self._progress.add_task(description, start=False)
+        else:
+            taskid = self._progress.add_task(description, total=total)
+
         bar = ProgressBar(self._progress, taskid)
         try:
             yield bar
         finally:
             self._progress.remove_task(taskid)
-
-    def progress_bar(
-            self,
-            description: Path,
-            steps: Optional[float],
-    ) -> ContextManager[ProgressBar]:
-        return self._progress_bar_cm(escape(str(description)), steps=steps)
