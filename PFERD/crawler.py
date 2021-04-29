@@ -19,6 +19,11 @@ class CrawlerLoadException(Exception):
 class Crawler(ABC):
     def __init__(self, name: str, section: configparser.SectionProxy) -> None:
         """
+        Initialize a crawler from its name and its section in the config file.
+
+        If you are writing your own constructor for your own crawler, make sure
+        to call this constructor first (via super().__init__).
+
         May throw a CrawlerLoadException.
         """
 
@@ -36,9 +41,28 @@ class Crawler(ABC):
         # output_dir = Path(section.get("output_dir", name))
 
     def print(self, text: str) -> None:
+        """
+        Print rich markup to the terminal. Crawlers *must* use this function to
+        print things unless they are holding an exclusive output context
+        manager! Be careful to escape all user-supplied strings.
+        """
+
         self._conductor.print(text)
 
     def exclusive_output(self):
+        """
+        Acquire exclusive rights™ to the terminal output. While this context
+        manager is held, output such as printing and progress bars from other
+        threads is suspended and the current thread may do whatever it wants
+        with the terminal. However, it must return the terminal to its original
+        state before exiting the context manager.
+
+        No two threads can hold this context manager at the same time.
+
+        Useful for password or confirmation prompts as well as running other
+        programs while crawling (e. g. to get certain credentials).
+        """
+
         return self._conductor.exclusive_output()
 
     @asynccontextmanager
@@ -66,9 +90,21 @@ class Crawler(ABC):
         return self.progress_bar(desc, total=size)
 
     async def run(self) -> None:
+        """
+        Start the crawling process. Call this function if you want to use a
+        crawler.
+        """
+
         async with self._conductor:
             await self.crawl()
 
     @abstractmethod
     async def crawl(self) -> None:
+        """
+        Overwrite this function if you are writing a crawler.
+
+        This function must not return before all crawling is complete. To crawl
+        multiple things concurrently, asyncio.gather can be used.
+        """
+
         pass
