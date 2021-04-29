@@ -1,3 +1,9 @@
+# I'm sorry that this code has become a bit dense and unreadable. While
+# reading, it is important to remember what True and False mean. I'd love to
+# have some proper sum-types for the inputs and outputs, they'd make this code
+# a lot easier to understand.
+
+import ast
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -7,12 +13,23 @@ from typing import Dict, Optional, Union
 
 class Rule(ABC):
     @abstractmethod
-    def transform(self, path: PurePath) -> Optional[PurePath]:
+    def transform(self, path: PurePath) -> Union[PurePath, bool]:
+        """
+        Try to apply this rule to the path. Returns another path if the rule
+        was successfully applied, True if the rule matched but resulted in an
+        exclamation mark, and False if the rule didn't match at all.
+        """
+
         pass
 
 
+# These rules all use a Union[T, bool] for their right side. They are passed a
+# T if the arrow's right side was a normal string, True if it was an
+# exclamation mark and False if it was missing entirely.
+
 class NormalRule(Rule):
-    def __init__(self, left: PurePath, right: PurePath):
+    def __init__(self, left: PurePath, right: Union[PurePath, bool]):
+
         self._left = left
         self._right = right
 
@@ -35,49 +52,61 @@ class NormalRule(Rule):
 
         return PurePath(*path_parts)
 
-    def transform(self, path: PurePath) -> Optional[PurePath]:
+    def transform(self, path: PurePath) -> Union[PurePath, bool]:
         if rest := self._match_prefix(path):
-            return self._right / rest
+            if isinstance(self._right, bool):
+                return self._right or path
+            else:
+                return self._right / rest
 
-        return None
+        return False
 
 
 class ExactRule(Rule):
-    def __init__(self, left: PurePath, right: PurePath):
+    def __init__(self, left: PurePath, right: Union[PurePath, bool]):
         self._left = left
         self._right = right
 
-    def transform(self, path: PurePath) -> Optional[PurePath]:
+    def transform(self, path: PurePath) -> Union[PurePath, bool]:
         if path == self._left:
-            return self._right
+            if isinstance(self._right, bool):
+                return self._right or path
+            else:
+                return self._right
 
-        return None
+        return False
 
 
 class ReRule(Rule):
-    def __init__(self, left: str, right: str):
+    def __init__(self, left: str, right: Union[str, bool]):
         self._left = left
         self._right = right
 
-    def transform(self, path: PurePath) -> Optional[PurePath]:
+    def transform(self, path: PurePath) -> Union[PurePath, bool]:
         if match := re.fullmatch(self._left, str(path)):
-            kwargs: Dict[str, Union[int, float]] = {}
+            if isinstance(self._right, bool):
+                return self._right or path
+
+            vars: Dict[str, Union[str, int, float]] = {}
 
             groups = [match[0]] + list(match.groups())
             for i, group in enumerate(groups):
+                vars[f"g{i}"] = group
+
                 try:
-                    kwargs[f"i{i}"] = int(group)
+                    vars[f"i{i}"] = int(group)
                 except ValueError:
                     pass
 
                 try:
-                    kwargs[f"f{i}"] = float(group)
+                    vars[f"f{i}"] = float(group)
                 except ValueError:
                     pass
 
-            return PurePath(self._right.format(*groups, **kwargs))
+            result = eval(f"f{self._right!r}", vars)
+            return PurePath(result)
 
-        return None
+        return False
 
 
 @dataclass
@@ -136,7 +165,9 @@ QUOTATION_MARKS = {'"', "'"}
 
 def parse_string_literal(line: Line) -> str:
     escaped = False
-    result = []
+
+    # Points to first character of string literal
+    start_index = line.index
 
     quotation_mark = line.get()
     if quotation_mark not in QUOTATION_MARKS:
@@ -147,17 +178,17 @@ def parse_string_literal(line: Line) -> str:
 
     while c := line.get():
         if escaped:
-            result.append(c)
             escaped = False
             line.advance()
         elif c == quotation_mark:
             line.advance()
-            return "".join(result)
+            stop_index = line.index
+            literal = line.line[start_index:stop_index]
+            return ast.literal_eval(literal)
         elif c == "\\":
             escaped = True
             line.advance()
         else:
-            result.append(c)
             line.advance()
 
     raise RuleParseException(line, "Expected end of string literal")
@@ -174,11 +205,14 @@ def parse_until_space_or_eol(line: Line) -> str:
     return "".join(result)
 
 
-def parse_string(line: Line) -> str:
+def parse_string(line: Line) -> Union[str, bool]:
     if line.get() in QUOTATION_MARKS:
         return parse_string_literal(line)
     else:
-        return parse_until_space_or_eol(line)
+        string = parse_until_space_or_eol(line)
+        if string == "!":
+            return True
+        return string
 
 
 def parse_arrow(line: Line) -> str:
@@ -200,17 +234,35 @@ def parse_arrow(line: Line) -> str:
 
 
 def parse_rule(line: Line) -> Rule:
+    # Parse left side
+    leftindex = line.index
     left = parse_string(line)
+    if isinstance(left, bool):
+        line.index = leftindex
+        raise RuleParseException(line, "Left side can't be '!'")
+
+    # Parse arrow
     line.expect(" ")
     arrowindex = line.index
     arrowname = parse_arrow(line)
-    line.expect(" ")
-    right = parse_string(line)
 
+    # Parse right side
+    if line.get():
+        line.expect(" ")
+        right = parse_string(line)
+    else:
+        right = False
+    rightpath: Union[PurePath, bool]
+    if isinstance(right, bool):
+        rightpath = right
+    else:
+        rightpath = PurePath(right)
+
+    # Dispatch
     if arrowname == "":
-        return NormalRule(PurePath(left), PurePath(right))
+        return NormalRule(PurePath(left), rightpath)
     elif arrowname == "exact":
-        return ExactRule(PurePath(left), PurePath(right))
+        return ExactRule(PurePath(left), rightpath)
     elif arrowname == "re":
         return ReRule(left, right)
     else:
@@ -232,7 +284,12 @@ class Transformer:
 
     def transform(self, path: PurePath) -> Optional[PurePath]:
         for rule in self._rules:
-            if result := rule.transform(path):
+            result = rule.transform(path)
+            if isinstance(result, PurePath):
                 return result
+            elif result:  # Exclamation mark
+                return None
+            else:
+                continue
 
         return None

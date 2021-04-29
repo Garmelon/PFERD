@@ -107,6 +107,21 @@ The `-re->` arrow uses regular expressions. `SOURCE` is a regular expression
 that must match the entire path. If this is the case, then the capturing groups
 are available in `TARGET` for formatting.
 
+`TARGET` uses Python's [format string syntax][3]. The *n*-th capturing group can
+be referred to as `{g<n>}` (e. g. `{g3}`). `{g0}` refers to the original path.
+If capturing group *n*'s contents are a valid integer, the integer value is
+available as `{i<n>}` (e. g. `{i3}`). If capturing group *n*'s contents are a
+valid float, the float value is available as `{f<n>}` (e. g. `{f3}`).
+
+Python's format string syntax has rich options for formatting its arguments. For
+example, to left-pad the capturing group 3 with the digit `0` to width 5, you
+can use `{i3:05}`.
+
+PFERD even allows you to write entire expressions inside the curly braces, for
+example `{g2.lower()}` or `{g3.replace(' ', '_')}`.
+
+[3]: <https://docs.python.org/3/library/string.html#format-string-syntax> "Format String Syntax"
+
 ### Example: Tutorials
 
 You have ILIAS course with lots of tutorials, but are only interested in a
@@ -136,3 +151,24 @@ the `tutorials/` directory and thus not discover that `tutorials/tut02/`
 existed.
 
 Since the second rule is only relevant for crawling, the `TARGET` is left out.
+
+### Example: Lecture slides
+
+You have a course with slides like `Lecture 3: Linear functions.PDF` and you
+would like to rename them to `03_linear_functions.pdf`.
+
+```
+Lectures/
+  |- Lecture 1: Introduction.PDF
+  |- Lecture 2: Vectors and matrices.PDF
+  |- Lecture 3: Linear functions.PDF
+  ...
+```
+
+To do this, you can use the most powerful of arrows, the regex arrow.
+
+```
+"Lectures/Lecture (\\d+): (.*)\\.PDF" -re-> "Lectures/{i1:02}_{g2.lower().replace(' ', '_')}.pdf"
+```
+
+Note the escaped backslashes on the `SOURCE` side.
