@@ -9,8 +9,5 @@ class Limiter:
 
     @asynccontextmanager
     async def limit(self) -> AsyncIterator[None]:
-        await self._semaphore.acquire()
-        try:
+        async with self._semaphore:
             yield
-        finally:
-            self._semaphore.release()
