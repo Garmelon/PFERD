@@ -49,8 +49,8 @@ class Crawler(ABC):
                 yield bar
 
     def crawl_bar(self, path: Path) -> AsyncContextManager[ProgressBar]:
-        path = escape(str(path))
-        desc = f"[bold magenta]Crawling[/bold magenta] {path}"
+        pathstr = escape(str(path))
+        desc = f"[bold magenta]Crawling[/bold magenta] {pathstr}"
         return self.progress_bar(desc)
 
     def download_bar(
@@ -58,8 +58,8 @@ class Crawler(ABC):
             path: Path,
             size: int,
     ) -> AsyncContextManager[ProgressBar]:
-        path = escape(str(path))
-        desc = f"[bold green]Downloading[/bold green] {path}"
+        pathstr = escape(str(path))
+        desc = f"[bold green]Downloading[/bold green] {pathstr}"
         return self.progress_bar(desc, total=size)
 
     async def run(self) -> None:
