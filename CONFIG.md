@@ -41,6 +41,15 @@ crawlers:
 - `type`: The types are specified in [this section](#crawler-types).
 - `output_dir`: The directory the crawler synchronizes files to. A crawler will
   never place any files outside of this directory. (Default: crawler's name)
+- `redownload`: When to download again a file that is already present locally.
+  (Default: `never-smart`)
+    - `never`: If a file is present locally, it is not downloaded again.
+    - `never-smart`: Like `never`, but PFERD tries to detect if an already
+      downloaded files has changed via some (unreliable) heuristics.
+    - `always`: All files are always downloaded, regardless of whether they are
+      already present locally.
+    - `always-smart`: Like `always`, but PFERD tries to avoid unnecessary
+      downloads via some (unreliable) heuristics.
 - `transform`: Rules for renaming and excluding certain files and directories.
   For more details, see [this section](#transformation-rules). (Default: empty)
 
