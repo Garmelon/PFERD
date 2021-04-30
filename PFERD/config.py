@@ -1,7 +1,7 @@
 import configparser
 import os
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional, Tuple
 
 from .utils import prompt_yes_no
 
@@ -26,7 +26,6 @@ class Config:
 
     def __init__(self, parser: configparser.ConfigParser):
         self._parser = parser
-        # TODO Load and validate config into dataclasses
 
     @staticmethod
     def _fail_load(path: Path, reason: str) -> None:
@@ -99,3 +98,21 @@ class Config:
             self._fail_dump(path, "That's a directory, not a file")
         except PermissionError:
             self._fail_dump(path, "Insufficient permissions")
+
+    @property
+    def default_section(self) -> configparser.SectionProxy:
+        return self._parser[configparser.DEFAULTSECT]
+
+    def crawler_sections(self) -> List[Tuple[str, configparser.SectionProxy]]:
+        result = []
+        for section_name, section_proxy in self._parser.items():
+            if section_name.startswith("crawler:"):
+                crawler_name = section_name[8:]
+                result.append((crawler_name, section_proxy))
+
+        return result
+
+    @property
+    def working_dir(self) -> Path:
+        pathstr = self.default_section.get("working_dir", ".")
+        return Path(pathstr).expanduser()

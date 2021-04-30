@@ -8,6 +8,7 @@ from typing import AsyncContextManager, AsyncIterator, Optional
 from rich.markup import escape
 
 from .conductor import ProgressBar, TerminalConductor
+from .config import Config
 from .limiter import Limiter
 from .transformer import RuleParseException, Transformer
 
@@ -17,7 +18,12 @@ class CrawlerLoadException(Exception):
 
 
 class Crawler(ABC):
-    def __init__(self, name: str, section: configparser.SectionProxy) -> None:
+    def __init__(
+            self,
+            name: str,
+            config: Config,
+            section: configparser.SectionProxy,
+    ) -> None:
         """
         Initialize a crawler from its name and its section in the config file.
 
