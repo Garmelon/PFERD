@@ -50,6 +50,18 @@ crawlers:
       already present locally.
     - `always-smart`: Like `always`, but PFERD tries to avoid unnecessary
       downloads via some (unreliable) heuristics.
+- `on_conflict`: What to do when the local and remote versions of a file or
+  directory differ. Includes the cases where a file is replaced by a directory
+  or a directory by a file. (Default: `prompt`)
+    - `prompt`: Always ask the user before overwriting or deleting local files
+      and directories.
+    - `local-first`: Always keep the local file or directory. Equivalent to
+      using `prompt` and always choosing "no". Implies that `redownload` is set
+      to `never`.
+    - `remote-first`: Always keep the remote file or directory. Equivalent to
+      using `prompt` and always choosing "yes".
+    - `no-delete`: Never delete local files, but overwrite local files if the
+      remote file is different.
 - `transform`: Rules for renaming and excluding certain files and directories.
   For more details, see [this section](#transformation-rules). (Default: empty)
 
@@ -133,7 +145,7 @@ example `{g2.lower()}` or `{g3.replace(' ', '_')}`.
 
 ### Example: Tutorials
 
-You have ILIAS course with lots of tutorials, but are only interested in a
+You have an ILIAS course with lots of tutorials, but are only interested in a
 single one?
 
 ```
@@ -174,7 +186,7 @@ Lectures/
   ...
 ```
 
-To do this, you can use the most powerful of arrows, the regex arrow.
+To do this, you can use the most powerful of arrows: The regex arrow.
 
 ```
 "Lectures/Lecture (\\d+): (.*)\\.PDF" -re-> "Lectures/{i1:02}_{g2.lower().replace(' ', '_')}.pdf"
