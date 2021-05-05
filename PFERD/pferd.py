@@ -26,7 +26,7 @@ class Pferd:
             if crawler_constructor is None:
                 abort = True
                 t = escape(repr(crawler_type))
-                print(f"[red]Error: Unknown type {t}")
+                print(f"[red]Error: Unknown crawler type {t}")
                 continue
 
             crawler = crawler_constructor(name, self._config, section)

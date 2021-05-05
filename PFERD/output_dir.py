@@ -294,7 +294,7 @@ class OutputDirectory:
             info = DownloadInfo(path, local_path, tmp_path,
                                 heuristics, on_conflict)
             try:
-                file = open(tmp_path, "bx")
+                file = open(tmp_path, "xb")
                 return self._sink_context_manager(file, info)
             except FileExistsError:
                 pass  # Try again

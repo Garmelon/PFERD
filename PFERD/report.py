@@ -28,6 +28,15 @@ class MarkConflictException(Exception):
     collides_with: PurePath
 
 
+# TODO Use PurePath.is_relative_to when updating to 3.9
+def is_relative_to(a: PurePath, b: PurePath) -> bool:
+    try:
+        a.relative_to(b)
+        return True
+    except ValueError:
+        return False
+
+
 class Report:
     """
     A report of a synchronization. Includes all files found by the crawler, as
@@ -53,7 +62,7 @@ class Report:
             if path == known_path:
                 raise MarkDuplicateException(path)
 
-            if path.relative_to(known_path) or known_path.relative_to(path):
+            if is_relative_to(path, known_path) or is_relative_to(known_path, path):
                 raise MarkConflictException(path, known_path)
 
         self.known_files.add(path)

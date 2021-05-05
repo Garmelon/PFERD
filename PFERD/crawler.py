@@ -1,16 +1,17 @@
 from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
+from datetime import datetime
 from pathlib import Path, PurePath
 # TODO In Python 3.9 and above, AsyncContextManager is deprecated
-from typing import (Any, AsyncContextManager, AsyncIterator, Awaitable,
-                    Callable, Optional, Protocol, TypeVar)
+from typing import (Any, AsyncContextManager, AsyncIterator, Callable,
+                    Coroutine, Optional, Protocol, TypeVar)
 
 from rich.markup import escape
 
 from .conductor import ProgressBar, TerminalConductor
 from .config import Config, Section
 from .limiter import Limiter
-from .output_dir import OnConflict, OutputDirectory, Redownload
+from .output_dir import FileSink, OnConflict, OutputDirectory, Redownload
 from .transformer import RuleParseException, Transformer
 
 
@@ -37,7 +38,7 @@ def noncritical(f: Wrapped) -> Wrapped:
             f(self, *args, **kwargs)
         except Exception as e:
             self.print(f"[red]Something went wrong: {escape(str(e))}")
-            self._error_free = False
+            self.error_free = False
     return wrapper  # type: ignore
 
 
@@ -61,7 +62,7 @@ class ACrawlerMemberFunction(Protocol):
             __self: "Crawler",
             *__args: Any,
             **__kwargs: Any,
-    ) -> Awaitable[None]:
+    ) -> Coroutine[Any, Any, None]:
         pass
 
 
@@ -74,7 +75,7 @@ def anoncritical(f: AWrapped) -> AWrapped:
             await f(self, *args, **kwargs)
         except Exception as e:
             self.print(f"[red]Something went wrong: {escape(str(e))}")
-            self._error_free = False
+            self.error_free = False
     return wrapper  # type: ignore
 
 
@@ -94,7 +95,7 @@ def arepeat(attempts: int) -> Callable[[AWrapped], AWrapped]:
 
 class CrawlerSection(Section):
     def output_dir(self, name: str) -> Path:
-        return Path(self.s.get("output_dir", name))
+        return Path(self.s.get("output_dir", name)).expanduser()
 
     def redownload(self) -> Redownload:
         value = self.s.get("redownload", "never-smart")
@@ -158,7 +159,7 @@ class Crawler(ABC):
             self._conductor,
         )
 
-        self._error_free = False
+        self.error_free = False
 
     def print(self, text: str) -> None:
         """
@@ -203,11 +204,24 @@ class Crawler(ABC):
     def download_bar(
             self,
             path: PurePath,
-            size: int,
+            total: Optional[int] = None,
     ) -> AsyncContextManager[ProgressBar]:
         pathstr = escape(str(path))
         desc = f"[bold green]Downloading[/bold green] {pathstr}"
-        return self.progress_bar(desc, total=size)
+        return self.progress_bar(desc, total=total)
+
+    async def download(
+            self,
+            path: PurePath,
+            mtime: Optional[datetime] = None,
+            redownload: Optional[Redownload] = None,
+            on_conflict: Optional[OnConflict] = None,
+    ) -> Optional[AsyncContextManager[FileSink]]:
+        return await self._output_dir.download(
+            path, mtime, redownload, on_conflict)
+
+    async def cleanup(self) -> None:
+        await self._output_dir.cleanup()
 
     async def run(self) -> None:
         """
