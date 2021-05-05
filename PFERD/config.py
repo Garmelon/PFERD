@@ -1,7 +1,8 @@
-import configparser
 import os
+from configparser import ConfigParser, SectionProxy
+from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Any, List, NoReturn, Optional, Tuple
 
 from .utils import prompt_yes_no
 
@@ -14,6 +15,27 @@ class ConfigDumpException(Exception):
     pass
 
 
+@dataclass
+class ConfigFormatException(Exception):
+    section: str
+    key: str
+    desc: str
+
+
+class Section:
+    def __init__(self, section: SectionProxy):
+        self.s = section
+
+    def error(self, key: str, desc: str) -> NoReturn:
+        raise ConfigFormatException(self.s.name, key, desc)
+
+    def invalid_value(self, key: str, value: Any) -> NoReturn:
+        self.error(key, f"Invalid value: {value!r}")
+
+    def missing_value(self, key: str) -> NoReturn:
+        self.error(key, "Missing value")
+
+
 class Config:
     @staticmethod
     def _default_path() -> Path:
@@ -24,7 +46,7 @@ class Config:
         else:
             return Path("~/.pferd.cfg").expanduser()
 
-    def __init__(self, parser: configparser.ConfigParser):
+    def __init__(self, parser: ConfigParser):
         self._parser = parser
 
     @staticmethod
@@ -34,7 +56,7 @@ class Config:
         raise ConfigLoadException()
 
     @staticmethod
-    def load_parser(path: Optional[Path] = None) -> configparser.ConfigParser:
+    def load_parser(path: Optional[Path] = None) -> ConfigParser:
         """
         May throw a ConfigLoadException.
         """
@@ -42,7 +64,7 @@ class Config:
         if not path:
             path = Config._default_path()
 
-        parser = configparser.ConfigParser()
+        parser = ConfigParser()
 
         # Using config.read_file instead of config.read because config.read
         # would just ignore a missing file and carry on.
@@ -100,10 +122,10 @@ class Config:
             self._fail_dump(path, "Insufficient permissions")
 
     @property
-    def default_section(self) -> configparser.SectionProxy:
-        return self._parser[configparser.DEFAULTSECT]
+    def default_section(self) -> SectionProxy:
+        return self._parser[self._parser.default_section]
 
-    def crawler_sections(self) -> List[Tuple[str, configparser.SectionProxy]]:
+    def crawler_sections(self) -> List[Tuple[str, SectionProxy]]:
         result = []
         for section_name, section_proxy in self._parser.items():
             if section_name.startswith("crawler:"):

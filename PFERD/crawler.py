@@ -1,7 +1,6 @@
-import configparser
 from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
-from pathlib import PurePath
+from pathlib import Path, PurePath
 # TODO In Python 3.9 and above, AsyncContextManager is deprecated
 from typing import (Any, AsyncContextManager, AsyncIterator, Awaitable,
                     Callable, Optional, Protocol, TypeVar)
@@ -9,7 +8,7 @@ from typing import (Any, AsyncContextManager, AsyncIterator, Awaitable,
 from rich.markup import escape
 
 from .conductor import ProgressBar, TerminalConductor
-from .config import Config
+from .config import Config, Section
 from .limiter import Limiter
 from .output_dir import OnConflict, OutputDirectory, Redownload
 from .transformer import RuleParseException, Transformer
@@ -91,12 +90,46 @@ def arepeat(attempts: int) -> Callable[[AWrapped], AWrapped]:
             await f(self, *args, **kwargs)
         return wrapper  # type: ignore
     return decorator
+
+
+class CrawlerSection(Section):
+    def output_dir(self, name: str) -> Path:
+        return Path(self.s.get("output_dir", name))
+
+    def redownload(self) -> Redownload:
+        value = self.s.get("redownload", "never-smart")
+        if value == "never":
+            return Redownload.NEVER
+        elif value == "never-smart":
+            return Redownload.NEVER_SMART
+        elif value == "always":
+            return Redownload.ALWAYS
+        elif value == "always-smart":
+            return Redownload.ALWAYS_SMART
+        self.invalid_value("redownload", value)
+
+    def on_conflict(self) -> OnConflict:
+        value = self.s.get("on_conflict", "prompt")
+        if value == "prompt":
+            return OnConflict.PROMPT
+        elif value == "local-first":
+            return OnConflict.LOCAL_FIRST
+        elif value == "remote-first":
+            return OnConflict.REMOTE_FIRST
+        elif value == "no-delete":
+            return OnConflict.NO_DELETE
+        self.invalid_value("on_conflict", value)
+
+    def transform(self) -> str:
+        return self.s.get("transform", "")
+
+
 class Crawler(ABC):
     def __init__(
             self,
             name: str,
             config: Config,
-            section: configparser.SectionProxy,
+            section: CrawlerSection,
     ) -> None:
         """
         Initialize a crawler from its name and its section in the config file.
@@ -113,16 +146,17 @@ class Crawler(ABC):
         self._limiter = Limiter()
 
         try:
-            self._transformer = Transformer(section.get("transform", ""))
+            self._transformer = Transformer(section.transform())
         except RuleParseException as e:
             e.pretty_print()
             raise CrawlerLoadException()
 
-        output_dir = config.working_dir / section.get("output_dir", name)
-        redownload = Redownload.NEVER_SMART
-        on_conflict = OnConflict.PROMPT
         self._output_dir = OutputDirectory(
-            output_dir, redownload, on_conflict, self._conductor)
+            config.working_dir / section.output_dir(name),
+            section.redownload(),
+            section.on_conflict(),
+            self._conductor,
+        )
 
         self._error_free = False
 
