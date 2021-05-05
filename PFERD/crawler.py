@@ -10,6 +10,7 @@ from rich.markup import escape
 from .conductor import ProgressBar, TerminalConductor
 from .config import Config
 from .limiter import Limiter
+from .output_dir import OnConflict, OutputDirectory, Redownload
 from .transformer import RuleParseException, Transformer
 
 
@@ -44,8 +45,11 @@ class Crawler(ABC):
             e.pretty_print()
             raise CrawlerLoadException()
 
-        # working_dir = Path(section.get("working_dir", ""))
-        # output_dir = working_dir / section.get("output_dir", name)
+        output_dir = config.working_dir / section.get("output_dir", name)
+        redownload = Redownload.NEVER_SMART
+        on_conflict = OnConflict.PROMPT
+        self._output_dir = OutputDirectory(
+            output_dir, redownload, on_conflict, self._conductor)
 
     def print(self, text: str) -> None:
         """

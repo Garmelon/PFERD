@@ -34,14 +34,14 @@ class Report:
     well as the set of changes made to local files.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.known_files: Set[PurePath] = set()
 
         self.new_files: Set[PurePath] = set()
         self.changed_files: Set[PurePath] = set()
         self.deleted_files: Set[PurePath] = set()
 
-    def mark(self, path: PurePath):
+    def mark(self, path: PurePath) -> None:
         """
         Mark a previously unknown file as known.
 
@@ -58,21 +58,24 @@ class Report:
 
         self.known_files.add(path)
 
-    def add_file(self, path: PurePath):
+    def marked(self, path: PurePath) -> bool:
+        return path in self.known_files
+
+    def add_file(self, path: PurePath) -> None:
         """
         Unlike mark(), this function accepts any paths.
         """
 
         self.new_files.add(path)
 
-    def change_file(self, path: PurePath):
+    def change_file(self, path: PurePath) -> None:
         """
         Unlike mark(), this function accepts any paths.
         """
 
         self.changed_files.add(path)
 
-    def delete_file(self, path: PurePath):
+    def delete_file(self, path: PurePath) -> None:
         """
         Unlike mark(), this function accepts any paths.
         """
