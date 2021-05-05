@@ -3,7 +3,8 @@ from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
 from pathlib import PurePath
 # TODO In Python 3.9 and above, AsyncContextManager is deprecated
-from typing import AsyncContextManager, AsyncIterator, Optional
+from typing import (Any, AsyncContextManager, AsyncIterator, Awaitable,
+                    Callable, Optional, Protocol, TypeVar)
 
 from rich.markup import escape
 
@@ -18,6 +19,78 @@ class CrawlerLoadException(Exception):
     pass
 
 
+class CrawlerMemberFunction(Protocol):
+    def __call__(
+            self,
+            __self: "Crawler",
+            *__args: Any,
+            **__kwargs: Any,
+    ) -> None:
+        pass
+
+
+Wrapped = TypeVar("Wrapped", bound=CrawlerMemberFunction)
+
+
+def noncritical(f: Wrapped) -> Wrapped:
+    def wrapper(self: "Crawler", *args: Any, **kwargs: Any) -> None:
+        try:
+            f(self, *args, **kwargs)
+        except Exception as e:
+            self.print(f"[red]Something went wrong: {escape(str(e))}")
+            self._error_free = False
+    return wrapper  # type: ignore
+
+
+def repeat(attempts: int) -> Callable[[Wrapped], Wrapped]:
+    def decorator(f: Wrapped) -> Wrapped:
+        def wrapper(self: "Crawler", *args: Any, **kwargs: Any) -> None:
+            for _ in range(attempts - 1):
+                try:
+                    f(self, *args, **kwargs)
+                    return
+                except Exception:
+                    pass
+            f(self, *args, **kwargs)
+        return wrapper  # type: ignore
+    return decorator
+
+
+class ACrawlerMemberFunction(Protocol):
+    def __call__(
+            self,
+            __self: "Crawler",
+            *__args: Any,
+            **__kwargs: Any,
+    ) -> Awaitable[None]:
+        pass
+
+
+AWrapped = TypeVar("AWrapped", bound=ACrawlerMemberFunction)
+
+
+def anoncritical(f: AWrapped) -> AWrapped:
+    async def wrapper(self: "Crawler", *args: Any, **kwargs: Any) -> None:
+        try:
+            await f(self, *args, **kwargs)
+        except Exception as e:
+            self.print(f"[red]Something went wrong: {escape(str(e))}")
+            self._error_free = False
+    return wrapper  # type: ignore
+
+
+def arepeat(attempts: int) -> Callable[[AWrapped], AWrapped]:
+    def decorator(f: AWrapped) -> AWrapped:
+        async def wrapper(self: "Crawler", *args: Any, **kwargs: Any) -> None:
+            for _ in range(attempts - 1):
+                try:
+                    await f(self, *args, **kwargs)
+                    return
+                except Exception:
+                    pass
+            await f(self, *args, **kwargs)
+        return wrapper  # type: ignore
+    return decorator
 class Crawler(ABC):
     def __init__(
             self,
@@ -50,6 +123,8 @@ class Crawler(ABC):
         on_conflict = OnConflict.PROMPT
         self._output_dir = OutputDirectory(
             output_dir, redownload, on_conflict, self._conductor)
+
+        self._error_free = False
 
     def print(self, text: str) -> None:
         """
