@@ -65,6 +65,23 @@ crawlers:
 - `transform`: Rules for renaming and excluding certain files and directories.
   For more details, see [this section](#transformation-rules). (Default: empty)
 
+Some crawlers may also require credentials for authentication. To configure how
+the crawler obtains its credentials, the `auth` option is used. It is set to the
+full name of an auth section (including the `auth:` prefix).
+
+Here is a simple example:
+
+```
+[auth:example]
+type = simple
+username = foo
+password = bar
+
+[crawl:something]
+type = some-complex-crawler
+auth = auth:example
+```
+
 ## The `auth:*` sections
 
 Sections whose names start with `auth:` are used to configure authenticators. An
@@ -82,7 +99,12 @@ authenticators is `type`:
 
 ## Crawler types
 
-TODO Fill in as crawlers are implemented
+### The `local` crawler
+
+This crawler crawls a local directory. It is really simple and mostly useful for
+testing different setups.
+
+- `path`: Path to the local directory to crawl. (No default, must be specified)
 
 ## Authenticator types
 

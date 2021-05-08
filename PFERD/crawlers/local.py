@@ -22,7 +22,7 @@ class LocalCrawler(Crawler):
     ):
         super().__init__(name, config, section)
 
-        self._path = section.path()
+        self._path = config.working_dir / section.path()
 
     async def crawl(self) -> None:
         await self._crawl_path(self._path, PurePath())
