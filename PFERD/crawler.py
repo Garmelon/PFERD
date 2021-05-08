@@ -3,8 +3,8 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path, PurePath
 # TODO In Python 3.9 and above, AsyncContextManager is deprecated
-from typing import (Any, AsyncContextManager, AsyncIterator, Callable,
-                    Coroutine, Optional, Protocol, TypeVar)
+from typing import (Any, AsyncContextManager, AsyncIterator, Awaitable,
+                    Callable, Optional, Protocol, TypeVar)
 
 from rich.markup import escape
 
@@ -19,20 +19,17 @@ class CrawlerLoadException(Exception):
     pass
 
 
-class CrawlerMemberFunction(Protocol):
-    def __call__(
-            self,
-            __self: "Crawler",
-            *__args: Any,
-            **__kwargs: Any,
-    ) -> None:
-        pass
-
-
-Wrapped = TypeVar("Wrapped", bound=CrawlerMemberFunction)
+Wrapped = TypeVar("Wrapped", bound=Callable[..., None])
 
 
 def noncritical(f: Wrapped) -> Wrapped:
+    """
+    Warning: Must only be applied to member functions of the Crawler class!
+
+    Catches all exceptions occuring during the function call. If an exception
+    occurs, the crawler's error_free variable is set to False.
+    """
+
     def wrapper(self: "Crawler", *args: Any, **kwargs: Any) -> None:
         try:
             f(self, *args, **kwargs)
@@ -43,6 +40,14 @@ def noncritical(f: Wrapped) -> Wrapped:
 
 
 def repeat(attempts: int) -> Callable[[Wrapped], Wrapped]:
+    """
+    Warning: Must only be applied to member functions of the Crawler class!
+
+    If an exception occurs during the function call, retries the function call
+    a set amount of times. Exceptions that occur during the last attempt are
+    not caught and instead passed on upwards.
+    """
+
     def decorator(f: Wrapped) -> Wrapped:
         def wrapper(self: "Crawler", *args: Any, **kwargs: Any) -> None:
             for _ in range(attempts - 1):
@@ -56,20 +61,18 @@ def repeat(attempts: int) -> Callable[[Wrapped], Wrapped]:
     return decorator
 
 
-class ACrawlerMemberFunction(Protocol):
-    def __call__(
-            self,
-            __self: "Crawler",
-            *__args: Any,
-            **__kwargs: Any,
-    ) -> Coroutine[Any, Any, None]:
-        pass
-
-
-AWrapped = TypeVar("AWrapped", bound=ACrawlerMemberFunction)
+AWrapped = TypeVar("AWrapped", bound=Callable[..., Awaitable[None]])
 
 
 def anoncritical(f: AWrapped) -> AWrapped:
+    """
+    An async version of @noncritical.
+    Warning: Must only be applied to member functions of the Crawler class!
+
+    Catches all exceptions occuring during the function call. If an exception
+    occurs, the crawler's error_free variable is set to False.
+    """
+
     async def wrapper(self: "Crawler", *args: Any, **kwargs: Any) -> None:
         try:
             await f(self, *args, **kwargs)
@@ -80,6 +83,15 @@ def anoncritical(f: AWrapped) -> AWrapped:
 
 
 def arepeat(attempts: int) -> Callable[[AWrapped], AWrapped]:
+    """
+    An async version of @noncritical.
+    Warning: Must only be applied to member functions of the Crawler class!
+
+    If an exception occurs during the function call, retries the function call
+    a set amount of times. Exceptions that occur during the last attempt are
+    not caught and instead passed on upwards.
+    """
+
     def decorator(f: AWrapped) -> AWrapped:
         async def wrapper(self: "Crawler", *args: Any, **kwargs: Any) -> None:
             for _ in range(attempts - 1):
@@ -221,7 +233,7 @@ class Crawler(ABC):
             path, mtime, redownload, on_conflict)
 
     async def cleanup(self) -> None:
-        await self._output_dir.cleanup()
+        self._output_dir.cleanup()
 
     async def run(self) -> None:
         """
