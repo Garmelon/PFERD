@@ -138,6 +138,15 @@ class Config:
 
         return result
 
+    def authenticator_sections(self) -> List[Tuple[str, SectionProxy]]:
+        result = []
+        for section_name, section_proxy in self._parser.items():
+            if section_name.startswith("auth:"):
+                crawler_name = section_name[5:]
+                result.append((crawler_name, section_proxy))
+
+        return result
+
     @property
     def working_dir(self) -> Path:
         pathstr = self.default_section.get("working_dir", ".")
