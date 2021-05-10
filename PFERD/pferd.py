@@ -3,6 +3,7 @@ from typing import Dict
 from rich import print
 from rich.markup import escape
 
+from .conductor import TerminalConductor
 from .config import Config
 from .crawler import Crawler
 from .crawlers import CRAWLERS
@@ -15,6 +16,7 @@ class PferdLoadException(Exception):
 class Pferd:
     def __init__(self, config: Config):
         self._config = config
+        self._conductor = TerminalConductor()
         self._crawlers: Dict[str, Crawler] = {}
 
     def _load_crawlers(self) -> None:
@@ -29,7 +31,12 @@ class Pferd:
                 print(f"[red]Error: Unknown crawler type {t}")
                 continue
 
-            crawler = crawler_constructor(name, self._config, section)
+            crawler = crawler_constructor(
+                name,
+                section,
+                self._config,
+                self._conductor,
+            )
             self._crawlers[name] = crawler
 
         if abort:

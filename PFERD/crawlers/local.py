@@ -1,6 +1,7 @@
 import asyncio
 from pathlib import Path, PurePath
 
+from ..conductor import TerminalConductor
 from ..config import Config
 from ..crawler import Crawler, CrawlerSection, anoncritical
 
@@ -17,10 +18,11 @@ class LocalCrawler(Crawler):
     def __init__(
             self,
             name: str,
-            config: Config,
             section: LocalCrawlerSection,
+            config: Config,
+            conductor: TerminalConductor,
     ):
-        super().__init__(name, config, section)
+        super().__init__(name, section, config, conductor)
 
         self._path = config.working_dir / section.path()
 

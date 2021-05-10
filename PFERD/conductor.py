@@ -14,7 +14,7 @@ class ProgressBar:
     def advance(self, amount: float = 1) -> None:
         self._progress.advance(self._taskid, advance=amount)
 
-    def set_total(self, total) -> None:
+    def set_total(self, total: float) -> None:
         self._progress.update(self._taskid, total=total)
 
 

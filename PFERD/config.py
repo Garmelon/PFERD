@@ -23,6 +23,10 @@ class ConfigFormatException(Exception):
 
 
 class Section:
+    """
+    Base class for the crawler and auth section classes.
+    """
+
     def __init__(self, section: SectionProxy):
         self.s = section
 

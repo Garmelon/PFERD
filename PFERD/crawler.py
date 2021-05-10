@@ -4,7 +4,7 @@ from datetime import datetime
 from pathlib import Path, PurePath
 # TODO In Python 3.9 and above, AsyncContextManager is deprecated
 from typing import (Any, AsyncContextManager, AsyncIterator, Awaitable,
-                    Callable, Optional, Protocol, TypeVar)
+                    Callable, Optional, TypeVar)
 
 from rich.markup import escape
 
@@ -141,8 +141,9 @@ class Crawler(ABC):
     def __init__(
             self,
             name: str,
-            config: Config,
             section: CrawlerSection,
+            config: Config,
+            conductor: TerminalConductor,
     ) -> None:
         """
         Initialize a crawler from its name and its section in the config file.
@@ -154,9 +155,9 @@ class Crawler(ABC):
         """
 
         self.name = name
-
-        self._conductor = TerminalConductor()
+        self._conductor = conductor
         self._limiter = Limiter()
+        self.error_free = True
 
         try:
             self._transformer = Transformer(section.transform())
@@ -170,8 +171,6 @@ class Crawler(ABC):
             section.on_conflict(),
             self._conductor,
         )
-
-        self.error_free = False
 
     def print(self, text: str) -> None:
         """
