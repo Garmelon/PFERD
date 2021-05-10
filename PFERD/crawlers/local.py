@@ -29,7 +29,7 @@ class LocalCrawler(Crawler):
     async def crawl(self) -> None:
         await self._crawl_path(self._path, PurePath())
         if self.error_free:
-            self.cleanup()
+            await self.cleanup()
 
     @anoncritical
     async def _crawl_path(self, path: Path, pure: PurePath) -> None:
