@@ -228,7 +228,7 @@ class OutputDirectory:
 
     def _tmp_path(self, base: Path, suffix_length: int) -> Path:
         prefix = "" if base.name.startswith(".") else "."
-        suffix = random.choices(SUFFIX_CHARS, k=suffix_length)
+        suffix = "".join(random.choices(SUFFIX_CHARS, k=suffix_length))
         name = f"{prefix}{base.name}.tmp.{suffix}"
         return base.parent / name
 
