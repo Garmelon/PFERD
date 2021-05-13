@@ -4,10 +4,11 @@ from datetime import datetime
 from pathlib import Path, PurePath
 # TODO In Python 3.9 and above, AsyncContextManager is deprecated
 from typing import (Any, AsyncContextManager, AsyncIterator, Awaitable,
-                    Callable, Optional, TypeVar)
+                    Callable, Dict, Optional, TypeVar)
 
 from rich.markup import escape
 
+from .authenticator import Authenticator
 from .conductor import ProgressBar, TerminalConductor
 from .config import Config, Section
 from .limiter import Limiter
@@ -135,6 +136,15 @@ class CrawlerSection(Section):
 
     def transform(self) -> str:
         return self.s.get("transform", "")
+
+    def auth(self, authenticators: Dict[str, Authenticator]) -> Authenticator:
+        value = self.s.get("auth")
+        if value is None:
+            self.missing_value("auth")
+        auth = authenticators.get(f"auth:{value}")
+        if auth is None:
+            self.invalid_value("auth", value)
+        return auth
 
 
 class Crawler(ABC):

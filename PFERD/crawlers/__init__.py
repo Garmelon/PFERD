@@ -1,19 +1,21 @@
 from configparser import SectionProxy
 from typing import Callable, Dict
 
+from ..authenticator import Authenticator
 from ..conductor import TerminalConductor
 from ..config import Config
 from ..crawler import Crawler
 from .local import LocalCrawler, LocalCrawlerSection
 
 CrawlerConstructor = Callable[[
-    str,                # Name (without the "crawl:" prefix)
-    SectionProxy,       # Crawler's section of global config
-    Config,             # Global config
-    TerminalConductor,  # Global conductor instance
+    str,                       # Name (without the "crawl:" prefix)
+    SectionProxy,              # Crawler's section of global config
+    Config,                    # Global config
+    TerminalConductor,         # Global conductor instance
+    Dict[str, Authenticator],  # Loaded authenticators by name
 ], Crawler]
 
 CRAWLERS: Dict[str, CrawlerConstructor] = {
-    "local": lambda n, s, c, t:
+    "local": lambda n, s, c, t, a:
         LocalCrawler(n, LocalCrawlerSection(s), c, t),
 }

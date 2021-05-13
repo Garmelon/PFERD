@@ -62,6 +62,7 @@ class Pferd:
                 section,
                 self._config,
                 self._conductor,
+                self._authenticators,
             )
             self._crawlers[name] = crawler
 
