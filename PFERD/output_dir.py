@@ -86,6 +86,9 @@ class OutputDirectory:
 
         self._report = Report()
 
+    def register_reserved(self, path: PurePath):
+        self._report.mark_reserved(path)
+
     def _mark(self, path: PurePath) -> None:
         """
         May throw an OutputDirException
@@ -100,7 +103,7 @@ class OutputDirectory:
             msg = f"Collides with other file: {e.collides_with}"
             raise OutputDirException(msg)
 
-    def _resolve(self, path: PurePath) -> Path:
+    def resolve(self, path: PurePath) -> Path:
         """
         May throw an OutputDirException.
         """

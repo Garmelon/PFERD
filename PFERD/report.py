@@ -44,11 +44,15 @@ class Report:
     """
 
     def __init__(self) -> None:
+        self.reserved_files: Set[PurePath] = set()
         self.known_files: Set[PurePath] = set()
 
         self.new_files: Set[PurePath] = set()
         self.changed_files: Set[PurePath] = set()
         self.deleted_files: Set[PurePath] = set()
+
+    def mark_reserved(self, path: PurePath) -> None:
+        self.reserved_files.add(path)
 
     def mark(self, path: PurePath) -> None:
         """
@@ -58,12 +62,12 @@ class Report:
         detail, see the respective exception's docstring.
         """
 
-        for known_path in self.known_files:
-            if path == known_path:
+        for other in self.known_files & self.reserved_files:
+            if path == other:
                 raise MarkDuplicateException(path)
 
-            if is_relative_to(path, known_path) or is_relative_to(known_path, path):
-                raise MarkConflictException(path, known_path)
+            if is_relative_to(path, other) or is_relative_to(other, path):
+                raise MarkConflictException(path, other)
 
         self.known_files.add(path)
 

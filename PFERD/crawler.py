@@ -6,6 +6,7 @@ from pathlib import Path, PurePath
 from typing import (Any, AsyncContextManager, AsyncIterator, Awaitable,
                     Callable, Dict, Optional, TypeVar)
 
+import aiohttp
 from rich.markup import escape
 
 from .authenticator import Authenticator
@@ -263,3 +264,39 @@ class Crawler(ABC):
         """
 
         pass
+
+
+class HttpCrawler(Crawler):
+    COOKIE_FILE = PurePath(".cookies")
+
+    def __init__(
+            self,
+            name: str,
+            section: CrawlerSection,
+            config: Config,
+            conductor: TerminalConductor,
+    ) -> None:
+        super().__init__(name, section, config, conductor)
+
+        self._cookie_jar_path = self._output_dir.resolve(self.COOKIE_FILE)
+        self._output_dir.register_reserved(self.COOKIE_FILE)
+
+    async def run(self) -> None:
+        cookie_jar = aiohttp.CookieJar()
+
+        try:
+            cookie_jar.load(self._cookie_jar_path)
+        except Exception:
+            pass
+
+        async with aiohttp.ClientSession(cookie_jar=cookie_jar) as session:
+            self.session = session
+            try:
+                await super().run()
+            finally:
+                del self.session
+
+        try:
+            cookie_jar.save(self._cookie_jar_path)
+        except Exception:
+            self.print(f"[bold red]Warning:[/] Failed to save cookies to {escape(str(self.COOKIE_FILE))}")
