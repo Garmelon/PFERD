@@ -15,6 +15,7 @@ from .config import Config, Section
 from .limiter import Limiter
 from .output_dir import FileSink, OnConflict, OutputDirectory, Redownload
 from .transformer import RuleParseException, Transformer
+from .version import __version__
 
 
 class CrawlerLoadException(Exception):
@@ -289,7 +290,10 @@ class HttpCrawler(Crawler):
         except Exception:
             pass
 
-        async with aiohttp.ClientSession(cookie_jar=cookie_jar) as session:
+        async with aiohttp.ClientSession(
+                headers={"User-Agent": f"pferd/{__version__}"},
+                cookie_jar=cookie_jar,
+        ) as session:
             self.session = session
             try:
                 await super().run()
@@ -299,4 +303,7 @@ class HttpCrawler(Crawler):
         try:
             cookie_jar.save(self._cookie_jar_path)
         except Exception:
-            self.print(f"[bold red]Warning:[/] Failed to save cookies to {escape(str(self.COOKIE_FILE))}")
+            self.print(
+                "[bold red]Warning:[/] Failed to save cookies to "
+                + escape(str(self.COOKIE_FILE))
+            )
