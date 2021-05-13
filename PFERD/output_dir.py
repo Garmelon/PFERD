@@ -340,30 +340,30 @@ class OutputDirectory:
                 f"[bold bright_green]Added[/] {escape(str(info.path))}")
             self._report.add_file(info.path)
 
-    def cleanup(self) -> None:
-        self._cleanup_dir(self._root, PurePath())
+    async def cleanup(self) -> None:
+        await self._cleanup_dir(self._root, PurePath())
 
-    def _cleanup(self, path: Path, pure: PurePath) -> None:
+    async def _cleanup(self, path: Path, pure: PurePath) -> None:
         if path.is_dir():
-            self._cleanup_dir(path, pure)
+            await self._cleanup_dir(path, pure)
         elif path.is_file():
-            self._cleanup_file(path, pure)
+            await self._cleanup_file(path, pure)
 
-    def _cleanup_dir(self, path: Path, pure: PurePath) -> None:
+    async def _cleanup_dir(self, path: Path, pure: PurePath) -> None:
         for child in path.iterdir():
             pure_child = pure / child.name
-            self._cleanup(child, pure_child)
+            await self._cleanup(child, pure_child)
 
         try:
             path.rmdir()
         except OSError:
             pass
 
-    def _cleanup_file(self, path: Path, pure: PurePath) -> None:
+    async def _cleanup_file(self, path: Path, pure: PurePath) -> None:
         if self._report.marked(pure):
             return
 
-        if self._conflict_delete_lf(self._on_conflict, pure):
+        if await self._conflict_delete_lf(self._on_conflict, pure):
             try:
                 path.unlink()
                 self._conductor.print(

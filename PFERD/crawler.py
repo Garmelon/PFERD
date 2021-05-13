@@ -242,7 +242,7 @@ class Crawler(ABC):
             path, mtime, redownload, on_conflict)
 
     async def cleanup(self) -> None:
-        self._output_dir.cleanup()
+        await self._output_dir.cleanup()
 
     async def run(self) -> None:
         """
