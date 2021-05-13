@@ -303,6 +303,11 @@ class OutputDirectory:
 
         return None
 
+    def _update_metadata(self, info: DownloadInfo) -> None:
+        if mtime := info.heuristics.mtime:
+            mtimestamp = mtime.timestamp()
+            os.utime(info.local_path, times=(mtimestamp, mtimestamp))
+
     async def _after_download(self, info: DownloadInfo) -> None:
         changed = False
 
@@ -314,6 +319,7 @@ class OutputDirectory:
         if info.local_path.exists():
             changed = True
             if filecmp.cmp(info.local_path, info.tmp_path):
+                self._update_metadata(info)
                 info.tmp_path.unlink()
                 return
 
@@ -321,15 +327,8 @@ class OutputDirectory:
                 info.tmp_path.unlink()
                 return
 
-        # Modify metadata if necessary
-        if mtime := info.heuristics.mtime:
-            # TODO Pick an implementation
-            # Rounding up to avoid inaccuracies in how the OS stores timestamps
-            # mtimestamp = math.ceil(mtime.timestamp())
-            mtimestamp = mtime.timestamp()
-            os.utime(info.tmp_path, times=(mtimestamp, mtimestamp))
-
         info.tmp_path.replace(info.local_path)
+        self._update_metadata(info)
 
         if changed:
             self._conductor.print(
