@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager, contextmanager
 from types import TracebackType
 from typing import AsyncIterator, Iterator, List, Optional, Type
 
+from rich.console import Console
 from rich.progress import Progress, TaskID
 
 
@@ -22,8 +23,10 @@ class TerminalConductor:
     def __init__(self) -> None:
         self._stopped = False
         self._lock = asyncio.Lock()
-        self._progress = Progress()
         self._lines: List[str] = []
+
+        self._console = Console(highlight=False)
+        self._progress = Progress(console=self._console)
 
     async def _start(self) -> None:
         for task in self._progress.tasks:
@@ -61,7 +64,7 @@ class TerminalConductor:
         if self._stopped:
             self._lines.append(line)
         else:
-            self._progress.console.print(line)
+            self._console.print(line)
 
     @asynccontextmanager
     async def exclusive_output(self) -> AsyncIterator[None]:
