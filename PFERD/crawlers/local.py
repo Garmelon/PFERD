@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 from pathlib import Path, PurePath
 
 from ..conductor import TerminalConductor
@@ -48,11 +49,13 @@ class LocalCrawler(Crawler):
 
     async def _crawl_file(self, path: Path, pure: PurePath) -> None:
         async with self.download_bar(path) as bar:
-            bar.set_total(path.stat().st_size)
-
-            dl = await self.download(pure)
+            stat = path.stat()
+            mtime = datetime.datetime.fromtimestamp(stat.st_mtime)
+            dl = await self.download(pure, mtime=mtime)
             if not dl:
                 return
+
+            bar.set_total(stat.st_size)
 
             async with dl as sink:
                 with open(path, "rb") as f:
