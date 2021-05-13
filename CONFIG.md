@@ -104,11 +104,18 @@ authenticators is `type`:
 This crawler crawls a local directory. It is really simple and mostly useful for
 testing different setups.
 
-- `path`: Path to the local directory to crawl. (No default, must be specified)
+- `path`: Path to the local directory to crawl. (Required)
 
 ## Authenticator types
 
-TODO Fill in as authenticators are implemented
+### The `simple` authenticator
+
+With this authenticator, the username and password can be set directly in the
+config file. If the username or password are not specified, the user is prompted
+via the terminal.
+
+- `username`: The username (Optional)
+- `password`: The password (Optional)
 
 ## Transformation rules
 
