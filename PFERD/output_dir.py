@@ -11,6 +11,8 @@ from pathlib import Path, PurePath
 # TODO In Python 3.9 and above, AsyncContextManager is deprecated
 from typing import AsyncContextManager, AsyncIterator, BinaryIO, Optional
 
+from rich.markup import escape
+
 from .conductor import TerminalConductor
 from .report import MarkConflictException, MarkDuplicateException, Report
 from .utils import prompt_yes_no
@@ -330,8 +332,12 @@ class OutputDirectory:
         info.tmp_path.replace(info.local_path)
 
         if changed:
+            self._conductor.print(
+                f"[bold bright_yellow]Changed[/] {escape(str(info.path))}")
             self._report.change_file(info.path)
         else:
+            self._conductor.print(
+                f"[bold bright_green]Added[/] {escape(str(info.path))}")
             self._report.add_file(info.path)
 
     def cleanup(self) -> None:
@@ -360,6 +366,8 @@ class OutputDirectory:
         if self._conflict_delete_lf(self._on_conflict, pure):
             try:
                 path.unlink()
+                self._conductor.print(
+                    f"[bold bright_magenta]Deleted[/] {escape(str(path))}")
                 self._report.delete_file(pure)
             except OSError:
                 pass
