@@ -17,6 +17,7 @@ class ProgressBar:
 
     def set_total(self, total: float) -> None:
         self._progress.update(self._taskid, total=total)
+        self._progress.start_task(self._taskid)
 
 
 class TerminalConductor:

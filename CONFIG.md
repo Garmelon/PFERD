@@ -102,9 +102,15 @@ authenticators is `type`:
 ### The `local` crawler
 
 This crawler crawls a local directory. It is really simple and mostly useful for
-testing different setups.
+testing different setups. The various delay options are meant to make the
+crawler simulate a slower, network-based crawler.
 
 - `path`: Path to the local directory to crawl. (Required)
+- `crawl_delay`: Maximum artificial delay (in seconds) to simulate for crawl
+  requests. (Optional)
+- `download_delay`: Maximum artificial delay (in seconds) to simulate for
+  download requests. (Optional)
+- `download_speed`: Download speed (in bytes per second) to simulate. (Optional)
 
 ## Authenticator types
 
@@ -114,8 +120,8 @@ With this authenticator, the username and password can be set directly in the
 config file. If the username or password are not specified, the user is prompted
 via the terminal.
 
-- `username`: The username (Optional)
-- `password`: The password (Optional)
+- `username`: The username. (Optional)
+- `password`: The password. (Optional)
 
 ## Transformation rules
 
