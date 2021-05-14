@@ -139,6 +139,28 @@ class CrawlerSection(Section):
     def transform(self) -> str:
         return self.s.get("transform", "")
 
+    def max_concurrent_crawls(self) -> int:
+        value = self.s.getint("max_concurrent_crawls", fallback=1)
+        if value <= 0:
+            self.invalid_value("max_concurrent_crawls", value,
+                               "Must be greater than 0")
+        return value
+
+    def max_concurrent_downloads(self) -> int:
+        value = self.s.getint("max_concurrent_downloads", fallback=1)
+
+        if value <= 0:
+            self.invalid_value("max_concurrent_downloads", value,
+                               "Must be greater than 0")
+        return value
+
+    def request_delay(self) -> float:
+        value = self.s.getfloat("request_delay", fallback=0.0)
+        if value < 0:
+            self.invalid_value("request_delay", value,
+                               "Must be greater than or equal to 0")
+        return value
+
     def auth(self, authenticators: Dict[str, Authenticator]) -> Authenticator:
         value = self.s.get("auth")
         if value is None:
@@ -168,8 +190,13 @@ class Crawler(ABC):
 
         self.name = name
         self._conductor = conductor
-        self._limiter = Limiter()
         self.error_free = True
+
+        self._limiter = Limiter(
+            crawl_limit=section.max_concurrent_crawls(),
+            download_limit=section.max_concurrent_downloads(),
+            delay=section.request_delay(),
+        )
 
         try:
             self._transformer = Transformer(section.transform())
@@ -210,28 +237,26 @@ class Crawler(ABC):
         return self._conductor.exclusive_output()
 
     @asynccontextmanager
-    async def progress_bar(
-            self,
-            desc: str,
-            total: Optional[int] = None,
-    ) -> AsyncIterator[ProgressBar]:
-        async with self._limiter.limit():
-            with self._conductor.progress_bar(desc, total=total) as bar:
-                yield bar
-
-    def crawl_bar(self, path: PurePath) -> AsyncContextManager[ProgressBar]:
-        pathstr = escape(str(path))
-        desc = f"[bold magenta]Crawling[/bold magenta] {pathstr}"
-        return self.progress_bar(desc)
-
-    def download_bar(
+    async def crawl_bar(
             self,
             path: PurePath,
             total: Optional[int] = None,
-    ) -> AsyncContextManager[ProgressBar]:
-        pathstr = escape(str(path))
-        desc = f"[bold green]Downloading[/bold green] {pathstr}"
-        return self.progress_bar(desc, total=total)
+    ) -> AsyncIterator[ProgressBar]:
+        desc = f"[bold bright_cyan]Crawling[/] {escape(str(path))}"
+        async with self._limiter.limit_crawl():
+            with self._conductor.progress_bar(desc, total=total) as bar:
+                yield bar
+
+    @asynccontextmanager
+    async def download_bar(
+            self,
+            path: PurePath,
+            total: Optional[int] = None,
+    ) -> AsyncIterator[ProgressBar]:
+        desc = f"[bold bright_cyan]Downloading[/] {escape(str(path))}"
+        async with self._limiter.limit_download():
+            with self._conductor.progress_bar(desc, total=total) as bar:
+                yield bar
 
     async def download(
             self,

@@ -33,8 +33,16 @@ class Section:
     def error(self, key: str, desc: str) -> NoReturn:
         raise ConfigFormatException(self.s.name, key, desc)
 
-    def invalid_value(self, key: str, value: Any) -> NoReturn:
-        self.error(key, f"Invalid value: {value!r}")
+    def invalid_value(
+            self,
+            key: str,
+            value: Any,
+            reason: Optional[str],
+    ) -> NoReturn:
+        if reason is None:
+            self.error(key, f"Invalid value {value!r}")
+        else:
+            self.error(key, f"Invalid value {value!r}: {reason}")
 
     def missing_value(self, key: str) -> NoReturn:
         self.error(key, "Missing value")

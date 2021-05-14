@@ -64,6 +64,17 @@ crawlers:
       remote file is different.
 - `transform`: Rules for renaming and excluding certain files and directories.
   For more details, see [this section](#transformation-rules). (Default: empty)
+- `max_concurrent_crawls`: The maximum number of concurrent crawl actions. What
+  constitutes a crawl action might vary from crawler to crawler, but it usually
+  means an HTTP request of a page to analyze. (Default: 1)
+- `max_concurrent_downloads`: The maximum number of concurrent download actions.
+  What constitutes a download action might vary from crawler to crawler, but it
+  usually means an HTTP request for a single file. (Default: 1)
+- `request_delay`: Time (in seconds) that the crawler should wait between
+  subsequent requests. Can be used to avoid unnecessary strain for the crawl
+  target. Crawl and download actions are handled separately, meaning that a
+  download action might immediately follow a crawl action even if this is set to
+  a nonzero value. (Default: 0)
 
 Some crawlers may also require credentials for authentication. To configure how
 the crawler obtains its credentials, the `auth` option is used. It is set to the
