@@ -86,7 +86,7 @@ class OutputDirectory:
 
         self._report = Report()
 
-    def register_reserved(self, path: PurePath):
+    def register_reserved(self, path: PurePath) -> None:
         self._report.mark_reserved(path)
 
     def _mark(self, path: PurePath) -> None:
@@ -265,7 +265,7 @@ class OutputDirectory:
         heuristics = Heuristics(mtime)
         redownload = self._redownload if redownload is None else redownload
         on_conflict = self._on_conflict if on_conflict is None else on_conflict
-        local_path = self._resolve(path)
+        local_path = self.resolve(path)
 
         self._mark(path)
 
@@ -281,7 +281,7 @@ class OutputDirectory:
 
         # Detect and solve local-file-remote-dir conflict
         for parent in path.parents:
-            local_parent = self._resolve(parent)
+            local_parent = self.resolve(parent)
             if local_parent.exists() and not local_parent.is_dir():
                 if await self._conflict_lfrd(on_conflict, path, parent):
                     local_parent.unlink()
