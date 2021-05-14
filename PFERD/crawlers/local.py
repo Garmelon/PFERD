@@ -19,19 +19,22 @@ class LocalCrawlerSection(CrawlerSection):
     def crawl_delay(self) -> Optional[float]:
         value = self.s.getfloat("crawl_delay")
         if value <= 0:
-            self.invalid_value("crawl_delay", value)
+            self.invalid_value("crawl_delay", value,
+                               "Must be greater than 0")
         return value
 
     def download_delay(self) -> Optional[float]:
         value = self.s.getfloat("download_delay")
         if value <= 0:
-            self.invalid_value("download_delay", value)
+            self.invalid_value("download_delay", value,
+                               "Must be greater than 0")
         return value
 
     def download_speed(self) -> Optional[int]:
         value = self.s.getint("download_speed")
         if value <= 0:
-            self.invalid_value("download_speed", value)
+            self.invalid_value("download_speed", value,
+                               "Must be greater than 0")
         return value
 
 

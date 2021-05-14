@@ -122,7 +122,12 @@ class CrawlerSection(Section):
             return Redownload.ALWAYS
         elif value == "always-smart":
             return Redownload.ALWAYS_SMART
-        self.invalid_value("redownload", value)
+
+        self.invalid_value(
+            "redownload",
+            value,
+            "Must be 'never', 'never-smart', 'always' or 'always-smart'"
+        )
 
     def on_conflict(self) -> OnConflict:
         value = self.s.get("on_conflict", "prompt")
@@ -134,7 +139,12 @@ class CrawlerSection(Section):
             return OnConflict.REMOTE_FIRST
         elif value == "no-delete":
             return OnConflict.NO_DELETE
-        self.invalid_value("on_conflict", value)
+
+        self.invalid_value(
+            "on_conflict",
+            value,
+            "Must be 'prompt', 'local-first', 'remote-first' or 'no-delete'",
+        )
 
     def transform(self) -> str:
         return self.s.get("transform", "")
@@ -167,7 +177,7 @@ class CrawlerSection(Section):
             self.missing_value("auth")
         auth = authenticators.get(f"auth:{value}")
         if auth is None:
-            self.invalid_value("auth", value)
+            self.invalid_value("auth", value, "No such auth section exists")
         return auth
 
 
