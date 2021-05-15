@@ -62,7 +62,7 @@ class Report:
         detail, see the respective exception's docstring.
         """
 
-        for other in self.known_files & self.reserved_files:
+        for other in self.marked:
             if path == other:
                 raise MarkDuplicateException(path)
 
@@ -71,8 +71,12 @@ class Report:
 
         self.known_files.add(path)
 
-    def marked(self, path: PurePath) -> bool:
-        return path in self.known_files
+    @property
+    def marked(self) -> Set[PurePath]:
+        return self.known_files | self.reserved_files
+
+    def is_marked(self, path: PurePath) -> bool:
+        return path in self.marked
 
     def add_file(self, path: PurePath) -> None:
         """

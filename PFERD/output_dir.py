@@ -378,7 +378,7 @@ class OutputDirectory:
             pass
 
     async def _cleanup_file(self, path: Path, pure: PurePath) -> None:
-        if self._report.marked(pure):
+        if self._report.is_marked(pure):
             return
 
         if await self._conflict_delete_lf(self._on_conflict, pure):
