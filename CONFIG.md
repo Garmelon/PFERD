@@ -143,7 +143,8 @@ Each line has the format `SOURCE ARROW TARGET` where `TARGET` is optional.
 literal delimited by `"` or `'` (e. g. `"foo\" bar/baz"`). Python's string
 escape syntax is supported. Trailing slashes are ignored. `TARGET` can be
 formatted like `SOURCE`, but it can also be a single exclamation mark without
-quotes (`!`). `ARROW` is one of `-->`, `-exact->` and `-re->`.
+quotes (`!`). `ARROW` is one of `-->`, `-exact->`, `-name->`, `-re->` and
+`-name-re->`
 
 If a rule's target is `!`, this means that when the rule matches on a path, the
 corresponding file or directory is ignored. If a rule's target is missing, the
@@ -157,6 +158,14 @@ that part of the path is replaced with `TARGET`. This means that the rule
 into `baz/xyz`. The rule `foo --> !` would ignore a directory named `foo` as
 well as all its contents.
 
+### The `-name->` arrow
+
+The `-name->` arrow works similar to the `-->` arrow, but pretends it is in the
+same directory as the file or directory it is applied to. For example, the rule
+`bar -name-> baz` would convert `foo/bar` into `foo/baz` and `foo/bar/xyz` into
+`foo/baz/xyz`. The rule `foo --> !` would ignore all files and directories named
+`foo` as well as their contents.
+
 ### The `-exact->` arrow
 
 The `-exact->` arrow requires the path to match `SOURCE` exactly. This means
@@ -164,6 +173,14 @@ that the rule `foo/bar -exact-> baz` would still convert `foo/bar` into `baz`,
 but `foo/bar/xyz` would be unaffected. Also, `foo -exact-> !` would only ignore
 `foo`, but not its contents (if it has any). The examples below show why this is
 useful.
+
+### The `-name-exact->` arrow
+
+The `-name-exact->` arrow works similar to the `-exact->` arrow, but pretends it
+is in the same directory as the file or directory it is applied to. For example,
+the rule `bar -name-exact-> baz` would convert `foo/bar` into `foo/baz` but
+`foo/bar/xyz` would be unaffected. The rule `foo --> !` would ignore only ignore
+files and directories named `foo`, but not their contents.
 
 ### The `-re->` arrow
 
@@ -186,10 +203,15 @@ example `{g2.lower()}` or `{g3.replace(' ', '_')}`.
 
 [3]: <https://docs.python.org/3/library/string.html#format-string-syntax> "Format String Syntax"
 
+### The `-name-re->` arrow
+
+The `-name-re>` arrow works similar to the `-re->` arrow, but pretends it is in
+the same directory as the file or directory it is applied to.
+
 ### Example: Tutorials
 
 You have an ILIAS course with lots of tutorials, but are only interested in a
-single one?
+single one.
 
 ```
 tutorials/
@@ -236,3 +258,34 @@ To do this, you can use the most powerful of arrows: The regex arrow.
 ```
 
 Note the escaped backslashes on the `SOURCE` side.
+
+### Example: Crawl a python project
+
+You are crawling a python project and want to ignore all hidden files (files
+whose name starts with a `.`), all `__pycache__` directories and all markdown
+files (for some weird reason).
+
+```
+.gitignore
+.mypy_cache/
+.venv/
+CONFIG.md
+PFERD/
+  |- __init__.py
+  |- __main__.py
+  |- __pycache__/
+  |- authenticator.py
+  |- config.py
+  ...
+README.md
+...
+```
+
+For this task, the name arrows can be used. They are variants of the normal
+arrows that only look at the file name instead of the entire path.
+
+```
+\..* -name-re-> !
+__pycache__ -name-> !
+.*\.md -name-re-> !
+```

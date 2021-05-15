@@ -77,6 +77,19 @@ class ExactRule(Rule):
         return False
 
 
+class NameRule(Rule):
+    def __init__(self, subrule: Rule):
+        self._subrule = subrule
+
+    def transform(self, path: PurePath) -> Union[PurePath, bool]:
+        name = PurePath(*path.parts[-1:])
+        result = self._subrule.transform(name)
+        if isinstance(result, PurePath):
+            return path.parent / result
+        else:
+            return result
+
+
 class ReRule(Rule):
     def __init__(self, left: str, right: Union[str, bool]):
         self._left = left
@@ -220,16 +233,25 @@ def parse_arrow(line: Line) -> str:
 
     name = []
     while True:
-        if c := line.get():
-            if c == "-":
-                break
-            else:
-                name.append(c)
-            line.advance()
-        else:
+        c = line.get()
+        if not c:
             raise RuleParseException(line, "Expected rest of arrow")
+        elif c == "-":
+            line.advance()
+            c = line.get()
+            if not c:
+                raise RuleParseException(line, "Expected rest of arrow")
+            elif c == ">":
+                line.advance()
+                break  # End of arrow
+            else:
+                name.append("-")
+                name.append(c)
+        else:
+            name.append(c)
 
-    line.expect("->")
+        line.advance()
+
     return "".join(name)
 
 
@@ -261,10 +283,16 @@ def parse_rule(line: Line) -> Rule:
     # Dispatch
     if arrowname == "":
         return NormalRule(PurePath(left), rightpath)
+    elif arrowname == "name":
+        return NameRule(NormalRule(PurePath(left), rightpath))
     elif arrowname == "exact":
         return ExactRule(PurePath(left), rightpath)
+    elif arrowname == "name-exact":
+        return NameRule(ExactRule(PurePath(left), rightpath))
     elif arrowname == "re":
         return ReRule(left, right)
+    elif arrowname == "name-re":
+        return NameRule(ReRule(left, right))
     else:
         line.index = arrowindex + 1  # For nicer error message
         raise RuleParseException(line, "Invalid arrow name")
