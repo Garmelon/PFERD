@@ -285,7 +285,7 @@ For this task, the name arrows can be used. They are variants of the normal
 arrows that only look at the file name instead of the entire path.
 
 ```
-\..* -name-re-> !
-__pycache__ -name-> !
-.*\.md -name-re-> !
+\..*        -name-re-> !
+__pycache__ -name->    !
+.*\.md      -name-re-> !
 ```

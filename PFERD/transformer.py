@@ -255,6 +255,12 @@ def parse_arrow(line: Line) -> str:
     return "".join(name)
 
 
+def parse_whitespace(line: Line) -> None:
+    line.expect(" ")
+    while line.get() == " ":
+        line.advance()
+
+
 def parse_rule(line: Line) -> Rule:
     # Parse left side
     leftindex = line.index
@@ -264,13 +270,13 @@ def parse_rule(line: Line) -> Rule:
         raise RuleParseException(line, "Left side can't be '!'")
 
     # Parse arrow
-    line.expect(" ")
+    parse_whitespace(line)
     arrowindex = line.index
     arrowname = parse_arrow(line)
 
     # Parse right side
     if line.get():
-        line.expect(" ")
+        parse_whitespace(line)
         right = parse_string(line)
     else:
         right = False
