@@ -16,23 +16,23 @@ class LocalCrawlerSection(CrawlerSection):
             self.missing_value("path")
         return Path(value).expanduser()
 
-    def crawl_delay(self) -> Optional[float]:
-        value = self.s.getfloat("crawl_delay")
-        if value <= 0:
+    def crawl_delay(self) -> float:
+        value = self.s.getfloat("crawl_delay", fallback=0.0)
+        if value < 0:
             self.invalid_value("crawl_delay", value,
-                               "Must be greater than 0")
+                               "Must not be negative")
         return value
 
-    def download_delay(self) -> Optional[float]:
-        value = self.s.getfloat("download_delay")
-        if value <= 0:
+    def download_delay(self) -> float:
+        value = self.s.getfloat("download_delay", fallback=0.0)
+        if value < 0:
             self.invalid_value("download_delay", value,
-                               "Must be greater than 0")
+                               "Must not be negative")
         return value
 
     def download_speed(self) -> Optional[int]:
         value = self.s.getint("download_speed")
-        if value <= 0:
+        if value is not None and value <= 0:
             self.invalid_value("download_speed", value,
                                "Must be greater than 0")
         return value
@@ -74,11 +74,10 @@ class LocalCrawler(Crawler):
         tasks = []
 
         async with self.crawl_bar(pure):
-            if self._crawl_delay:
-                await asyncio.sleep(random.uniform(
-                    0.5 * self._crawl_delay,
-                    self._crawl_delay,
-                ))
+            await asyncio.sleep(random.uniform(
+                0.5 * self._crawl_delay,
+                self._crawl_delay,
+            ))
 
             for child in path.iterdir():
                 pure_child = pure / child.name
@@ -94,11 +93,10 @@ class LocalCrawler(Crawler):
             return
 
         async with self.download_bar(path) as bar:
-            if self._download_delay:
-                await asyncio.sleep(random.uniform(
-                    0.5 * self._download_delay,
-                    self._download_delay,
-                ))
+            await asyncio.sleep(random.uniform(
+                0.5 * self._download_delay,
+                self._download_delay,
+            ))
 
             bar.set_total(stat.st_size)
 

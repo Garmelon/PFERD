@@ -115,9 +115,9 @@ crawler simulate a slower, network-based crawler.
 
 - `path`: Path to the local directory to crawl. (Required)
 - `crawl_delay`: Maximum artificial delay (in seconds) to simulate for crawl
-  requests. (Optional)
+  requests. (Default: 0.0)
 - `download_delay`: Maximum artificial delay (in seconds) to simulate for
-  download requests. (Optional)
+  download requests. (Default: 0.0)
 - `download_speed`: Download speed (in bytes per second) to simulate. (Optional)
 
 ## Authenticator types
