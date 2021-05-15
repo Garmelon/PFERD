@@ -6,12 +6,14 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import PurePath
-from typing import Any, Dict, List, Optional, Set, Union
+# TODO In Python 3.9 and above, AsyncContextManager is deprecated
+from typing import Any, AsyncContextManager, Dict, List, Optional, Set, Union
 from urllib.parse import (parse_qs, urlencode, urljoin, urlparse, urlsplit,
                           urlunsplit)
 
 import aiohttp
 from bs4 import BeautifulSoup, Tag
+from PFERD.output_dir import Redownload
 from PFERD.utils import soupify
 
 from ..authenticators import Authenticator
@@ -19,6 +21,7 @@ from ..conductor import TerminalConductor
 from ..config import Config
 from ..crawler import (Crawler, CrawlerSection, HttpCrawler, anoncritical,
                        arepeat)
+from ..output_dir import FileSink
 
 TargetType = Union[str, int]
 
@@ -438,6 +441,9 @@ class IliasCrawler(HttpCrawler):
         else:
             await self._crawl_url(self._target)
 
+        if self.error_free:
+            await self.cleanup()
+
     async def _crawl_course(self, course_id: int) -> None:
         # Start crawling at the given course
         root_url = _url_set_query_param(
@@ -483,7 +489,7 @@ class IliasCrawler(HttpCrawler):
         element_path = PurePath(parent_path, element.name)
 
         if element.type == IliasElementType.FILE:
-            await self._download_element(element, element_path)
+            await self._download_file(element, element_path)
         elif element.type == IliasElementType.FORUM:
             # TODO: Delete
             self.print(f"Skipping forum [green]{element_path}[/]")
@@ -491,33 +497,50 @@ class IliasCrawler(HttpCrawler):
             # TODO: Write in meta-redirect file
             self.print(f"Skipping link [green]{element_path}[/]")
         elif element.type == IliasElementType.VIDEO:
-            await self._download_element(element, element_path)
+            await self._download_file(element, element_path)
         elif element.type == IliasElementType.VIDEO_PLAYER:
-            # FIXME: Check if we should look at this and if not bail out already!
-            # This saves us a request for each video, if we skip them anyways
-            raise RuntimeError("IMPLEMENT ME")
+            await self._download_video(element, element_path)
         elif element.type in _DIRECTORY_PAGES:
             await self._handle_ilias_page(element.url, element, element_path)
         else:
             # TODO: Proper exception
             raise RuntimeError(f"Unknown type: {element.type!r}")
 
-    async def _download_element(self, element: IliasPageElement, element_path: PurePath) -> None:
+    async def _download_video(self, element: IliasPageElement, element_path: PurePath) -> None:
+        # Videos will NOT be redownloaded - their content doesn't really change and they are chunky
+        dl = await self.download(element_path, mtime=element.mtime, redownload=Redownload.NEVER)
+        if not dl:
+            return
+
+        async with self.download_bar(element_path) as bar:
+            page = IliasPage(await self._get_page(element.url), element.url, element)
+            real_element = page.get_child_elements()[0]
+
+            async with dl as sink, self.session.get(element.url) as resp:
+                if resp.content_length:
+                    bar.set_total(resp.content_length)
+
+                async for data in resp.content.iter_chunked(1024):
+                    sink.file.write(data)
+                    bar.advance(len(data))
+
+                sink.done()
+
+    async def _download_file(self, element: IliasPageElement, element_path: PurePath) -> None:
         dl = await self.download(element_path, mtime=element.mtime)
         if not dl:
             return
 
-        async with self.download_bar(element_path) as bar, dl as sink,\
-                self.session.get(element.url) as resp:
+        async with self.download_bar(element_path) as bar:
+            async with dl as sink, self.session.get(element.url) as resp:
+                if resp.content_length:
+                    bar.set_total(resp.content_length)
 
-            if resp.content_length:
-                bar.set_total(resp.content_length)
+                async for data in resp.content.iter_chunked(1024):
+                    sink.file.write(data)
+                    bar.advance(len(data))
 
-            async for data in resp.content.iter_chunked(1024):
-                sink.file.write(data)
-                bar.advance(len(data))
-
-            sink.done()
+                sink.done()
 
     async def _get_page(self, url: str, retries_left: int = 3) -> BeautifulSoup:
         if retries_left < 0:
