@@ -131,6 +131,12 @@ via the terminal.
 - `username`: The username. (Optional)
 - `password`: The password. (Optional)
 
+### The `tfa` authenticator
+
+This authenticator prompts the user on the console for a two-factor
+authentication token. The token is provided as password and it is not cached.
+This authenticator does not support usernames.
+
 ## Transformation rules
 
 Transformation rules are rules for renaming and excluding files and directories.
