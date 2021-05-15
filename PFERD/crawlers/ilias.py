@@ -596,12 +596,15 @@ class IliasCrawler(HttpCrawler):
             # TODO: Proper exception
             raise RuntimeError("Get page failed too often")
         print(url)
-        async with self.session.get(url) as request:
-            soup = soupify(await request.read())
-            if self._is_logged_in(soup):
-                return soup
+        try:
+            async with self.session.get(url) as request:
+                soup = soupify(await request.read())
+                if self._is_logged_in(soup):
+                    return soup
 
-        await self._shibboleth_login.login(self.session)
+            await self._shibboleth_login.login(self.session)
+        except Exception:
+            return await self._get_page(url, retries_left - 1)
 
         return await self._get_page(url, retries_left - 1)
 
