@@ -1,3 +1,4 @@
+import asyncio
 import json
 import re
 from configparser import SectionProxy
@@ -5,8 +6,9 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import PurePath
-from typing import Any, Dict, List, Optional
-from urllib.parse import urljoin, urlparse
+from typing import Any, Dict, List, Optional, Set, Union
+from urllib.parse import (parse_qs, urlencode, urljoin, urlparse, urlsplit,
+                          urlunsplit)
 
 import aiohttp
 from bs4 import BeautifulSoup, Tag
@@ -18,23 +20,27 @@ from ..config import Config
 from ..crawler import (Crawler, CrawlerSection, HttpCrawler, anoncritical,
                        arepeat)
 
+TargetType = Union[str, int]
+
 
 class IliasCrawlerSection(CrawlerSection):
 
-    def __init__(self, section: SectionProxy):
-        super().__init__(section)
+    def target(self) -> TargetType:
+        target = self.s.get("target")
+        if not target:
+            self.missing_value("target")
 
-        if not self.course_id() and not self.element_url():
-            self.missing_value("course_id or element_url")
+        if re.fullmatch(r"\d+", target):
+            # Course id
+            return int(target)
+        if target == "desktop":
+            # Full personal desktop
+            return target
+        if target.startswith("https://ilias.studium.kit.edu"):
+            # ILIAS URL
+            return target
 
-    def course_id(self) -> Optional[str]:
-        return self.s.get("course_id")
-
-    def element_url(self) -> Optional[str]:
-        return self.s.get("element_url")
-
-    def base_url(self) -> str:
-        return self.s.get("ilias_url", "https://ilias.studium.kit.edu/")
+        self.invalid_value("target", target, "Should be <course id | desktop | kit ilias URL>")
 
     def tfa_auth(self, authenticators: Dict[str, Authenticator]) -> Optional[Authenticator]:
         value = self.s.get("tfa_auth")
@@ -66,7 +72,6 @@ class IliasPageElement:
     url: str
     name: str
     mtime: Optional[datetime] = None
-    query_parameter: Dict[str, str] = field(default_factory=dict)
 
 
 class IliasPage:
@@ -91,11 +96,17 @@ class IliasPage:
         return "paella_config_file" in str(self._soup)
 
     def _is_video_listing(self) -> bool:
+        # ILIAS fluff around it
         if self._soup.find(id="headerimage"):
             element: Tag = self._soup.find(id="headerimage")
             if "opencast" in element.attrs["src"].lower():
                 return True
-        return False
+
+        # Raw listing without ILIAS fluff
+        video_element_table: Tag = self._soup.find(
+            name="table", id=re.compile(r"tbl_xoct_.+")
+        )
+        return video_element_table is not None
 
     def _player_to_video(self) -> List[IliasPageElement]:
         # Fetch the actual video page. This is a small wrapper page initializing a javscript
@@ -137,9 +148,8 @@ class IliasPage:
             content_link: Tag = self._soup.select_one("#tab_series a")
             url: str = self._abs_url_from_link(content_link)
             query_params = {"limit": "800", "cmd": "asyncGetTableGUI", "cmdMode": "asynch"}
-            return [IliasPageElement(
-                IliasElementType.VIDEO_FOLDER_MAYBE_PAGINATED, url, "", query_parameter=query_params
-            )]
+            url = _url_set_query_params(url, query_params)
+            return [IliasPageElement(IliasElementType.VIDEO_FOLDER_MAYBE_PAGINATED, url, "")]
 
         is_paginated = self._soup.find(id=re.compile(r"tab_page_sel.+")) is not None
 
@@ -173,9 +183,8 @@ class IliasPage:
 
         query_params = {f"tbl_xoct_{table_id}_trows": "800",
                         "cmd": "asyncGetTableGUI", "cmdMode": "asynch"}
-        return [IliasPageElement(
-            IliasElementType.VIDEO_FOLDER, self._page_url, "", query_parameter=query_params
-        )]
+        url = _url_set_query_params(self._page_url, query_params)
+        return [IliasPageElement(IliasElementType.VIDEO_FOLDER, url, "")]
 
     def _find_video_entries_no_paging(self) -> List[IliasPageElement]:
         """
@@ -363,12 +372,43 @@ class IliasPage:
         """
         return urljoin(self._page_url, link_tag.get("href"))
 
+
 def demangle_date(date_str: str) -> Optional[datetime]:
     return None
 
 
 def _sanitize_path_name(name: str) -> str:
     return name.replace("/", "-").replace("\\", "-").strip()
+
+
+def _url_set_query_param(url: str, param: str, value: str) -> str:
+    """
+    Set a query parameter in an url, overwriting existing ones with the same name.
+    """
+    scheme, netloc, path, query, fragment = urlsplit(url)
+    query_parameters = parse_qs(query)
+    query_parameters[param] = [value]
+    new_query_string = urlencode(query_parameters, doseq=True)
+
+    return urlunsplit((scheme, netloc, path, new_query_string, fragment))
+
+
+def _url_set_query_params(url: str, params: Dict[str, str]) -> str:
+    result = url
+
+    for key, val in params.items():
+        result = _url_set_query_param(result, key, val)
+
+    return result
+
+
+_DIRECTORY_PAGES: Set[IliasElementType] = set([
+    IliasElementType.EXERCISE,
+    IliasElementType.FOLDER,
+    IliasElementType.MEETING,
+    IliasElementType.VIDEO_FOLDER,
+    IliasElementType.VIDEO_FOLDER_MAYBE_PAGINATED,
+])
 
 
 class IliasCrawler(HttpCrawler):
@@ -386,22 +426,104 @@ class IliasCrawler(HttpCrawler):
             section.auth(authenticators),
             section.tfa_auth(authenticators)
         )
-        self._base_url = section.base_url()
+        self._base_url = "https://ilias.studium.kit.edu"
 
-        self._course_id = section.course_id()
-        self._element_url = section.element_url()
+        self._target = section.target()
 
     async def crawl(self) -> None:
-        async with self.crawl_bar(PurePath("/")) as bar:
-            soup = await self._get_page(self._base_url)
-            page = IliasPage(soup, self._base_url, None)
-            for element in page.get_child_elements():
-                self.print(element.name + " " + str(element.type))
+        if isinstance(self._target, int):
+            await self._crawl_course(self._target)
+        elif self._target == "desktop":
+            await self._crawl_desktop()
+        else:
+            await self._crawl_url(self._target)
+
+    async def _crawl_course(self, course_id: int) -> None:
+        # Start crawling at the given course
+        root_url = _url_set_query_param(
+            self._base_url + "/goto.php", "target", f"crs_{course_id}"
+        )
+
+        await self._crawl_url(root_url, expected_id=course_id)
+
+    async def _crawl_desktop(self) -> None:
+        await self._crawl_url(self._base_url)
+
+    async def _crawl_url(self, url: str, expected_id: Optional[int] = None) -> None:
+        tasks = []
+
+        async with self.crawl_bar(PurePath("Root element")):
+            soup = await self._get_page(url)
+
+            if expected_id is not None:
+                perma_link_element: Tag = soup.find(id="current_perma_link")
+                if not perma_link_element or "crs_" not in perma_link_element.get("value"):
+                    # TODO: Properly handle error
+                    raise RuntimeError(
+                        "Invalid course id? I didn't find anything looking like a course!")
+
+            # Duplicated code, but the root page is special - we want to void fetching it twice!
+            page = IliasPage(soup, url, None)
+            for child in page.get_child_elements():
+                tasks.append(self._handle_ilias_element(PurePath("."), child))
+        await asyncio.gather(*tasks)
+
+    async def _handle_ilias_page(self, url: str, parent: IliasPageElement, path: PurePath) -> None:
+        tasks = []
+        async with self.crawl_bar(path):
+            soup = await self._get_page(url)
+            page = IliasPage(soup, url, parent)
+
+            for child in page.get_child_elements():
+                tasks.append(self._handle_ilias_element(path, child))
+
+        await asyncio.gather(*tasks)
+
+    async def _handle_ilias_element(self, parent_path: PurePath, element: IliasPageElement) -> None:
+        element_path = PurePath(parent_path, element.name)
+
+        if element.type == IliasElementType.FILE:
+            await self._download_element(element, element_path)
+        elif element.type == IliasElementType.FORUM:
+            # TODO: Delete
+            self.print(f"Skipping forum [green]{element_path}[/]")
+        elif element.type == IliasElementType.LINK:
+            # TODO: Write in meta-redirect file
+            self.print(f"Skipping link [green]{element_path}[/]")
+        elif element.type == IliasElementType.VIDEO:
+            await self._download_element(element, element_path)
+        elif element.type == IliasElementType.VIDEO_PLAYER:
+            # FIXME: Check if we should look at this and if not bail out already!
+            # This saves us a request for each video, if we skip them anyways
+            raise RuntimeError("IMPLEMENT ME")
+        elif element.type in _DIRECTORY_PAGES:
+            await self._handle_ilias_page(element.url, element, element_path)
+        else:
+            # TODO: Proper exception
+            raise RuntimeError(f"Unknown type: {element.type!r}")
+
+    async def _download_element(self, element: IliasPageElement, element_path: PurePath) -> None:
+        dl = await self.download(element_path, mtime=element.mtime)
+        if not dl:
+            return
+
+        async with self.download_bar(element_path) as bar, dl as sink,\
+                self.session.get(element.url) as resp:
+
+            if resp.content_length:
+                bar.set_total(resp.content_length)
+
+            async for data in resp.content.iter_chunked(1024):
+                sink.file.write(data)
+                bar.advance(len(data))
+
+            sink.done()
 
     async def _get_page(self, url: str, retries_left: int = 3) -> BeautifulSoup:
         if retries_left < 0:
             # TODO: Proper exception
             raise RuntimeError("Get page failed too often")
+        print(url)
         async with self.session.get(url) as request:
             soup = soupify(await request.read())
             if self._is_logged_in(soup):
