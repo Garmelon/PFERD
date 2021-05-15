@@ -93,6 +93,8 @@ class IliasPage:
             return self._player_to_video()
         if self._is_video_listing():
             return self._find_video_entries()
+        if self._is_exercise_file():
+            return self._find_exercise_entries()
         return self._find_normal_entries()
 
     def _is_video_player(self) -> bool:
@@ -110,6 +112,19 @@ class IliasPage:
             name="table", id=re.compile(r"tbl_xoct_.+")
         )
         return video_element_table is not None
+
+    def _is_exercise_file(self) -> bool:
+        # we know it from before
+        if self._page_type == IliasElementType.EXERCISE:
+            return True
+
+        # We have no suitable parent - let's guesss
+        if self._soup.find(id="headerimage"):
+            element: Tag = self._soup.find(id="headerimage")
+            if "exc" in element.attrs["src"].lower():
+                return True
+
+        return False
 
     def _player_to_video(self) -> List[IliasPageElement]:
         # Fetch the actual video page. This is a small wrapper page initializing a javscript
@@ -222,6 +237,40 @@ class IliasPage:
         video_url = self._abs_url_from_link(link)
 
         return IliasPageElement(IliasElementType.VIDEO_PLAYER, video_url, video_name, modification_time)
+
+    def _find_exercise_entries(self) -> List[IliasPageElement]:
+        results: List[IliasPageElement] = []
+
+        # Each assignment is in an accordion container
+        assignment_containers: List[Tag] = self._soup.select(".il_VAccordionInnerContainer")
+
+        for container in assignment_containers:
+            # Fetch the container name out of the header to use it in the path
+            container_name = container.select_one(".ilAssignmentHeader").getText().strip()
+            # Find all download links in the container (this will contain all the files)
+            files: List[Tag] = container.findAll(
+                name="a",
+                # download links contain the given command class
+                attrs={"href": lambda x: x and "cmdClass=ilexsubmissiongui" in x},
+                text="Download"
+            )
+
+            # Grab each file as you now have the link
+            for file_link in files:
+                # Two divs, side by side. Left is the name, right is the link ==> get left
+                # sibling
+                file_name = file_link.parent.findPrevious(name="div").getText().strip()
+                file_name = _sanitize_path_name(file_name)
+                url = self._abs_url_from_link(file_link)
+
+                results.append(IliasPageElement(
+                    IliasElementType.FILE,
+                    url,
+                    container_name + "/" + file_name,
+                    None  # We do not have any timestamp
+                ))
+
+        return results
 
     def _find_normal_entries(self) -> List[IliasPageElement]:
         result: List[IliasPageElement] = []
