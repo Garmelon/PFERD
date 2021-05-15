@@ -42,6 +42,14 @@ class Authenticator(ABC):
     async def credentials(self) -> Tuple[str, str]:
         pass
 
+    async def username(self) -> str:
+        username, _ = await self.credentials()
+        return username
+
+    async def password(self) -> str:
+        _, password = await self.credentials()
+        return password
+
     def invalidate_credentials(self) -> None:
         """
         Tell the authenticator that some or all of its credentials are invalid.

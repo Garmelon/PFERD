@@ -93,7 +93,7 @@ auth = auth:example
 ## The `auth:*` sections
 
 Sections whose names start with `auth:` are used to configure authenticators. An
-authenticator provides login credentials to one or more crawlers.
+authenticator provides a username and a password to one or more crawlers.
 
 Authenticators work similar to crawlers: A section represents an authenticator
 instance, whose name is the rest of the section name. The type is specified by

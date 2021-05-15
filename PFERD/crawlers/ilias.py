@@ -177,7 +177,7 @@ class KitShibbolethLogin:
         if not self._tfa_auth:
             raise RuntimeError("No 'tfa_auth' present but you use two-factor authentication!")
 
-        _, tfa_token = await self._tfa_auth.credentials()
+        tfa_token = await self._tfa_auth.password()
 
         # Searching the form here so that this fails before asking for
         # credentials rather than after asking.

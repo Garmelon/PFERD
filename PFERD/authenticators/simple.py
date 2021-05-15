@@ -24,44 +24,46 @@ class SimpleAuthenticator(Authenticator):
     ) -> None:
         super().__init__(name, section, config, conductor)
 
-        self.username = section.username()
-        self.password = section.password()
+        self._username = section.username()
+        self._password = section.password()
 
-        self.username_fixed = self.username is not None
-        self.password_fixed = self.password is not None
+        self._username_fixed = self.username is not None
+        self._password_fixed = self.password is not None
 
     async def credentials(self) -> Tuple[str, str]:
-        if self.username is not None and self.password is not None:
-            return self.username, self.password
+        if self._username is not None and self._password is not None:
+            return self._username, self._password
 
         async with self.conductor.exclusive_output():
-            if self.username is None:
-                self.username = await ainput("Username: ")
+            if self._username is None:
+                self._username = await ainput("Username: ")
             else:
                 print(f"Username: {self.username}")
 
-            if self.password is None:
-                self.password = await agetpass("Password: ")
+            if self._password is None:
+                self._password = await agetpass("Password: ")
 
-        return self.username, self.password
+            # Intentionally returned inside the context manager so we know
+            # they're both not None
+            return self._username, self._password
 
     def invalidate_credentials(self) -> None:
-        if self.username_fixed and self.password_fixed:
+        if self._username_fixed and self._password_fixed:
             raise AuthException("Configured credentials are invalid")
 
-        if not self.username_fixed:
-            self.username = None
-        if not self.password_fixed:
-            self.password = None
+        if not self._username_fixed:
+            self._username = None
+        if not self._password_fixed:
+            self._password = None
 
     def invalidate_username(self) -> None:
-        if self.username_fixed:
+        if self._username_fixed:
             raise AuthException("Configured username is invalid")
         else:
-            self.username = None
+            self._username = None
 
     def invalidate_password(self) -> None:
-        if self.password_fixed:
+        if self._password_fixed:
             raise AuthException("Configured password is invalid")
         else:
-            self.password = None
+            self._password = None
