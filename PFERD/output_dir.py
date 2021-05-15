@@ -32,12 +32,28 @@ class Redownload(Enum):
     ALWAYS = "always"
     ALWAYS_SMART = "always-smart"
 
+    @staticmethod
+    def from_string(string: str) -> "Redownload":
+        try:
+            return Redownload(string)
+        except ValueError:
+            raise ValueError("must be one of 'never', 'never-smart',"
+                             " 'always', 'always-smart'")
+
 
 class OnConflict(Enum):
     PROMPT = "prompt"
     LOCAL_FIRST = "local-first"
     REMOTE_FIRST = "remote-first"
     NO_DELETE = "no-delete"
+
+    @staticmethod
+    def from_string(string: str) -> "OnConflict":
+        try:
+            return OnConflict(string)
+        except ValueError:
+            raise ValueError("must be one of 'prompt', 'local-first',"
+                             " 'remote-first', 'no-delete'")
 
 
 @dataclass

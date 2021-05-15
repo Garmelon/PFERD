@@ -117,37 +117,25 @@ class CrawlerSection(Section):
 
     def redownload(self) -> Redownload:
         value = self.s.get("redownload", "never-smart")
-        if value == "never":
-            return Redownload.NEVER
-        elif value == "never-smart":
-            return Redownload.NEVER_SMART
-        elif value == "always":
-            return Redownload.ALWAYS
-        elif value == "always-smart":
-            return Redownload.ALWAYS_SMART
-
-        self.invalid_value(
-            "redownload",
-            value,
-            "Must be 'never', 'never-smart', 'always' or 'always-smart'"
-        )
+        try:
+            return Redownload.from_string(value)
+        except ValueError as e:
+            self.invalid_value(
+                "redownload",
+                value,
+                str(e).capitalize(),
+            )
 
     def on_conflict(self) -> OnConflict:
         value = self.s.get("on_conflict", "prompt")
-        if value == "prompt":
-            return OnConflict.PROMPT
-        elif value == "local-first":
-            return OnConflict.LOCAL_FIRST
-        elif value == "remote-first":
-            return OnConflict.REMOTE_FIRST
-        elif value == "no-delete":
-            return OnConflict.NO_DELETE
-
-        self.invalid_value(
-            "on_conflict",
-            value,
-            "Must be 'prompt', 'local-first', 'remote-first' or 'no-delete'",
-        )
+        try:
+            return OnConflict.from_string(value)
+        except ValueError as e:
+            self.invalid_value(
+                "on_conflict",
+                value,
+                str(e).capitalize(),
+            )
 
     def transform(self) -> str:
         return self.s.get("transform", "")

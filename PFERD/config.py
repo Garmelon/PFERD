@@ -1,4 +1,6 @@
+import asyncio
 import os
+import sys
 from configparser import ConfigParser, SectionProxy
 from dataclasses import dataclass
 from pathlib import Path
@@ -68,15 +70,13 @@ class Config:
         raise ConfigLoadException()
 
     @staticmethod
-    def load_parser(path: Optional[Path] = None) -> ConfigParser:
+    def load_parser(parser: ConfigParser, path: Optional[Path] = None) -> None:
         """
         May throw a ConfigLoadException.
         """
 
         if not path:
             path = Config._default_path()
-
-        parser = ConfigParser()
 
         # Using config.read_file instead of config.read because config.read
         # would just ignore a missing file and carry on.
@@ -89,8 +89,6 @@ class Config:
             Config._fail_load(path, "That's a directory, not a file")
         except PermissionError:
             Config._fail_load(path, "Insufficient permissions")
-
-        return parser
 
     @staticmethod
     def _fail_dump(path: Path, reason: str) -> None:
@@ -123,7 +121,7 @@ class Config:
                     self._parser.write(f)
             except FileExistsError:
                 print("That file already exists.")
-                if prompt_yes_no("Overwrite it?", default=False):
+                if asyncio.run(prompt_yes_no("Overwrite it?", default=False)):
                     with open(path, "w") as f:
                         self._parser.write(f)
                 else:
@@ -132,6 +130,9 @@ class Config:
             self._fail_dump(path, "That's a directory, not a file")
         except PermissionError:
             self._fail_dump(path, "Insufficient permissions")
+
+    def dump_to_stdout(self) -> None:
+        self._parser.write(sys.stdout)
 
     @property
     def default_section(self) -> SectionProxy:
