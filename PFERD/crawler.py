@@ -110,6 +110,9 @@ def arepeat(attempts: int) -> Callable[[AWrapped], AWrapped]:
 
 class CrawlerSection(Section):
     def output_dir(self, name: str) -> Path:
+        # TODO Use removeprefix() after switching to 3.9
+        if name.startswith("crawl:"):
+            name = name[len("crawl:"):]
         return Path(self.s.get("output_dir", name)).expanduser()
 
     def redownload(self) -> Redownload:

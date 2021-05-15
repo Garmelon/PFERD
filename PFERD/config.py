@@ -140,7 +140,7 @@ class Config:
     def crawler_sections(self) -> List[Tuple[str, SectionProxy]]:
         result = []
         for name, proxy in self._parser.items():
-            if name.startswith("crawler:"):
+            if name.startswith("crawl:"):
                 result.append((name, proxy))
 
         return result

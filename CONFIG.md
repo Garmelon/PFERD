@@ -40,7 +40,7 @@ crawlers:
 
 - `type`: The types are specified in [this section](#crawler-types).
 - `output_dir`: The directory the crawler synchronizes files to. A crawler will
-  never place any files outside of this directory. (Default: crawler's name)
+  never place any files outside of this directory. (Default: the crawler's name)
 - `redownload`: When to download again a file that is already present locally.
   (Default: `never-smart`)
     - `never`: If a file is present locally, it is not downloaded again.
