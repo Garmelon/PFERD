@@ -3,13 +3,14 @@ import os
 import random
 import shutil
 import string
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from pathlib import Path, PurePath
 # TODO In Python 3.9 and above, AsyncContextManager is deprecated
-from typing import AsyncContextManager, AsyncIterator, BinaryIO, Optional
+from typing import (AsyncContextManager, AsyncIterator, BinaryIO, Iterator,
+                    Optional)
 
 from rich.markup import escape
 
@@ -327,36 +328,42 @@ class OutputDirectory:
             mtimestamp = mtime.timestamp()
             os.utime(info.local_path, times=(mtimestamp, mtimestamp))
 
+    @contextmanager
+    def _ensure_deleted(self, path: Path) -> Iterator[None]:
+        try:
+            yield
+        finally:
+            path.unlink(missing_ok=True)
+
     async def _after_download(self, info: DownloadInfo) -> None:
-        changed = False
+        with self._ensure_deleted(info.tmp_path):
+            changed = False
 
-        if not info.success:
-            info.tmp_path.unlink()
-            return
-
-        # Solve conflicts arising from existing local file
-        if info.local_path.exists():
-            changed = True
-            if filecmp.cmp(info.local_path, info.tmp_path):
-                self._update_metadata(info)
-                info.tmp_path.unlink()
+            if not info.success:
                 return
 
-            if not await self._conflict_lfrf(info.on_conflict, info.path):
-                info.tmp_path.unlink()
-                return
+            # Solve conflicts arising from existing local file
+            if info.local_path.exists():
+                changed = True
 
-        info.tmp_path.replace(info.local_path)
-        self._update_metadata(info)
+                if filecmp.cmp(info.local_path, info.tmp_path):
+                    self._update_metadata(info)
+                    return
 
-        if changed:
-            self._conductor.print(
-                f"[bold bright_yellow]Changed[/] {escape(str(info.path))}")
-            self._report.change_file(info.path)
-        else:
-            self._conductor.print(
-                f"[bold bright_green]Added[/] {escape(str(info.path))}")
-            self._report.add_file(info.path)
+                if not await self._conflict_lfrf(info.on_conflict, info.path):
+                    return
+
+            info.tmp_path.replace(info.local_path)
+            self._update_metadata(info)
+
+            if changed:
+                self._conductor.print(
+                    f"[bold bright_yellow]Changed[/] {escape(str(info.path))}")
+                self._report.change_file(info.path)
+            else:
+                self._conductor.print(
+                    f"[bold bright_green]Added[/] {escape(str(info.path))}")
+                self._report.add_file(info.path)
 
     async def cleanup(self) -> None:
         await self._cleanup_dir(self._root, PurePath())
