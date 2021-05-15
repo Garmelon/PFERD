@@ -42,11 +42,35 @@ class Authenticator(ABC):
     async def credentials(self) -> Tuple[str, str]:
         pass
 
-    def invalid_credentials(self) -> None:
+    def invalidate_credentials(self) -> None:
+        """
+        Tell the authenticator that some or all of its credentials are invalid.
+
+        Authenticators should overwrite this function if they have a way to
+        deal with this issue that is likely to result in valid credentials
+        (e. g. prompting the user).
+        """
+
         raise AuthException("Invalid credentials")
 
-    def invalid_username(self) -> None:
+    def invalidate_username(self) -> None:
+        """
+        Tell the authenticator that specifically its username is invalid.
+
+        Authenticators should overwrite this function if they have a way to
+        deal with this issue that is likely to result in valid credentials
+        (e. g. prompting the user).
+        """
+
         raise AuthException("Invalid username")
 
-    def invalid_password(self) -> None:
+    def invalidate_password(self) -> None:
+        """
+        Tell the authenticator that specifically its password is invalid.
+
+        Authenticators should overwrite this function if they have a way to
+        deal with this issue that is likely to result in valid credentials
+        (e. g. prompting the user).
+        """
+
         raise AuthException("Invalid password")

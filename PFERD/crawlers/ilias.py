@@ -156,7 +156,7 @@ class KitShibbolethLogin:
                 soup = await self._authenticate_tfa(sess, soup)
 
             if not self._login_successful(soup):
-                self._auth.invalid_credentials()
+                self._auth.invalidate_credentials()
 
         # Equivalent: Being redirected via JS automatically
         # (or clicking "Continue" if you have JS disabled)
