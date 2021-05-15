@@ -139,19 +139,17 @@ class Config:
 
     def crawler_sections(self) -> List[Tuple[str, SectionProxy]]:
         result = []
-        for section_name, section_proxy in self._parser.items():
-            if section_name.startswith("crawler:"):
-                crawler_name = section_name[8:]
-                result.append((crawler_name, section_proxy))
+        for name, proxy in self._parser.items():
+            if name.startswith("crawler:"):
+                result.append((name, proxy))
 
         return result
 
     def authenticator_sections(self) -> List[Tuple[str, SectionProxy]]:
         result = []
-        for section_name, section_proxy in self._parser.items():
-            if section_name.startswith("auth:"):
-                crawler_name = section_name[5:]
-                result.append((crawler_name, section_proxy))
+        for name, proxy in self._parser.items():
+            if name.startswith("auth:"):
+                result.append((name, proxy))
 
         return result
 

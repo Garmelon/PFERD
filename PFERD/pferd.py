@@ -25,7 +25,7 @@ class Pferd:
     def _load_authenticators(self) -> None:
         abort = False
         for name, section in self._config.authenticator_sections():
-            print(f"[bold bright_cyan]Loading[/] auth:{escape(name)}")
+            print(f"[bold bright_cyan]Loading[/] {escape(name)}")
             authenticator_type = section.get("type")
             authenticator_constructor = AUTHENTICATORS.get(authenticator_type)
             if authenticator_constructor is None:
@@ -48,7 +48,7 @@ class Pferd:
     def _load_crawlers(self) -> None:
         abort = False
         for name, section in self._config.crawler_sections():
-            print(f"[bold bright_cyan]Loading[/] crawler:{escape(name)}")
+            print(f"[bold bright_cyan]Loading[/] {escape(name)}")
             crawler_type = section.get("type")
             crawler_constructor = CRAWLERS.get(crawler_type)
             if crawler_constructor is None:
@@ -79,6 +79,6 @@ class Pferd:
 
         for name, crawler in self._crawlers.items():
             print()
-            print(f"[bold bright_cyan]Running[/] crawler:{escape(name)}")
+            print(f"[bold bright_cyan]Running[/] {escape(name)}")
 
             await crawler.run()

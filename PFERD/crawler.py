@@ -180,7 +180,7 @@ class CrawlerSection(Section):
         value = self.s.get("auth")
         if value is None:
             self.missing_value("auth")
-        auth = authenticators.get(f"auth:{value}")
+        auth = authenticators.get(value)
         if auth is None:
             self.invalid_value("auth", value, "No such auth section exists")
         return auth
