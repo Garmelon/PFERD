@@ -81,7 +81,8 @@ class LocalCrawler(Crawler):
 
             for child in path.iterdir():
                 pure_child = pure / child.name
-                tasks.append(self._crawl_path(child, pure_child))
+                if self.should_crawl(child):
+                    tasks.append(self._crawl_path(child, pure_child))
 
         await asyncio.gather(*tasks)
 

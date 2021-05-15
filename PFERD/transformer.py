@@ -292,4 +292,4 @@ class Transformer:
             else:
                 continue
 
-        return None
+        return path

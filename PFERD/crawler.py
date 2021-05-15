@@ -273,6 +273,9 @@ class Crawler(ABC):
             with self._conductor.progress_bar(desc, total=total) as bar:
                 yield bar
 
+    def should_crawl(self, path: PurePath) -> bool:
+        return self._transformer.transform(path) is not None
+
     async def download(
             self,
             path: PurePath,
@@ -280,8 +283,12 @@ class Crawler(ABC):
             redownload: Optional[Redownload] = None,
             on_conflict: Optional[OnConflict] = None,
     ) -> Optional[AsyncContextManager[FileSink]]:
+        transformed_path = self._transformer.transform(path)
+        if transformed_path is None:
+            return None
+
         return await self._output_dir.download(
-            path, mtime, redownload, on_conflict)
+            transformed_path, mtime, redownload, on_conflict)
 
     async def cleanup(self) -> None:
         await self._output_dir.cleanup()
