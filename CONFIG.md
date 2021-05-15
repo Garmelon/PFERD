@@ -113,7 +113,7 @@ This crawler crawls a local directory. It is really simple and mostly useful for
 testing different setups. The various delay options are meant to make the
 crawler simulate a slower, network-based crawler.
 
-- `path`: Path to the local directory to crawl. (Required)
+- `target`: Path to the local directory to crawl. (Required)
 - `crawl_delay`: Maximum artificial delay (in seconds) to simulate for crawl
   requests. (Default: 0.0)
 - `download_delay`: Maximum artificial delay (in seconds) to simulate for

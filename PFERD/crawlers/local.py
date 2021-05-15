@@ -10,10 +10,10 @@ from ..crawler import Crawler, CrawlerSection, anoncritical
 
 
 class LocalCrawlerSection(CrawlerSection):
-    def path(self) -> Path:
-        value = self.s.get("path")
+    def target(self) -> Path:
+        value = self.s.get("target")
         if value is None:
-            self.missing_value("path")
+            self.missing_value("target")
         return Path(value).expanduser()
 
     def crawl_delay(self) -> float:
@@ -48,7 +48,7 @@ class LocalCrawler(Crawler):
     ):
         super().__init__(name, section, config, conductor)
 
-        self._path = config.working_dir / section.path()
+        self._target = config.working_dir / section.target()
         self._crawl_delay = section.crawl_delay()
         self._download_delay = section.download_delay()
         self._download_speed = section.download_speed()
@@ -59,7 +59,7 @@ class LocalCrawler(Crawler):
             self._block_size = 1024**2  # 1 MiB
 
     async def crawl(self) -> None:
-        await self._crawl_path(self._path, PurePath())
+        await self._crawl_path(self._target, PurePath())
         if self.error_free:
             await self.cleanup()
 
