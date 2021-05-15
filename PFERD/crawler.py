@@ -149,26 +149,31 @@ class CrawlerSection(Section):
     def transform(self) -> str:
         return self.s.get("transform", "")
 
-    def max_concurrent_crawls(self) -> int:
-        value = self.s.getint("max_concurrent_crawls", fallback=1)
+    def max_concurrent_tasks(self) -> int:
+        value = self.s.getint("max_concurrent_tasks", fallback=1)
         if value <= 0:
-            self.invalid_value("max_concurrent_crawls", value,
+            self.invalid_value("max_concurrent_tasks", value,
                                "Must be greater than 0")
         return value
 
     def max_concurrent_downloads(self) -> int:
-        value = self.s.getint("max_concurrent_downloads", fallback=1)
-
+        tasks = self.max_concurrent_tasks()
+        value = self.s.getint("max_concurrent_downloads", fallback=None)
+        if value is None:
+            return tasks
         if value <= 0:
             self.invalid_value("max_concurrent_downloads", value,
                                "Must be greater than 0")
+        if value > tasks:
+            self.invalid_value("max_concurrent_downloads", value,
+                               "Must not be greater than max_concurrent_tasks")
         return value
 
-    def request_delay(self) -> float:
-        value = self.s.getfloat("request_delay", fallback=0.0)
+    def delay_between_tasks(self) -> float:
+        value = self.s.getfloat("delay_between_tasks", fallback=0.0)
         if value < 0:
-            self.invalid_value("request_delay", value,
-                               "Must be greater than or equal to 0")
+            self.invalid_value("delay_between_tasks", value,
+                               "Must not be negative")
         return value
 
     def auth(self, authenticators: Dict[str, Authenticator]) -> Authenticator:
@@ -203,9 +208,9 @@ class Crawler(ABC):
         self.error_free = True
 
         self._limiter = Limiter(
-            crawl_limit=section.max_concurrent_crawls(),
+            task_limit=section.max_concurrent_tasks(),
             download_limit=section.max_concurrent_downloads(),
-            delay=section.request_delay(),
+            task_delay=section.delay_between_tasks(),
         )
 
         try:
