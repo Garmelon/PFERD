@@ -550,6 +550,7 @@ class IliasCrawler(HttpCrawler):
     async def _crawl_desktop(self) -> None:
         await self._crawl_url(self._base_url)
 
+    @arepeat(3)
     async def _crawl_url(self, url: str, expected_id: Optional[int] = None) -> None:
         tasks = []
 
@@ -567,8 +568,11 @@ class IliasCrawler(HttpCrawler):
             page = IliasPage(soup, url, None)
             for child in page.get_child_elements():
                 tasks.append(self._handle_ilias_element(PurePath("."), child))
+
         await asyncio.gather(*tasks)
 
+    @arepeat(3)
+    @anoncritical
     async def _handle_ilias_page(self, url: str, parent: IliasPageElement, path: PurePath) -> None:
         tasks = []
         async with self.crawl_bar(path):
@@ -580,6 +584,7 @@ class IliasCrawler(HttpCrawler):
 
         await asyncio.gather(*tasks)
 
+    @anoncritical
     async def _handle_ilias_element(self, parent_path: PurePath, element: IliasPageElement) -> None:
         element_path = PurePath(parent_path, element.name)
 
@@ -601,6 +606,7 @@ class IliasCrawler(HttpCrawler):
             # TODO: Proper exception
             raise RuntimeError(f"Unknown type: {element.type!r}")
 
+    @arepeat(3)
     async def _download_video(self, element: IliasPageElement, element_path: PurePath) -> None:
         # Videos will NOT be redownloaded - their content doesn't really change and they are chunky
         dl = await self.download(element_path, mtime=element.mtime, redownload=Redownload.NEVER)
@@ -621,6 +627,7 @@ class IliasCrawler(HttpCrawler):
 
                 sink.done()
 
+    @arepeat(3)
     async def _download_file(self, element: IliasPageElement, element_path: PurePath) -> None:
         dl = await self.download(element_path, mtime=element.mtime)
         if not dl:
@@ -638,19 +645,18 @@ class IliasCrawler(HttpCrawler):
                 sink.done()
 
     async def _get_page(self, url: str, retries_left: int = 3) -> BeautifulSoup:
+        # This function will retry itself a few times if it is not logged in - it won't handle
+        # connection errors
         if retries_left < 0:
             # TODO: Proper exception
             raise RuntimeError("Get page failed too often")
         print(url)
-        try:
-            async with self.session.get(url) as request:
-                soup = soupify(await request.read())
-                if self._is_logged_in(soup):
-                    return soup
+        async with self.session.get(url) as request:
+            soup = soupify(await request.read())
+            if self._is_logged_in(soup):
+                return soup
 
-            await self._shibboleth_login.login(self.session)
-        except Exception:
-            return await self._get_page(url, retries_left - 1)
+        await self._shibboleth_login.login(self.session)
 
         return await self._get_page(url, retries_left - 1)
 
