@@ -5,7 +5,7 @@ from ..authenticator import Authenticator
 from ..conductor import TerminalConductor
 from ..config import Config
 from ..crawler import Crawler
-from .ilias import IliasCrawler, IliasCrawlerSection
+from .ilias import KitIliasCrawler, KitIliasCrawlerSection
 from .local import LocalCrawler, LocalCrawlerSection
 
 CrawlerConstructor = Callable[[
@@ -19,6 +19,6 @@ CrawlerConstructor = Callable[[
 CRAWLERS: Dict[str, CrawlerConstructor] = {
     "local": lambda n, s, c, t, a:
         LocalCrawler(n, LocalCrawlerSection(s), c, t),
-    "ilias": lambda n, s, c, t, a:
-        IliasCrawler(n, IliasCrawlerSection(s), c, t, a),
+    "kit-ilias": lambda n, s, c, t, a:
+        KitIliasCrawler(n, KitIliasCrawlerSection(s), c, t, a),
 }

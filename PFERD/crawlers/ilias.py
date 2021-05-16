@@ -23,7 +23,7 @@ from ..crawler import CrawlerSection, HttpCrawler, anoncritical, arepeat
 TargetType = Union[str, int]
 
 
-class IliasCrawlerSection(CrawlerSection):
+class KitIliasCrawlerSection(CrawlerSection):
 
     def target(self) -> TargetType:
         target = self.s.get("target")
@@ -510,11 +510,11 @@ _DIRECTORY_PAGES: Set[IliasElementType] = set([
 ])
 
 
-class IliasCrawler(HttpCrawler):
+class KitIliasCrawler(HttpCrawler):
     def __init__(
             self,
             name: str,
-            section: IliasCrawlerSection,
+            section: KitIliasCrawlerSection,
             config: Config,
             conductor: TerminalConductor,
             authenticators: Dict[str, Authenticator]
