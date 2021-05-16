@@ -3,7 +3,7 @@ import json
 import re
 from configparser import SectionProxy
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from enum import Enum
 from pathlib import PurePath
 # TODO In Python 3.9 and above, AsyncContextManager is deprecated
@@ -424,9 +424,55 @@ class IliasPage:
         """
         return urljoin(self._page_url, link_tag.get("href"))
 
+german_months = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez']
+english_months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 def demangle_date(date_str: str) -> Optional[datetime]:
-    return None
+    """
+    Demangle a given date in one of the following formats:
+    "Gestern, HH:MM"
+    "Heute, HH:MM"
+    "Morgen, HH:MM"
+    "dd. mon yyyy, HH:MM
+    """
+    try:
+        date_str = re.sub(r"\s+", " ", date_str)
+        date_str = re.sub("Gestern|Yesterday", _format_date_english(_yesterday()), date_str, re.I)
+        date_str = re.sub("Heute|Today", _format_date_english(date.today()), date_str, re.I)
+        date_str = re.sub("Morgen|Tomorrow",  _format_date_english(_tomorrow()), date_str, re.I)
+        for german, english in zip(german_months, english_months):
+            date_str = date_str.replace(german, english)
+            # Remove trailing dots for abbreviations, e.g. "20. Apr. 2020" -> "20. Apr 2020"
+            date_str = date_str.replace(english + ".", english)
+
+        # We now have a nice english String in the format: "dd. mmm yyyy, hh:mm"
+        day_part, time_part = date_str.split(",")
+        day_str, month_str, year_str = day_part.split(" ")
+
+        day = int(day_str.strip().replace(".", ""))
+        month = english_months.index(month_str.strip()) + 1
+        year = int(year_str.strip())
+
+        hour_str, minute_str = time_part.split(":")
+        hour = int(hour_str)
+        minute = int(minute_str)
+
+        return datetime(year, month, day, hour, minute)
+    except Exception:
+        # TODO: Properly log this
+        print(f"Could not parse date {date_str!r}")
+        return None
+
+def _format_date_english(date: date) -> str:
+    month = english_months[date.month - 1]
+    return f"{date.day:02d}. {month} {date.year:04d}"
+
+def _yesterday() -> date:
+    return date.today() - timedelta(days=1)
+
+
+def _tomorrow() -> date:
+    return date.today() + timedelta(days=1)
 
 
 def _sanitize_path_name(name: str) -> str:
