@@ -1,13 +1,12 @@
 import asyncio
 import json
 import re
-from configparser import SectionProxy
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from enum import Enum
 from pathlib import PurePath
 # TODO In Python 3.9 and above, AsyncContextManager is deprecated
-from typing import Any, AsyncContextManager, Dict, List, Optional, Set, Union
+from typing import Any, Dict, List, Optional, Set, Union
 from urllib.parse import (parse_qs, urlencode, urljoin, urlparse, urlsplit,
                           urlunsplit)
 
@@ -19,9 +18,7 @@ from PFERD.utils import soupify
 from ..authenticators import Authenticator
 from ..conductor import TerminalConductor
 from ..config import Config
-from ..crawler import (Crawler, CrawlerSection, HttpCrawler, anoncritical,
-                       arepeat)
-from ..output_dir import FileSink
+from ..crawler import CrawlerSection, HttpCrawler, anoncritical, arepeat
 
 TargetType = Union[str, int]
 
@@ -285,8 +282,8 @@ class IliasPage:
 
             if not element_type:
                 continue
-            elif element_type == IliasElementType.MEETING:
-                element_path = _sanitize_path_name(self._normalize_meeting_name(element_name))
+            if element_type == IliasElementType.MEETING:
+                element_name = _sanitize_path_name(self._normalize_meeting_name(element_name))
             elif element_type == IliasElementType.FILE:
                 result.append(self._file_to_element(element_name, abs_url, link))
                 continue
@@ -424,8 +421,10 @@ class IliasPage:
         """
         return urljoin(self._page_url, link_tag.get("href"))
 
+
 german_months = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez']
 english_months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
 
 def demangle_date(date_str: str) -> Optional[datetime]:
     """
@@ -463,9 +462,11 @@ def demangle_date(date_str: str) -> Optional[datetime]:
         print(f"Could not parse date {date_str!r}")
         return None
 
-def _format_date_english(date: date) -> str:
-    month = english_months[date.month - 1]
-    return f"{date.day:02d}. {month} {date.year:04d}"
+
+def _format_date_english(date_to_format: date) -> str:
+    month = english_months[date_to_format.month - 1]
+    return f"{date_to_format.day:02d}. {month} {date_to_format.year:04d}"
+
 
 def _yesterday() -> date:
     return date.today() - timedelta(days=1)
@@ -617,7 +618,7 @@ class IliasCrawler(HttpCrawler):
             page = IliasPage(await self._get_page(element.url), element.url, element)
             real_element = page.get_child_elements()[0]
 
-            async with dl as sink, self.session.get(element.url) as resp:
+            async with dl as sink, self.session.get(real_element.url) as resp:
                 if resp.content_length:
                     bar.set_total(resp.content_length)
 
