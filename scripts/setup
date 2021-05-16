@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+pip install --upgrade pip setuptools
+pip install --editable .
+pip install --upgrade mypy flake8 autopep8 isort

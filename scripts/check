@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+mypy PFERD
+flake8 PFERD
