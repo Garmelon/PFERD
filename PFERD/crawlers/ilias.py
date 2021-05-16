@@ -7,11 +7,11 @@ from enum import Enum
 from pathlib import PurePath
 # TODO In Python 3.9 and above, AsyncContextManager is deprecated
 from typing import Any, Dict, List, Optional, Set, Union
-from urllib.parse import (parse_qs, urlencode, urljoin, urlparse, urlsplit,
-                          urlunsplit)
+from urllib.parse import parse_qs, urlencode, urljoin, urlparse, urlsplit, urlunsplit
 
 import aiohttp
 from bs4 import BeautifulSoup, Tag
+
 from PFERD.output_dir import Redownload
 from PFERD.utils import soupify
 

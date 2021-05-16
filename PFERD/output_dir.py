@@ -9,8 +9,7 @@ from datetime import datetime
 from enum import Enum
 from pathlib import Path, PurePath
 # TODO In Python 3.9 and above, AsyncContextManager is deprecated
-from typing import (AsyncContextManager, AsyncIterator, BinaryIO, Iterator,
-                    Optional)
+from typing import AsyncContextManager, AsyncIterator, BinaryIO, Iterator, Optional
 
 from rich.markup import escape
 

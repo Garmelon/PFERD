@@ -3,8 +3,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path, PurePath
 # TODO In Python 3.9 and above, AsyncContextManager is deprecated
-from typing import (Any, AsyncContextManager, AsyncIterator, Awaitable,
-                    Callable, Dict, Optional, TypeVar)
+from typing import Any, AsyncContextManager, AsyncIterator, Awaitable, Callable, Dict, Optional, TypeVar
 
 import aiohttp
 from rich.markup import escape

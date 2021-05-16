@@ -25,12 +25,14 @@ async def ainput(prompt: str) -> str:
 async def agetpass(prompt: str) -> str:
     return await to_thread(lambda: getpass.getpass(prompt))
 
+
 def soupify(data: bytes) -> bs4.BeautifulSoup:
     """
     Parses HTML to a beautifulsoup object.
     """
 
     return bs4.BeautifulSoup(data, "html.parser")
+
 
 async def prompt_yes_no(query: str, default: Optional[bool]) -> bool:
     """
