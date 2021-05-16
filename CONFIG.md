@@ -120,6 +120,14 @@ crawler simulate a slower, network-based crawler.
   download requests. (Default: 0.0)
 - `download_speed`: Download speed (in bytes per second) to simulate. (Optional)
 
+### The `kit-ilias` crawler
+
+This crawler crawls the KIT ILIAS instance. It performs remote calls to a poor SCC-Server, so you should be nice and use reasonable delays and concurrent requests.
+- `target`: The ILIAS element to crawl. Can be:
+  - `desktop` if you want to crawl your personal desktop
+  - `<course id>` if you want to crawl the course with the given id
+  - `<url>` if you want to crawl a given element by URL (preferably the permanent URL linked at the bottom of an ILIAS page)
+- `tfa_auth`: Like `auth` but only used for two-factor authentication
 ## Authenticator types
 
 ### The `simple` authenticator
