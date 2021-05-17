@@ -589,6 +589,9 @@ class KitIliasCrawler(HttpCrawler):
     async def _handle_ilias_element(self, parent_path: PurePath, element: IliasPageElement) -> None:
         element_path = PurePath(parent_path, element.name)
 
+        if not self.should_crawl(element_path):
+            return
+
         if element.type == IliasElementType.FILE:
             await self._download_file(element, element_path)
         elif element.type == IliasElementType.FORUM:
