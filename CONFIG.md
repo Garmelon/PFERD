@@ -128,6 +128,12 @@ This crawler crawls the KIT ILIAS instance. It performs remote calls to a poor S
   - `<course id>` if you want to crawl the course with the given id
   - `<url>` if you want to crawl a given element by URL (preferably the permanent URL linked at the bottom of an ILIAS page)
 - `tfa_auth`: Like `auth` but only used for two-factor authentication
+- `link_file_redirect_delay`: PFERD will create local HTML for external links. 
+   If this property is set to a non-negative value it configures the amount of seconds after which the local HTML
+   file will redirect you to the link target.
+- `link_file_plain_text`: If this is set to true, PFERD will generate plain-text files containing only the link
+   target for external links. If this is false or not specified, PFERD will generate a neat, pretty and functional 
+   HTML page instead.
 ## Authenticator types
 
 ### The `simple` authenticator
