@@ -1,8 +1,8 @@
 from typing import Optional, Tuple
 
 from ..authenticator import Authenticator, AuthException, AuthSection
-from ..conductor import TerminalConductor
 from ..config import Config
+from ..logging import log
 from ..utils import agetpass, ainput
 
 
@@ -20,9 +20,8 @@ class SimpleAuthenticator(Authenticator):
             name: str,
             section: SimpleAuthSection,
             config: Config,
-            conductor: TerminalConductor,
     ) -> None:
-        super().__init__(name, section, config, conductor)
+        super().__init__(name, section, config)
 
         self._username = section.username()
         self._password = section.password()
@@ -34,7 +33,7 @@ class SimpleAuthenticator(Authenticator):
         if self._username is not None and self._password is not None:
             return self._username, self._password
 
-        async with self.conductor.exclusive_output():
+        async with log.exclusive_output():
             if self._username is None:
                 self._username = await ainput("Username: ")
             else:

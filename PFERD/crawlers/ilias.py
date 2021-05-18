@@ -16,7 +16,6 @@ from PFERD.output_dir import Redownload
 from PFERD.utils import soupify
 
 from ..authenticators import Authenticator
-from ..conductor import TerminalConductor
 from ..config import Config
 from ..crawler import CrawlerSection, HttpCrawler, anoncritical, arepeat
 
@@ -533,10 +532,9 @@ class KitIliasCrawler(HttpCrawler):
             name: str,
             section: KitIliasCrawlerSection,
             config: Config,
-            conductor: TerminalConductor,
             authenticators: Dict[str, Authenticator]
     ):
-        super().__init__(name, section, config, conductor)
+        super().__init__(name, section, config)
 
         self._shibboleth_login = KitShibbolethLogin(
             section.auth(authenticators),
@@ -615,7 +613,7 @@ class KitIliasCrawler(HttpCrawler):
             await self._download_file(element, element_path)
         elif element.type == IliasElementType.FORUM:
             # TODO: Delete
-            self.print(f"Skipping forum [green]{element_path}[/]")
+            print(f"Skipping forum [green]{element_path}[/]")
         elif element.type == IliasElementType.LINK:
             await self._download_link(element, element_path)
         elif element.type == IliasElementType.VIDEO:

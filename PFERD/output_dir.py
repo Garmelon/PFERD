@@ -13,7 +13,7 @@ from typing import AsyncContextManager, AsyncIterator, BinaryIO, Iterator, Optio
 
 from rich.markup import escape
 
-from .conductor import TerminalConductor
+from .logging import log
 from .report import MarkConflictException, MarkDuplicateException, Report
 from .utils import prompt_yes_no
 
@@ -93,12 +93,10 @@ class OutputDirectory:
             root: Path,
             redownload: Redownload,
             on_conflict: OnConflict,
-            conductor: TerminalConductor,
     ):
         self._root = root
         self._redownload = redownload
         self._on_conflict = on_conflict
-        self._conductor = conductor
 
         self._report = Report()
 
@@ -176,7 +174,7 @@ class OutputDirectory:
             path: PurePath,
     ) -> bool:
         if on_conflict == OnConflict.PROMPT:
-            async with self._conductor.exclusive_output():
+            async with log.exclusive_output():
                 prompt = f"Replace {path} with remote file?"
                 return await prompt_yes_no(prompt, default=False)
         elif on_conflict == OnConflict.LOCAL_FIRST:
@@ -195,7 +193,7 @@ class OutputDirectory:
             path: PurePath,
     ) -> bool:
         if on_conflict == OnConflict.PROMPT:
-            async with self._conductor.exclusive_output():
+            async with log.exclusive_output():
                 prompt = f"Recursively delete {path} and replace with remote file?"
                 return await prompt_yes_no(prompt, default=False)
         elif on_conflict == OnConflict.LOCAL_FIRST:
@@ -215,7 +213,7 @@ class OutputDirectory:
             parent: PurePath,
     ) -> bool:
         if on_conflict == OnConflict.PROMPT:
-            async with self._conductor.exclusive_output():
+            async with log.exclusive_output():
                 prompt = f"Delete {parent} so remote file {path} can be downloaded?"
                 return await prompt_yes_no(prompt, default=False)
         elif on_conflict == OnConflict.LOCAL_FIRST:
@@ -234,7 +232,7 @@ class OutputDirectory:
             path: PurePath,
     ) -> bool:
         if on_conflict == OnConflict.PROMPT:
-            async with self._conductor.exclusive_output():
+            async with log.exclusive_output():
                 prompt = f"Delete {path}?"
                 return await prompt_yes_no(prompt, default=False)
         elif on_conflict == OnConflict.LOCAL_FIRST:
@@ -356,12 +354,10 @@ class OutputDirectory:
             self._update_metadata(info)
 
             if changed:
-                self._conductor.print(
-                    f"[bold bright_yellow]Changed[/] {escape(str(info.path))}")
+                log.action(f"[bold bright_yellow]Changed[/] {escape(str(info.path))}")
                 self._report.change_file(info.path)
             else:
-                self._conductor.print(
-                    f"[bold bright_green]Added[/] {escape(str(info.path))}")
+                log.action(f"[bold bright_green]Added[/] {escape(str(info.path))}")
                 self._report.add_file(info.path)
 
     async def cleanup(self) -> None:
@@ -390,8 +386,7 @@ class OutputDirectory:
         if await self._conflict_delete_lf(self._on_conflict, pure):
             try:
                 path.unlink()
-                self._conductor.print(
-                    f"[bold bright_magenta]Deleted[/] {escape(str(path))}")
+                log.action(f"[bold bright_magenta]Deleted[/] {escape(str(path))}")
                 self._report.delete_file(pure)
             except OSError:
                 pass

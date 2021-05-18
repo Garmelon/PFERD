@@ -5,7 +5,6 @@ from rich.markup import escape
 
 from .authenticator import Authenticator
 from .authenticators import AUTHENTICATORS
-from .conductor import TerminalConductor
 from .config import Config
 from .crawler import Crawler
 from .crawlers import CRAWLERS
@@ -18,7 +17,6 @@ class PferdLoadException(Exception):
 class Pferd:
     def __init__(self, config: Config):
         self._config = config
-        self._conductor = TerminalConductor()
         self._authenticators: Dict[str, Authenticator] = {}
         self._crawlers: Dict[str, Crawler] = {}
 
@@ -34,12 +32,7 @@ class Pferd:
                 print(f"[red]Error: Unknown authenticator type {t}")
                 continue
 
-            authenticator = authenticator_constructor(
-                name,
-                section,
-                self._config,
-                self._conductor,
-            )
+            authenticator = authenticator_constructor(name, section, self._config)
             self._authenticators[name] = authenticator
 
         if abort:
@@ -57,13 +50,7 @@ class Pferd:
                 print(f"[red]Error: Unknown crawler type {t}")
                 continue
 
-            crawler = crawler_constructor(
-                name,
-                section,
-                self._config,
-                self._conductor,
-                self._authenticators,
-            )
+            crawler = crawler_constructor(name, section, self._config, self._authenticators)
             self._crawlers[name] = crawler
 
         if abort:

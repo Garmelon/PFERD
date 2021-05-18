@@ -4,7 +4,6 @@ import random
 from pathlib import Path, PurePath
 from typing import Optional
 
-from ..conductor import TerminalConductor
 from ..config import Config
 from ..crawler import Crawler, CrawlerSection, anoncritical
 
@@ -44,9 +43,8 @@ class LocalCrawler(Crawler):
             name: str,
             section: LocalCrawlerSection,
             config: Config,
-            conductor: TerminalConductor,
     ):
-        super().__init__(name, section, config, conductor)
+        super().__init__(name, section, config)
 
         self._target = config.working_dir / section.target()
         self._crawl_delay = section.crawl_delay()

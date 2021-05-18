@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Tuple
 
-from .conductor import TerminalConductor
 from .config import Config, Section
 
 
@@ -23,7 +22,6 @@ class Authenticator(ABC):
             name: str,
             section: AuthSection,
             config: Config,
-            conductor: TerminalConductor,
     ) -> None:
         """
         Initialize an authenticator from its name and its section in the config
@@ -36,7 +34,6 @@ class Authenticator(ABC):
         """
 
         self.name = name
-        self.conductor = conductor
 
     @abstractmethod
     async def credentials(self) -> Tuple[str, str]:

@@ -1,8 +1,8 @@
 from typing import Tuple
 
 from ..authenticator import Authenticator, AuthException, AuthSection
-from ..conductor import TerminalConductor
 from ..config import Config
+from ..logging import log
 from ..utils import ainput
 
 
@@ -12,15 +12,14 @@ class TfaAuthenticator(Authenticator):
             name: str,
             section: AuthSection,
             config: Config,
-            conductor: TerminalConductor,
     ) -> None:
-        super().__init__(name, section, config, conductor)
+        super().__init__(name, section, config)
 
     async def username(self) -> str:
         raise AuthException("TFA authenticator does not support usernames")
 
     async def password(self) -> str:
-        async with self.conductor.exclusive_output():
+        async with log.exclusive_output():
             code = await ainput("TFA code: ")
             return code
 

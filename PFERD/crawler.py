@@ -9,9 +9,9 @@ import aiohttp
 from rich.markup import escape
 
 from .authenticator import Authenticator
-from .conductor import ProgressBar, TerminalConductor
 from .config import Config, Section
 from .limiter import Limiter
+from .logging import ProgressBar, log
 from .output_dir import FileSink, OnConflict, OutputDirectory, Redownload
 from .transformer import RuleParseException, Transformer
 from .version import __version__
@@ -36,7 +36,7 @@ def noncritical(f: Wrapped) -> Wrapped:
         try:
             f(self, *args, **kwargs)
         except Exception as e:
-            self.print(f"[red]Something went wrong: {escape(str(e))}")
+            log.print(f"[red]Something went wrong: {escape(str(e))}")
             self.error_free = False
     return wrapper  # type: ignore
 
@@ -79,7 +79,7 @@ def anoncritical(f: AWrapped) -> AWrapped:
         try:
             await f(self, *args, **kwargs)
         except Exception as e:
-            self.print(f"[red]Something went wrong: {escape(str(e))}")
+            log.print(f"[red]Something went wrong: {escape(str(e))}")
             self.error_free = False
     return wrapper  # type: ignore
 
@@ -182,7 +182,6 @@ class Crawler(ABC):
             name: str,
             section: CrawlerSection,
             config: Config,
-            conductor: TerminalConductor,
     ) -> None:
         """
         Initialize a crawler from its name and its section in the config file.
@@ -194,7 +193,6 @@ class Crawler(ABC):
         """
 
         self.name = name
-        self._conductor = conductor
         self.error_free = True
 
         self._limiter = Limiter(
@@ -213,33 +211,7 @@ class Crawler(ABC):
             config.working_dir / section.output_dir(name),
             section.redownload(),
             section.on_conflict(),
-            self._conductor,
         )
-
-    def print(self, text: str) -> None:
-        """
-        Print rich markup to the terminal. Crawlers *must* use this function to
-        print things unless they are holding an exclusive output context
-        manager! Be careful to escape all user-supplied strings.
-        """
-
-        self._conductor.print(text)
-
-    def exclusive_output(self) -> AsyncContextManager[None]:
-        """
-        Acquire exclusive rights™ to the terminal output. While this context
-        manager is held, output such as printing and progress bars from other
-        threads is suspended and the current thread may do whatever it wants
-        with the terminal. However, it must return the terminal to its original
-        state before exiting the context manager.
-
-        No two threads can hold this context manager at the same time.
-
-        Useful for password or confirmation prompts as well as running other
-        programs while crawling (e. g. to get certain credentials).
-        """
-
-        return self._conductor.exclusive_output()
 
     @asynccontextmanager
     async def crawl_bar(
@@ -249,7 +221,7 @@ class Crawler(ABC):
     ) -> AsyncIterator[ProgressBar]:
         desc = f"[bold bright_cyan]Crawling[/] {escape(str(path))}"
         async with self._limiter.limit_crawl():
-            with self._conductor.progress_bar(desc, total=total) as bar:
+            with log.crawl_bar(desc, total=total) as bar:
                 yield bar
 
     @asynccontextmanager
@@ -260,7 +232,7 @@ class Crawler(ABC):
     ) -> AsyncIterator[ProgressBar]:
         desc = f"[bold bright_cyan]Downloading[/] {escape(str(path))}"
         async with self._limiter.limit_download():
-            with self._conductor.progress_bar(desc, total=total) as bar:
+            with log.download_bar(desc, total=total) as bar:
                 yield bar
 
     def should_crawl(self, path: PurePath) -> bool:
@@ -289,7 +261,7 @@ class Crawler(ABC):
         crawler.
         """
 
-        async with self._conductor:
+        with log.show_progress():
             await self.crawl()
 
     @abstractmethod
@@ -312,9 +284,8 @@ class HttpCrawler(Crawler):
             name: str,
             section: CrawlerSection,
             config: Config,
-            conductor: TerminalConductor,
     ) -> None:
-        super().__init__(name, section, config, conductor)
+        super().__init__(name, section, config)
 
         self._cookie_jar_path = self._output_dir.resolve(self.COOKIE_FILE)
         self._output_dir.register_reserved(self.COOKIE_FILE)
@@ -340,7 +311,4 @@ class HttpCrawler(Crawler):
         try:
             cookie_jar.save(self._cookie_jar_path)
         except Exception:
-            self.print(
-                "[bold red]Warning:[/] Failed to save cookies to "
-                + escape(str(self.COOKIE_FILE))
-            )
+            log.print(f"[bold red]Warning:[/] Failed to save cookies to {escape(str(self.COOKIE_FILE))}")
