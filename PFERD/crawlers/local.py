@@ -91,7 +91,7 @@ class LocalCrawler(Crawler):
         if not dl:
             return
 
-        async with self.download_bar(path) as bar:
+        async with self.download_bar(pure) as bar:
             await asyncio.sleep(random.uniform(
                 0.5 * self._download_delay,
                 self._download_delay,
