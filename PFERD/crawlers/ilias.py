@@ -634,13 +634,11 @@ class KitIliasCrawler(HttpCrawler):
         if not dl:
             return
 
-        async with self.download_bar(element_path, 2) as bar:
+        async with self.download_bar(element_path):
             export_url = element.url.replace("cmd=calldirectlink", "cmd=exportHTML")
             async with self.session.get(export_url) as response:
                 html_page: BeautifulSoup = soupify(await response.read())
                 real_url: str = html_page.select_one("a").get("href").strip()
-
-            bar.advance(1)
 
             async with dl as sink:
                 content = _link_template_plain if self._link_file_use_plaintext else _link_template_rich
@@ -649,7 +647,6 @@ class KitIliasCrawler(HttpCrawler):
                 content = content.replace("{{description}}", str(element.description))
                 content = content.replace("{{redirect_delay}}", str(self._link_file_redirect_delay))
                 sink.file.write(content.encode("utf-8"))
-                bar.advance(1)
                 sink.done()
 
     @arepeat(3)
@@ -842,7 +839,7 @@ _link_template_rich = """
 <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <title>ILIAS - Link: {{ name}}</title>
+        <title>ILIAS - Link: {{name}}</title>
         <meta http-equiv = "refresh" content = "{{redirect_delay}}; url = {{link}}" />
     </head>
 
