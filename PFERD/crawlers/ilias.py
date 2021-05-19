@@ -831,7 +831,6 @@ async def _post(session: aiohttp.ClientSession, url: str, data: Any) -> Beautifu
         return soupify(await response.read())
 
 _link_template_plain = "{{link}}"
-# flake8: noqa E501
 _link_template_rich = """
 <!DOCTYPE html>
 <html lang="en">
@@ -917,4 +916,4 @@ _link_template_rich = """
         </div>
     </body>
 </html>
-"""
+"""  # noqa: E501 line too long
