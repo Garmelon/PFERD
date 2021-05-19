@@ -13,11 +13,15 @@ from .config import Config, Section
 from .limiter import Limiter
 from .logging import ProgressBar, log
 from .output_dir import FileSink, OnConflict, OutputDirectory, Redownload
-from .transformer import RuleParseException, Transformer
+from .transformer import Transformer
 from .version import __version__
 
 
-class CrawlerLoadException(Exception):
+class CrawlWarning(Exception):
+    pass
+
+
+class CrawlError(Exception):
     pass
 
 
@@ -26,41 +30,29 @@ Wrapped = TypeVar("Wrapped", bound=Callable[..., None])
 
 def noncritical(f: Wrapped) -> Wrapped:
     """
-    Warning: Must only be applied to member functions of the Crawler class!
-
     Catches all exceptions occuring during the function call. If an exception
     occurs, the crawler's error_free variable is set to False.
-    """
 
-    def wrapper(self: "Crawler", *args: Any, **kwargs: Any) -> None:
-        try:
-            f(self, *args, **kwargs)
-        except Exception as e:
-            log.print(f"[red]Something went wrong: {escape(str(e))}")
-            self.error_free = False
-    return wrapper  # type: ignore
-
-
-def repeat(attempts: int) -> Callable[[Wrapped], Wrapped]:
-    """
     Warning: Must only be applied to member functions of the Crawler class!
-
-    If an exception occurs during the function call, retries the function call
-    a set amount of times. Exceptions that occur during the last attempt are
-    not caught and instead passed on upwards.
     """
 
-    def decorator(f: Wrapped) -> Wrapped:
-        def wrapper(self: "Crawler", *args: Any, **kwargs: Any) -> None:
-            for _ in range(attempts - 1):
-                try:
-                    f(self, *args, **kwargs)
-                    return
-                except Exception:
-                    pass
-            f(self, *args, **kwargs)
-        return wrapper  # type: ignore
-    return decorator
+    def wrapper(*args: Any, **kwargs: Any) -> None:
+        if not (args and isinstance(args[0], Crawler)):
+            raise RuntimeError("@noncritical must only applied to Crawler methods")
+
+        crawler = args[0]
+
+        try:
+            f(*args, **kwargs)
+        except CrawlWarning as e:
+            log.print(f"[bold bright_red]Warning[/] {escape(str(e))}")
+            crawler.error_free = False
+        except CrawlError as e:
+            log.print(f"[bold bright_red]Error[/] [red]{escape(str(e))}")
+            crawler.error_free = False
+            raise
+
+    return wrapper  # type: ignore
 
 
 AWrapped = TypeVar("AWrapped", bound=Callable[..., Awaitable[None]])
@@ -69,42 +61,30 @@ AWrapped = TypeVar("AWrapped", bound=Callable[..., Awaitable[None]])
 def anoncritical(f: AWrapped) -> AWrapped:
     """
     An async version of @noncritical.
-    Warning: Must only be applied to member functions of the Crawler class!
 
     Catches all exceptions occuring during the function call. If an exception
     occurs, the crawler's error_free variable is set to False.
-    """
 
-    async def wrapper(self: "Crawler", *args: Any, **kwargs: Any) -> None:
-        try:
-            await f(self, *args, **kwargs)
-        except Exception as e:
-            log.print(f"[red]Something went wrong: {escape(str(e))}")
-            self.error_free = False
-    return wrapper  # type: ignore
-
-
-def arepeat(attempts: int) -> Callable[[AWrapped], AWrapped]:
-    """
-    An async version of @noncritical.
     Warning: Must only be applied to member functions of the Crawler class!
-
-    If an exception occurs during the function call, retries the function call
-    a set amount of times. Exceptions that occur during the last attempt are
-    not caught and instead passed on upwards.
     """
 
-    def decorator(f: AWrapped) -> AWrapped:
-        async def wrapper(self: "Crawler", *args: Any, **kwargs: Any) -> None:
-            for _ in range(attempts - 1):
-                try:
-                    await f(self, *args, **kwargs)
-                    return
-                except Exception:
-                    pass
-            await f(self, *args, **kwargs)
-        return wrapper  # type: ignore
-    return decorator
+    async def wrapper(*args: Any, **kwargs: Any) -> None:
+        if not (args and isinstance(args[0], Crawler)):
+            raise RuntimeError("@anoncritical must only applied to Crawler methods")
+
+        crawler = args[0]
+
+        try:
+            await f(*args, **kwargs)
+        except CrawlWarning as e:
+            log.print(f"[bold bright_red]Warning[/] {escape(str(e))}")
+            crawler.error_free = False
+        except CrawlError as e:
+            log.print(f"[bold bright_red]Error[/] [red]{escape(str(e))}")
+            crawler.error_free = False
+            raise
+
+    return wrapper  # type: ignore
 
 
 class CrawlerSection(Section):
@@ -201,11 +181,7 @@ class Crawler(ABC):
             task_delay=section.delay_between_tasks(),
         )
 
-        try:
-            self._transformer = Transformer(section.transform())
-        except RuleParseException as e:
-            e.pretty_print()
-            raise CrawlerLoadException()
+        self._transformer = Transformer(section.transform())
 
         self._output_dir = OutputDirectory(
             config.working_dir / section.output_dir(name),
@@ -312,3 +288,33 @@ class HttpCrawler(Crawler):
             cookie_jar.save(self._cookie_jar_path)
         except Exception:
             log.print(f"[bold red]Warning:[/] Failed to save cookies to {escape(str(self.COOKIE_FILE))}")
+
+
+def repeat(attempts: int) -> Callable[[Wrapped], Wrapped]:
+    """Deprecated."""
+    def decorator(f: Wrapped) -> Wrapped:
+        def wrapper(self: "Crawler", *args: Any, **kwargs: Any) -> None:
+            for _ in range(attempts - 1):
+                try:
+                    f(self, *args, **kwargs)
+                    return
+                except Exception:
+                    pass
+            f(self, *args, **kwargs)
+        return wrapper  # type: ignore
+    return decorator
+
+
+def arepeat(attempts: int) -> Callable[[AWrapped], AWrapped]:
+    """Deprecated."""
+    def decorator(f: AWrapped) -> AWrapped:
+        async def wrapper(self: "Crawler", *args: Any, **kwargs: Any) -> None:
+            for _ in range(attempts - 1):
+                try:
+                    await f(self, *args, **kwargs)
+                    return
+                except Exception:
+                    pass
+            await f(self, *args, **kwargs)
+        return wrapper  # type: ignore
+    return decorator
