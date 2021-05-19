@@ -130,6 +130,12 @@ class KitIliasWebCrawler(HttpCrawler):
     @arepeat(3)
     @anoncritical
     async def _handle_ilias_page(self, url: str, parent: IliasPageElement, path: PurePath) -> None:
+        # We might not want to crawl this directory-ish page.
+        # This is not in #handle_element, as the download methods check it themselves and therefore
+        # would perform this check twice - messing with the explain output
+        if not self.should_crawl(path):
+            return
+
         tasks = []
         async with self.crawl_bar(path):
             soup = await self._get_page(url)
