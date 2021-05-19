@@ -1,3 +1,3 @@
-from .kit_web_ilias_crawler import KitIliasCrawler, KitIliasCrawlerSection
+from .kit_ilias_web_crawler import KitIliasWebCrawler, KitIliasWebCrawlerSection
 
-__all__ = ["KitIliasCrawler", "KitIliasCrawlerSection"]
+__all__ = ["KitIliasWebCrawler", "KitIliasWebCrawlerSection"]

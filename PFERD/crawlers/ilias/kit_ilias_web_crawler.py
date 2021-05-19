@@ -19,7 +19,7 @@ from .kit_ilias_html import IliasElementType, IliasPage, IliasPageElement
 TargetType = Union[str, int]
 
 
-class KitIliasCrawlerSection(CrawlerSection):
+class KitIliasWebCrawlerSection(CrawlerSection):
 
     def target(self) -> TargetType:
         target = self.s.get("target")
@@ -64,11 +64,11 @@ _DIRECTORY_PAGES: Set[IliasElementType] = set([
 ])
 
 
-class KitIliasCrawler(HttpCrawler):
+class KitIliasWebCrawler(HttpCrawler):
     def __init__(
             self,
             name: str,
-            section: KitIliasCrawlerSection,
+            section: KitIliasWebCrawlerSection,
             config: Config,
             authenticators: Dict[str, Authenticator]
     ):

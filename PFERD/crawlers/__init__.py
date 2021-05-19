@@ -4,7 +4,7 @@ from typing import Callable, Dict
 from ..authenticator import Authenticator
 from ..config import Config
 from ..crawler import Crawler
-from .ilias import KitIliasCrawler, KitIliasCrawlerSection
+from .ilias import KitIliasWebCrawler, KitIliasWebCrawlerSection
 from .local import LocalCrawler, LocalCrawlerSection
 
 CrawlerConstructor = Callable[[
@@ -17,6 +17,6 @@ CrawlerConstructor = Callable[[
 CRAWLERS: Dict[str, CrawlerConstructor] = {
     "local": lambda n, s, c, a:
         LocalCrawler(n, LocalCrawlerSection(s), c),
-    "kit-ilias": lambda n, s, c, a:
-        KitIliasCrawler(n, KitIliasCrawlerSection(s), c, a),
+    "kit-ilias-web": lambda n, s, c, a:
+        KitIliasWebCrawler(n, KitIliasWebCrawlerSection(s), c, a),
 }
