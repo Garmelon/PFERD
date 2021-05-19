@@ -2,7 +2,11 @@ import asyncio
 import contextvars
 import functools
 import getpass
-from typing import Any, Callable, Optional, TypeVar
+import sys
+from abc import ABC, abstractmethod
+from contextlib import AsyncExitStack
+from types import TracebackType
+from typing import Any, Callable, Generic, Optional, Type, TypeVar
 
 import bs4
 
@@ -56,3 +60,42 @@ async def prompt_yes_no(query: str, default: Optional[bool]) -> bool:
             return default
 
         print("Please answer with 'y' or 'n'.")
+
+
+class ReusableAsyncContextManager(ABC, Generic[T]):
+    def __init__(self) -> None:
+        self._active = False
+        self._stack = AsyncExitStack()
+
+    @abstractmethod
+    async def _on_aenter(self) -> T:
+        pass
+
+    async def __aenter__(self) -> T:
+        if self._active:
+            raise RuntimeError("Nested or otherwise concurrent usage is not allowed")
+
+        self._active = True
+        await self._stack.__aenter__()
+
+        # See https://stackoverflow.com/a/13075071
+        try:
+            result: T = await self._on_aenter()
+        except:  # noqa: E722 do not use bare 'except'
+            if not await self.__aexit__(*sys.exc_info()):
+                raise
+
+        return result
+
+    async def __aexit__(
+            self,
+            exc_type: Optional[Type[BaseException]],
+            exc_value: Optional[BaseException],
+            traceback: Optional[TracebackType],
+    ) -> Optional[bool]:
+        if not self._active:
+            raise RuntimeError("__aexit__ called too many times")
+
+        result = await self._stack.__aexit__(exc_type, exc_value, traceback)
+        self._active = False
+        return result
