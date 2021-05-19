@@ -50,6 +50,15 @@ class Section:
         self.error(key, "Missing value")
 
 
+class DefaultSection(Section):
+    def working_dir(self) -> Path:
+        pathstr = self.s.get("working_dir", ".")
+        return Path(pathstr).expanduser()
+
+    def explain(self) -> bool:
+        return self.s.getboolean("explain", fallback=False)
+
+
 class Config:
     @staticmethod
     def _default_path() -> Path:
@@ -62,6 +71,11 @@ class Config:
 
     def __init__(self, parser: ConfigParser):
         self._parser = parser
+        self._default_section = DefaultSection(parser[parser.default_section])
+
+    @property
+    def default_section(self) -> DefaultSection:
+        return self._default_section
 
     @staticmethod
     def _fail_load(path: Path, reason: str) -> None:
@@ -134,10 +148,6 @@ class Config:
     def dump_to_stdout(self) -> None:
         self._parser.write(sys.stdout)
 
-    @property
-    def default_section(self) -> SectionProxy:
-        return self._parser[self._parser.default_section]
-
     def crawler_sections(self) -> List[Tuple[str, SectionProxy]]:
         result = []
         for name, proxy in self._parser.items():
@@ -153,8 +163,3 @@ class Config:
                 result.append((name, proxy))
 
         return result
-
-    @property
-    def working_dir(self) -> Path:
-        pathstr = self.default_section.get("working_dir", ".")
-        return Path(pathstr).expanduser()

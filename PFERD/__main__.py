@@ -4,6 +4,7 @@ import configparser
 from pathlib import Path
 
 from .config import Config, ConfigDumpException, ConfigLoadException
+from .logging import log
 from .output_dir import OnConflict, Redownload
 from .pferd import Pferd
 from .version import NAME, VERSION
@@ -42,6 +43,13 @@ GENERAL_PARSER.add_argument(
     metavar="PATH",
     help="custom working directory"
 )
+GENERAL_PARSER.add_argument(
+    "--explain", "-e",
+    # TODO Use argparse.BooleanOptionalAction after updating to 3.9
+    action="store_const",
+    const=True,
+    help="log and explain in detail what PFERD is doing"
+)
 
 
 def load_general(
@@ -52,6 +60,8 @@ def load_general(
 
     if args.working_dir is not None:
         section["working_dir"] = str(args.working_dir)
+    if args.explain is not None:
+        section["explain"] = "true" if args.explain else "false"
 
 
 CRAWLER_PARSER = argparse.ArgumentParser(add_help=False)
@@ -217,6 +227,10 @@ def prune_crawlers(
 def main() -> None:
     args = PARSER.parse_args()
 
+    # Configure log levels set by command line arguments
+    if args.explain is not None:
+        log.output_explain = args.explain
+
     if args.version:
         print(f"{NAME} {VERSION}")
         exit()
@@ -225,6 +239,11 @@ def main() -> None:
         config = Config(load_parser(args))
     except ConfigLoadException:
         exit(1)
+
+    # Configure log levels set in the config file
+    # TODO Catch config section exceptions
+    if args.explain is None:
+        log.output_explain = config.default_section.explain()
 
     if args.dump_config is not None:
         try:

@@ -46,7 +46,7 @@ class LocalCrawler(Crawler):
     ):
         super().__init__(name, section, config)
 
-        self._target = config.working_dir / section.target()
+        self._target = config.default_section.working_dir() / section.target()
         self._crawl_delay = section.crawl_delay()
         self._download_delay = section.download_delay()
         self._download_speed = section.download_speed()

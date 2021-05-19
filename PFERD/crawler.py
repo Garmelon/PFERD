@@ -184,7 +184,7 @@ class Crawler(ABC):
         self._transformer = Transformer(section.transform())
 
         self._output_dir = OutputDirectory(
-            config.working_dir / section.output_dir(name),
+            config.default_section.working_dir() / section.output_dir(name),
             section.redownload(),
             section.on_conflict(),
         )

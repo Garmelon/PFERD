@@ -19,6 +19,8 @@ default values for the other sections.
   paths in the config file are interpreted relative to this path. If this path
   is relative, it is interpreted relative to the script's working dir. `~` is
   expanded to the current user's home directory. (Default: `.`)
+- `explain`: Whether PFERD should log and explain its actions and decisions in
+  detail. (Default: `no`)
 
 ## The `crawl:*` sections
 

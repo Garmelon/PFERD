@@ -52,9 +52,9 @@ class Log:
         self._lines: List[str] = []
 
         # Whether different parts of the output are enabled or disabled
-        self._enabled_explain = False
-        self._enabled_action = True
-        self._enabled_report = True
+        self.output_explain = False
+        self.output_action = True
+        self.output_report = True
 
     def _update_live(self) -> None:
         elements = []
@@ -65,11 +65,6 @@ class Log:
 
         group = RenderGroup(*elements)  # type: ignore
         self._live.update(group)
-
-    def configure(self, explain: bool, action: bool, report: bool) -> None:
-        self._enabled_explain = explain
-        self._enabled_action = action
-        self._enabled_report = report
 
     @contextmanager
     def show_progress(self) -> Iterator[None]:
@@ -107,19 +102,19 @@ class Log:
             self.console.print(text)
 
     def explain_topic(self, text: str) -> None:
-        if self._enabled_explain:
+        if self.output_explain:
             self.print(f"[cyan]{escape(text)}")
 
     def explain(self, text: str) -> None:
-        if self._enabled_explain:
+        if self.output_explain:
             self.print(f"  {escape(text)}")
 
     def action(self, text: str) -> None:
-        if self._enabled_action:
+        if self.output_action:
             self.print(text)
 
     def report(self, text: str) -> None:
-        if self._enabled_report:
+        if self.output_report:
             self.print(text)
 
     @contextmanager
