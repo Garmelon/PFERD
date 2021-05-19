@@ -14,7 +14,7 @@ from .limiter import Limiter
 from .logging import ProgressBar, log
 from .output_dir import FileSink, OnConflict, OutputDirectory, Redownload
 from .transformer import Transformer
-from .version import __version__
+from .version import NAME, VERSION
 
 
 class CrawlWarning(Exception):
@@ -275,7 +275,7 @@ class HttpCrawler(Crawler):
             pass
 
         async with aiohttp.ClientSession(
-                headers={"User-Agent": f"pferd/{__version__}"},
+                headers={"User-Agent": f"{NAME}/{VERSION}"},
                 cookie_jar=cookie_jar,
         ) as session:
             self.session = session

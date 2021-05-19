@@ -1,1 +1,2 @@
-__version__ = "3.0.0"
+NAME = "PFERD"
+VERSION = "3.0.0"

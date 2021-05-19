@@ -6,8 +6,14 @@ from pathlib import Path
 from .config import Config, ConfigDumpException, ConfigLoadException
 from .output_dir import OnConflict, Redownload
 from .pferd import Pferd
+from .version import NAME, VERSION
 
 GENERAL_PARSER = argparse.ArgumentParser(add_help=False)
+GENERAL_PARSER.add_argument(
+    "--version",
+    action="store_true",
+    help="print version and exit"
+)
 GENERAL_PARSER.add_argument(
     "--config", "-c",
     type=Path,
@@ -210,6 +216,10 @@ def prune_crawlers(
 
 def main() -> None:
     args = PARSER.parse_args()
+
+    if args.version:
+        print(f"{NAME} {VERSION}")
+        exit()
 
     try:
         config = Config(load_parser(args))
