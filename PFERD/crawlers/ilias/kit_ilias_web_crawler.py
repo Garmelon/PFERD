@@ -2,14 +2,14 @@ import asyncio
 import re
 from pathlib import PurePath
 # TODO In Python 3.9 and above, AsyncContextManager is deprecated
-from typing import Any, Dict, Optional, Set, Union
+from typing import Any, Awaitable, Callable, Dict, Optional, Set, TypeVar, Union
 
 import aiohttp
 from bs4 import BeautifulSoup, Tag
 
 from PFERD.authenticators import Authenticator
 from PFERD.config import Config
-from PFERD.crawler import CrawlerSection, HttpCrawler, anoncritical, arepeat
+from PFERD.crawler import CrawlerSection, CrawlWarning, HttpCrawler, anoncritical
 from PFERD.output_dir import Redownload
 from PFERD.utils import soupify, url_set_query_param
 
@@ -63,6 +63,29 @@ _DIRECTORY_PAGES: Set[IliasElementType] = set([
     IliasElementType.VIDEO_FOLDER_MAYBE_PAGINATED,
 ])
 
+AWrapped = TypeVar("AWrapped", bound=Callable[..., Awaitable[None]])
+
+
+def _iorepeat(attempts: int) -> Callable[[AWrapped], AWrapped]:
+    def decorator(f: AWrapped) -> AWrapped:
+        async def wrapper(self: "HttpCrawler", *args: Any, **kwargs: Any) -> None:
+            for _ in range(attempts - 1):
+                try:
+                    await f(self, *args, **kwargs)
+                    return
+                except aiohttp.ContentTypeError:  # invalid content type
+                    raise CrawlWarning("ILIAS returned an invalid content type")
+                except aiohttp.TooManyRedirects:
+                    raise CrawlWarning("Got stuck in a redirect loop")
+                except aiohttp.ClientPayloadError:  # encoding or not enough bytes
+                    pass
+                except aiohttp.ClientConnectionError:  # e.g. timeout, disconnect, resolve failed, etc.
+                    pass
+
+            await f(self, *args, **kwargs)
+        return wrapper  # type: ignore
+    return decorator
+
 
 class KitIliasWebCrawler(HttpCrawler):
     def __init__(
@@ -106,7 +129,6 @@ class KitIliasWebCrawler(HttpCrawler):
     async def _crawl_desktop(self) -> None:
         await self._crawl_url(self._base_url)
 
-    @arepeat(3)
     async def _crawl_url(self, url: str, expected_id: Optional[int] = None) -> None:
         tasks = []
 
@@ -127,8 +149,6 @@ class KitIliasWebCrawler(HttpCrawler):
 
         await asyncio.gather(*tasks)
 
-    @arepeat(3)
-    @anoncritical
     async def _handle_ilias_page(self, url: str, parent: IliasPageElement, path: PurePath) -> None:
         # We might not want to crawl this directory-ish page.
         # This is not in #handle_element, as the download methods check it themselves and therefore
@@ -147,11 +167,9 @@ class KitIliasWebCrawler(HttpCrawler):
         await asyncio.gather(*tasks)
 
     @anoncritical
+    @_iorepeat(3)
     async def _handle_ilias_element(self, parent_path: PurePath, element: IliasPageElement) -> None:
         element_path = PurePath(parent_path, element.name)
-
-        if not self.should_crawl(element_path):
-            return
 
         if element.type == IliasElementType.FILE:
             await self._download_file(element, element_path)
@@ -170,7 +188,6 @@ class KitIliasWebCrawler(HttpCrawler):
             # TODO: Proper exception
             raise RuntimeError(f"Unknown type: {element.type!r}")
 
-    @arepeat(3)
     async def _download_link(self, element: IliasPageElement, element_path: PurePath) -> None:
         dl = await self.download(element_path, mtime=element.mtime)
         if not dl:
@@ -191,7 +208,6 @@ class KitIliasWebCrawler(HttpCrawler):
                 sink.file.write(content.encode("utf-8"))
                 sink.done()
 
-    @arepeat(3)
     async def _download_video(self, element: IliasPageElement, element_path: PurePath) -> None:
         # Videos will NOT be redownloaded - their content doesn't really change and they are chunky
         dl = await self.download(element_path, mtime=element.mtime, redownload=Redownload.NEVER)
@@ -212,7 +228,6 @@ class KitIliasWebCrawler(HttpCrawler):
 
                 sink.done()
 
-    @arepeat(3)
     async def _download_file(self, element: IliasPageElement, element_path: PurePath) -> None:
         dl = await self.download(element_path, mtime=element.mtime)
         if not dl:
