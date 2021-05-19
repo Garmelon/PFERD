@@ -133,7 +133,7 @@ SUBPARSERS = PARSER.add_subparsers(title="crawlers")
 
 LOCAL_CRAWLER = SUBPARSERS.add_parser(
     "local",
-    parents=[GENERAL_PARSER, CRAWLER_PARSER],
+    parents=[CRAWLER_PARSER],
 )
 LOCAL_CRAWLER.set_defaults(command="local")
 LOCAL_CRAWLER_GROUP = LOCAL_CRAWLER.add_argument_group(
@@ -194,12 +194,16 @@ def load_local_crawler(
 def load_parser(
         args: argparse.Namespace,
 ) -> configparser.ConfigParser:
+    log.explain_topic("Loading config")
     parser = configparser.ConfigParser()
 
     if args.command is None:
+        log.explain("No CLI command specified, loading config from file")
         Config.load_parser(parser, path=args.config)
-    elif args.command == "local":
-        load_local_crawler(args, parser)
+    else:
+        log.explain(f"CLI command specified, creating config for {args.command!r}")
+        if args.command == "local":
+            load_local_crawler(args, parser)
 
     load_general(args, parser)
     prune_crawlers(args, parser)
@@ -230,6 +234,8 @@ def main() -> None:
     # Configure log levels set by command line arguments
     if args.explain is not None:
         log.output_explain = args.explain
+    if args.dump_config:
+        log.output_explain = False
 
     if args.version:
         print(f"{NAME} {VERSION}")
@@ -237,7 +243,9 @@ def main() -> None:
 
     try:
         config = Config(load_parser(args))
-    except ConfigLoadException:
+    except ConfigLoadException as e:
+        log.error(f"Failed to load config file at path {str(e.path)!r}")
+        log.error_contd(f"Reason: {e.reason}")
         exit(1)
 
     # Configure log levels set in the config file

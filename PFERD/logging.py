@@ -101,6 +101,15 @@ class Log:
         else:
             self.console.print(text)
 
+    def warn(self, text: str) -> None:
+        self.print(f"[bold bright_red]Warning[/] {escape(text)}")
+
+    def error(self, text: str) -> None:
+        self.print(f"[bold bright_red]Error[/] [red]{escape(text)}")
+
+    def error_contd(self, text: str) -> None:
+        self.print(f"[red]{escape(text)}")
+
     def explain_topic(self, text: str) -> None:
         if self.output_explain:
             self.print(f"[cyan]{escape(text)}")

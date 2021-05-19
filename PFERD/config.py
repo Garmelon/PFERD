@@ -6,11 +6,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, List, NoReturn, Optional, Tuple
 
+from .logging import log
 from .utils import prompt_yes_no
 
 
+@dataclass
 class ConfigLoadException(Exception):
-    pass
+    path: Path
+    reason: str
 
 
 class ConfigDumpException(Exception):
@@ -78,19 +81,17 @@ class Config:
         return self._default_section
 
     @staticmethod
-    def _fail_load(path: Path, reason: str) -> None:
-        print(f"Failed to load config file at {path}")
-        print(f"Reason: {reason}")
-        raise ConfigLoadException()
-
-    @staticmethod
     def load_parser(parser: ConfigParser, path: Optional[Path] = None) -> None:
         """
         May throw a ConfigLoadException.
         """
 
-        if not path:
+        if path:
+            log.explain("Using custom path")
+        else:
+            log.explain("Using default path")
             path = Config._default_path()
+        log.explain(f"Loading {str(path)!r}")
 
         # Using config.read_file instead of config.read because config.read
         # would just ignore a missing file and carry on.
@@ -98,11 +99,11 @@ class Config:
             with open(path) as f:
                 parser.read_file(f, source=str(path))
         except FileNotFoundError:
-            Config._fail_load(path, "File does not exist")
+            raise ConfigLoadException(path, "File does not exist")
         except IsADirectoryError:
-            Config._fail_load(path, "That's a directory, not a file")
+            raise ConfigLoadException(path, "That's a directory, not a file")
         except PermissionError:
-            Config._fail_load(path, "Insufficient permissions")
+            raise ConfigLoadException(path, "Insufficient permissions")
 
     @staticmethod
     def _fail_dump(path: Path, reason: str) -> None:
