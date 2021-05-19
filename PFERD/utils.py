@@ -6,7 +6,8 @@ import sys
 from abc import ABC, abstractmethod
 from contextlib import AsyncExitStack
 from types import TracebackType
-from typing import Any, Callable, Generic, Optional, Type, TypeVar
+from typing import Any, Callable, Dict, Generic, Optional, Type, TypeVar
+from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
 
 import bs4
 
@@ -36,6 +37,30 @@ def soupify(data: bytes) -> bs4.BeautifulSoup:
     """
 
     return bs4.BeautifulSoup(data, "html.parser")
+
+
+def url_set_query_param(url: str, param: str, value: str) -> str:
+    """
+    Set a query parameter in an url, overwriting existing ones with the same name.
+    """
+    scheme, netloc, path, query, fragment = urlsplit(url)
+    query_parameters = parse_qs(query)
+    query_parameters[param] = [value]
+    new_query_string = urlencode(query_parameters, doseq=True)
+
+    return urlunsplit((scheme, netloc, path, new_query_string, fragment))
+
+
+def url_set_query_params(url: str, params: Dict[str, str]) -> str:
+    """
+    Sets multiple query parameters in an url, overwriting existing ones.
+    """
+    result = url
+
+    for key, val in params.items():
+        result = url_set_query_param(result, key, val)
+
+    return result
 
 
 async def prompt_yes_no(query: str, default: Optional[bool]) -> bool:
