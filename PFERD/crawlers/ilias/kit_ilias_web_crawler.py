@@ -6,10 +6,12 @@ from typing import Any, Awaitable, Callable, Dict, Optional, Set, TypeVar, Union
 
 import aiohttp
 from bs4 import BeautifulSoup, Tag
+from rich.markup import escape
 
 from PFERD.authenticators import Authenticator
 from PFERD.config import Config
-from PFERD.crawler import CrawlerSection, CrawlWarning, HttpCrawler, anoncritical
+from PFERD.crawler import CrawlError, CrawlerSection, CrawlWarning, HttpCrawler, anoncritical
+from PFERD.logging import log
 from PFERD.output_dir import Redownload
 from PFERD.utils import soupify, url_set_query_param
 
@@ -66,10 +68,11 @@ _DIRECTORY_PAGES: Set[IliasElementType] = set([
 AWrapped = TypeVar("AWrapped", bound=Callable[..., Awaitable[None]])
 
 
-def _iorepeat(attempts: int) -> Callable[[AWrapped], AWrapped]:
+def _iorepeat(attempts: int, name: str) -> Callable[[AWrapped], AWrapped]:
     def decorator(f: AWrapped) -> AWrapped:
         async def wrapper(self: "HttpCrawler", *args: Any, **kwargs: Any) -> None:
-            for _ in range(attempts - 1):
+            last_exception: Optional[BaseException] = None
+            for round in range(attempts):
                 try:
                     await f(self, *args, **kwargs)
                     return
@@ -77,12 +80,17 @@ def _iorepeat(attempts: int) -> Callable[[AWrapped], AWrapped]:
                     raise CrawlWarning("ILIAS returned an invalid content type")
                 except aiohttp.TooManyRedirects:
                     raise CrawlWarning("Got stuck in a redirect loop")
-                except aiohttp.ClientPayloadError:  # encoding or not enough bytes
-                    pass
-                except aiohttp.ClientConnectionError:  # e.g. timeout, disconnect, resolve failed, etc.
-                    pass
+                except aiohttp.ClientPayloadError as e:  # encoding or not enough bytes
+                    last_exception = e
+                except aiohttp.ClientConnectionError as e:  # e.g. timeout, disconnect, resolve failed, etc.
+                    last_exception = e
+                log.explain_topic(f"Retrying operation {escape(name)}. Retries left: {attempts - 1 - round}")
 
-            await f(self, *args, **kwargs)
+            if last_exception:
+                message = f"Error in I/O Operation: {escape(str(last_exception))}"
+                raise CrawlWarning(message) from last_exception
+            raise CrawlError("Impossible return in ilias _iorepeat")
+
         return wrapper  # type: ignore
     return decorator
 
@@ -109,14 +117,19 @@ class KitIliasWebCrawler(HttpCrawler):
 
     async def crawl(self) -> None:
         if isinstance(self._target, int):
+            log.explain_topic(f"Inferred crawl target: Course with id {self._target}")
             await self._crawl_course(self._target)
         elif self._target == "desktop":
+            log.explain_topic("Inferred crawl target: Personal desktop")
             await self._crawl_desktop()
         else:
+            log.explain_topic(f"Inferred crawl target: URL {escape(self._target)}")
             await self._crawl_url(self._target)
 
         if self.error_free:
             await self.cleanup()
+        else:
+            log.explain_topic("Skipping file cleanup as errors occurred earlier")
 
     async def _crawl_course(self, course_id: int) -> None:
         # Start crawling at the given course
@@ -132,15 +145,16 @@ class KitIliasWebCrawler(HttpCrawler):
     async def _crawl_url(self, url: str, expected_id: Optional[int] = None) -> None:
         tasks = []
 
+        # TODO: Retry this when the crawl and download bar are reworked
         async with self.crawl_bar(PurePath("Root element")):
             soup = await self._get_page(url)
 
             if expected_id is not None:
                 perma_link_element: Tag = soup.find(id="current_perma_link")
                 if not perma_link_element or "crs_" not in perma_link_element.get("value"):
-                    # TODO: Properly handle error
-                    raise RuntimeError(
-                        "Invalid course id? I didn't find anything looking like a course!")
+                    raise CrawlError(
+                        "Invalid course id? I didn't find anything looking like a course"
+                    )
 
             # Duplicated code, but the root page is special - we want to void fetching it twice!
             page = IliasPage(soup, url, None)
@@ -167,15 +181,14 @@ class KitIliasWebCrawler(HttpCrawler):
         await asyncio.gather(*tasks)
 
     @anoncritical
-    @_iorepeat(3)
+    @_iorepeat(3, "ILIAS element crawling")
     async def _handle_ilias_element(self, parent_path: PurePath, element: IliasPageElement) -> None:
         element_path = PurePath(parent_path, element.name)
 
         if element.type == IliasElementType.FILE:
             await self._download_file(element, element_path)
         elif element.type == IliasElementType.FORUM:
-            # TODO: Delete
-            print(f"Skipping forum [green]{element_path}[/]")
+            log.explain_topic(f"Skipping forum at {escape(str(element_path))}")
         elif element.type == IliasElementType.LINK:
             await self._download_link(element, element_path)
         elif element.type == IliasElementType.VIDEO:
@@ -185,8 +198,9 @@ class KitIliasWebCrawler(HttpCrawler):
         elif element.type in _DIRECTORY_PAGES:
             await self._handle_ilias_page(element.url, element, element_path)
         else:
-            # TODO: Proper exception
-            raise RuntimeError(f"Unknown type: {element.type!r}")
+            # This will retry it a few times, failing everytime. It doesn't make any network
+            # requests, so that's fine.
+            raise CrawlWarning(f"Unknown element type: {element.type!r}")
 
     async def _download_link(self, element: IliasPageElement, element_path: PurePath) -> None:
         dl = await self.download(element_path, mtime=element.mtime)
