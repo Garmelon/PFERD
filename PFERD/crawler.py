@@ -1,3 +1,4 @@
+import asyncio
 from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -265,6 +266,33 @@ class HttpCrawler(Crawler):
 
         self._cookie_jar_path = self._output_dir.resolve(self.COOKIE_FILE)
         self._output_dir.register_reserved(self.COOKIE_FILE)
+        self._authentication_id = 0
+        self._authentication_lock = asyncio.Lock()
+
+    async def prepare_request(self) -> int:
+        # We acquire the lock here to ensure we wait for any concurrent authenticate to finish.
+        # This should reduce the amount of requests we make: If an authentication is in progress
+        # all future requests wait for authentication to complete.
+        async with self._authentication_lock:
+            return self._authentication_id
+
+    async def authenticate(self, current_id: int) -> None:
+        async with self._authentication_lock:
+            # Another thread successfully called authenticate in between
+            # We do not want to perform auth again, so return here. We can
+            # assume auth suceeded as authenticate will throw an error if
+            # it failed.
+            if current_id != self._authentication_id:
+                return
+            await self._authenticate()
+            self._authentication_id += 1
+
+    async def _authenticate(self) -> None:
+        """
+        Performs authentication. This method must only return normally if authentication suceeded.
+        In all other cases it mus either retry internally or throw a terminal exception.
+        """
+        raise RuntimeError("_authenticate() was called but crawler doesn't provide an implementation")
 
     async def run(self) -> None:
         cookie_jar = aiohttp.CookieJar()

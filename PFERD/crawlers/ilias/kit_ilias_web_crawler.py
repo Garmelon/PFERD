@@ -5,14 +5,15 @@ from pathlib import PurePath
 from typing import Any, Awaitable, Callable, Dict, Optional, Set, TypeVar, Union
 
 import aiohttp
+from aiohttp import hdrs
 from bs4 import BeautifulSoup, Tag
 from rich.markup import escape
 
 from PFERD.authenticators import Authenticator
 from PFERD.config import Config
 from PFERD.crawler import CrawlError, CrawlerSection, CrawlWarning, HttpCrawler, anoncritical
-from PFERD.logging import log
-from PFERD.output_dir import Redownload
+from PFERD.logging import ProgressBar, log
+from PFERD.output_dir import FileSink, Redownload
 from PFERD.utils import soupify, url_set_query_param
 
 from .file_templates import link_template_plain, link_template_rich
@@ -232,23 +233,24 @@ class KitIliasWebCrawler(HttpCrawler):
             page = IliasPage(await self._get_page(element.url), element.url, element)
             real_element = page.get_child_elements()[0]
 
-            async with dl as sink, self.session.get(real_element.url) as resp:
-                if resp.content_length:
-                    bar.set_total(resp.content_length)
-
-                async for data in resp.content.iter_chunked(1024):
-                    sink.file.write(data)
-                    bar.advance(len(data))
-
-                sink.done()
+            async with dl as sink:
+                await self._stream_from_url(real_element.url, sink, bar)
 
     async def _download_file(self, element: IliasPageElement, element_path: PurePath) -> None:
         dl = await self.download(element_path, mtime=element.mtime)
         if not dl:
             return
 
-        async with self.download_bar(element_path) as bar:
-            async with dl as sink, self.session.get(element.url) as resp:
+        async with self.download_bar(element_path) as bar, dl as sink:
+            await self._stream_from_url(element.url, sink, bar)
+
+    async def _stream_from_url(self, url: str, sink: FileSink, bar: ProgressBar) -> None:
+        async def try_stream() -> bool:
+            async with self.session.get(url, allow_redirects=False) as resp:
+                # Redirect means we weren't authenticated
+                if hdrs.LOCATION in resp.headers:
+                    return False
+
                 if resp.content_length:
                     bar.set_total(resp.content_length)
 
@@ -257,22 +259,39 @@ class KitIliasWebCrawler(HttpCrawler):
                     bar.advance(len(data))
 
                 sink.done()
+            return True
 
-    async def _get_page(self, url: str, retries_left: int = 3) -> BeautifulSoup:
-        # This function will retry itself a few times if it is not logged in - it won't handle
-        # connection errors
-        if retries_left < 0:
-            # TODO: Proper exception
-            raise RuntimeError("Get page failed too often")
-        print(url, "retries left", retries_left)
+        auth_id = await self.prepare_request()
+        if await try_stream():
+            return
+
+        await self.authenticate(auth_id)
+
+        if not await try_stream():
+            raise CrawlError("File streaming failed after authenticate()")
+
+    async def _get_page(self, url: str) -> BeautifulSoup:
+        auth_id = await self.prepare_request()
         async with self.session.get(url) as request:
             soup = soupify(await request.read())
             if self._is_logged_in(soup):
                 return soup
 
-        await self._shibboleth_login.login(self.session)
+        # We weren't authenticated, so try to do that
+        await self.authenticate(auth_id)
 
-        return await self._get_page(url, retries_left - 1)
+        # Retry once after authenticating. If this fails, we will die.
+        async with self.session.get(url) as request:
+            soup = soupify(await request.read())
+            if self._is_logged_in(soup):
+                return soup
+        raise CrawlError("get_page failed even after authenticating")
+
+    # We repeat this as the login method in shibboleth doesn't handle I/O errors.
+    # Shibboleth is quite reliable as well, the repeat is likely not critical here.
+    @_iorepeat(3, "Login")
+    async def _authenticate(self) -> None:
+        await self._shibboleth_login.login(self.session)
 
     @staticmethod
     def _is_logged_in(soup: BeautifulSoup) -> bool:
