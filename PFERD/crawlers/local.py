@@ -56,10 +56,8 @@ class LocalCrawler(Crawler):
         else:
             self._block_size = 1024**2  # 1 MiB
 
-    async def crawl(self) -> None:
+    async def _run(self) -> None:
         await self._crawl_path(self._target, PurePath())
-        if self.error_free:
-            await self.cleanup()
 
     @anoncritical
     async def _crawl_path(self, path: Path, pure: PurePath) -> None:
@@ -69,9 +67,13 @@ class LocalCrawler(Crawler):
             await self._crawl_file(path, pure)
 
     async def _crawl_dir(self, path: Path, pure: PurePath) -> None:
+        cl = await self.crawl(pure)
+        if not cl:
+            return
+
         tasks = []
 
-        async with self.crawl_bar(pure):
+        async with cl:
             await asyncio.sleep(random.uniform(
                 0.5 * self._crawl_delay,
                 self._crawl_delay,
@@ -79,8 +81,7 @@ class LocalCrawler(Crawler):
 
             for child in path.iterdir():
                 pure_child = pure / child.name
-                if self.should_crawl(child):
-                    tasks.append(self._crawl_path(child, pure_child))
+                tasks.append(self._crawl_path(child, pure_child))
 
         await asyncio.gather(*tasks)
 
@@ -91,7 +92,7 @@ class LocalCrawler(Crawler):
         if not dl:
             return
 
-        async with self.download_bar(pure) as bar:
+        async with dl as (bar, sink):
             await asyncio.sleep(random.uniform(
                 0.5 * self._download_delay,
                 self._download_delay,
@@ -99,19 +100,18 @@ class LocalCrawler(Crawler):
 
             bar.set_total(stat.st_size)
 
-            async with dl as sink:
-                with open(path, "rb") as f:
-                    while True:
-                        data = f.read(self._block_size)
-                        if len(data) == 0:
-                            break
+            with open(path, "rb") as f:
+                while True:
+                    data = f.read(self._block_size)
+                    if len(data) == 0:
+                        break
 
-                        sink.file.write(data)
-                        bar.advance(len(data))
+                    sink.file.write(data)
+                    bar.advance(len(data))
 
-                        if self._download_speed:
-                            delay = self._block_size / self._download_speed
-                            delay = random.uniform(0.8 * delay, 1.2 * delay)
-                            await asyncio.sleep(delay)
+                    if self._download_speed:
+                        delay = self._block_size / self._download_speed
+                        delay = random.uniform(0.8 * delay, 1.2 * delay)
+                        await asyncio.sleep(delay)
 
-                    sink.done()
+                sink.done()
