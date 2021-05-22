@@ -249,7 +249,7 @@ def parse_arrow(line: Line) -> str:
                 break  # End of arrow
             else:
                 name.append("-")
-                name.append(c)
+                continue
         else:
             name.append(c)
 
@@ -304,7 +304,7 @@ def parse_rule(line: Line) -> Rule:
         return NameRule(ReRule(left, right))
     else:
         line.index = arrowindex + 1  # For nicer error message
-        raise RuleParseError(line, "Invalid arrow name")
+        raise RuleParseError(line, f"Invalid arrow name {arrowname!r}")
 
 
 class Transformer:
