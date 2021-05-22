@@ -115,7 +115,12 @@ def main() -> None:
         dump_config(args, config)
         exit()
 
-    pferd = Pferd(config)
+    try:
+        pferd = Pferd(config)
+    except ConfigOptionError as e:
+        log.error(str(e))
+        exit(1)
+
     try:
         asyncio.run(pferd.run())
     except KeyboardInterrupt:
