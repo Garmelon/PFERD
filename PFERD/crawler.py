@@ -49,6 +49,7 @@ def noncritical(f: Wrapped) -> Wrapped:
             log.print(f"[bold bright_red]Warning[/] {escape(str(e))}")
             crawler.error_free = False
         except CrawlError as e:
+            # TODO Don't print error, just pass it on upwards
             log.print(f"[bold bright_red]Error[/] [red]{escape(str(e))}")
             crawler.error_free = False
             raise

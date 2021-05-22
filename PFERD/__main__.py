@@ -266,4 +266,8 @@ def main() -> None:
         exit()
 
     pferd = Pferd(config)
-    asyncio.run(pferd.run())
+    try:
+        asyncio.run(pferd.run())
+    except KeyboardInterrupt:
+        # TODO Clean up tmp files
+        pass
