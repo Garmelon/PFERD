@@ -1,8 +1,7 @@
 import asyncio
-import contextvars
-import functools
 import getpass
 import sys
+import threading
 from abc import ABC, abstractmethod
 from contextlib import AsyncExitStack
 from types import TracebackType
@@ -14,21 +13,25 @@ import bs4
 T = TypeVar("T")
 
 
-# TODO When switching to 3.9, use asyncio.to_thread instead of this
-async def to_thread(func: Callable[..., T], *args: Any, **kwargs: Any) -> T:
-    # https://github.com/python/cpython/blob/8d47f92d46a92a5931b8f3dcb4a484df672fc4de/Lib/asyncio/threads.py
-    loop = asyncio.get_event_loop()
-    ctx = contextvars.copy_context()
-    func_call = functools.partial(ctx.run, func, *args, **kwargs)
-    return await loop.run_in_executor(None, func_call)  # type: ignore
+async def in_daemon_thread(func: Callable[..., T], *args: Any, **kwargs: Any) -> T:
+    loop = asyncio.get_running_loop()
+    future: asyncio.Future[T] = asyncio.Future()
+
+    def thread_func() -> None:
+        result = func()
+        loop.call_soon_threadsafe(future.set_result, result)
+
+    threading.Thread(target=thread_func, daemon=True).start()
+
+    return await future
 
 
 async def ainput(prompt: str) -> str:
-    return await to_thread(lambda: input(prompt))
+    return await in_daemon_thread(lambda: input(prompt))
 
 
 async def agetpass(prompt: str) -> str:
-    return await to_thread(lambda: getpass.getpass(prompt))
+    return await in_daemon_thread(lambda: getpass.getpass(prompt))
 
 
 def soupify(data: bytes) -> bs4.BeautifulSoup:
