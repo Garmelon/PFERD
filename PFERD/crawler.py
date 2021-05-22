@@ -220,8 +220,13 @@ class Crawler(ABC):
         )
 
     async def crawl(self, path: PurePath) -> Optional[CrawlToken]:
+        log.explain_topic(f"Decision: Crawl {path}")
+
         if self._transformer.transform(path) is None:
+            log.explain("Answer: No")
             return None
+
+        log.explain("Answer: Yes")
 
         desc = f"[bold bright_cyan]Crawling[/] {escape(str(path))}"
         return CrawlToken(self._limiter, desc)
@@ -233,26 +238,32 @@ class Crawler(ABC):
             redownload: Optional[Redownload] = None,
             on_conflict: Optional[OnConflict] = None,
     ) -> Optional[DownloadToken]:
+        log.explain_topic(f"Decision: Download {path}")
+
         transformed_path = self._transformer.transform(path)
         if transformed_path is None:
+            log.explain("Answer: No")
             return None
 
         fs_token = await self._output_dir.download(transformed_path, mtime, redownload, on_conflict)
         if fs_token is None:
+            log.explain("Answer: No")
             return None
+
+        log.explain("Answer: Yes")
 
         desc = f"[bold bright_cyan]Downloading[/] {escape(str(path))}"
         return DownloadToken(self._limiter, fs_token, desc)
 
     async def _cleanup(self) -> None:
-        log.explain_topic("Decision: Clean up files?")
+        log.explain_topic("Decision: Clean up files")
         if self.error_free:
             log.explain("No warnings or errors occurred during this run")
-            log.explain("Cleaning up files")
+            log.explain("Answer: Yes")
             await self._output_dir.cleanup()
         else:
             log.explain("Warnings or errors occurred during this run")
-            log.explain("Not cleaning up files")
+            log.explain("Answer: No")
 
     async def run(self) -> None:
         """

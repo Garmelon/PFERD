@@ -317,16 +317,22 @@ class Transformer:
         for i, line in enumerate(rules.split("\n")):
             line = line.strip()
             if line:
-                self._rules.append(parse_rule(Line(line, i)))
+                rule = parse_rule(Line(line, i))
+                self._rules.append((line, rule))
 
     def transform(self, path: PurePath) -> Optional[PurePath]:
-        for rule in self._rules:
+        for i, (line, rule) in enumerate(self._rules):
+            log.explain(f"Testing rule {i}: {line}")
+
             result = rule.transform(path)
             if isinstance(result, PurePath):
+                log.explain(f"Match! Transformed to {result}")
                 return result
             elif result:  # Exclamation mark
+                log.explain("Match! Ignored")
                 return None
             else:
                 continue
 
+        log.explain("No rule matched, path is unchanged")
         return path
