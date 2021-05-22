@@ -115,11 +115,11 @@ def main() -> None:
         dump_config(args, config)
         exit()
 
-    # TODO Unset exclusive output on exceptions (if it was being held)
     pferd = Pferd(config)
     try:
         asyncio.run(pferd.run())
     except KeyboardInterrupt:
+        log.unlock()
         log.explain_topic("Interrupted, exiting immediately")
         log.explain("Open files and connections are left for the OS to clean up")
         log.explain("Temporary files are not cleaned up")
@@ -128,5 +128,6 @@ def main() -> None:
         # reconsider what exit code to use here.
         exit(1)
     except Exception:
+        log.unlock()
         log.unexpected_exception()
         exit(1)

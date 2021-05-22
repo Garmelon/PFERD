@@ -97,11 +97,27 @@ class Log:
                     self.print(line)
                 self._lines = []
 
+    def unlock(self) -> None:
+        """
+        Get rid of an exclusive output state.
+
+        This function is meant to let PFERD print log messages after the event
+        loop was forcibly stopped and if it will not be started up again. After
+        this is called, it is not safe to use any functions except the logging
+        functions (print, warn, ...).
+        """
+
+        self._progress_suspended = False
+        for line in self._lines:
+            self.print(line)
+
     def print(self, text: str) -> None:
         if self._progress_suspended:
             self._lines.append(text)
         else:
             self.console.print(text)
+
+    # TODO Print errors (and warnings?) to stderr
 
     def warn(self, text: str) -> None:
         self.print(f"[bold bright_red]Warning[/] {escape(text)}")
