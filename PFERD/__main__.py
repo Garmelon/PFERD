@@ -7,6 +7,7 @@ from .cli import PARSER, load_default_section
 from .config import Config, ConfigDumpError, ConfigLoadError, ConfigOptionError
 from .logging import log
 from .pferd import Pferd
+from .transformer import RuleParseError
 from .version import NAME, VERSION
 
 
@@ -121,6 +122,10 @@ def main() -> None:
     except ConfigOptionError as e:
         log.unlock()
         log.error(str(e))
+        exit(1)
+    except RuleParseError as e:
+        log.unlock()
+        e.pretty_print()
         exit(1)
     except KeyboardInterrupt:
         log.unlock()

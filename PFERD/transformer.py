@@ -6,9 +6,10 @@
 import ast
 import re
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from pathlib import PurePath
 from typing import Dict, Optional, Union
+
+from .logging import log
 
 
 class Rule(ABC):
@@ -122,16 +123,18 @@ class ReRule(Rule):
         return False
 
 
-@dataclass
-class RuleParseException(Exception):
-    line: "Line"
-    reason: str
+class RuleParseError(Exception):
+    def __init__(self, line: "Line", reason: str):
+        super().__init__(f"Error in rule on line {line.line_nr}, column {line.index}: {reason}")
+
+        self.line = line
+        self.reason = reason
 
     def pretty_print(self) -> None:
-        print(f"Error parsing rule on line {self.line.line_nr}:")
-        print(self.line.line)
+        log.error(f"Error parsing rule on line {self.line.line_nr}:")
+        log.error_contd(self.line.line)
         spaces = " " * self.line.index
-        print(f"{spaces}^--- {self.reason}")
+        log.error_contd(f"{spaces}^--- {self.reason}")
 
 
 class Line:
@@ -170,7 +173,7 @@ class Line:
             if self.get() == char:
                 self.advance()
             else:
-                raise RuleParseException(self, f"Expected {char!r}")
+                raise RuleParseError(self, f"Expected {char!r}")
 
 
 QUOTATION_MARKS = {'"', "'"}
@@ -186,7 +189,7 @@ def parse_string_literal(line: Line) -> str:
     if quotation_mark not in QUOTATION_MARKS:
         # This should never happen as long as this function is only called from
         # parse_string.
-        raise RuleParseException(line, "Invalid quotation mark")
+        raise RuleParseError(line, "Invalid quotation mark")
     line.advance()
 
     while c := line.get():
@@ -204,7 +207,7 @@ def parse_string_literal(line: Line) -> str:
         else:
             line.advance()
 
-    raise RuleParseException(line, "Expected end of string literal")
+    raise RuleParseError(line, "Expected end of string literal")
 
 
 def parse_until_space_or_eol(line: Line) -> str:
@@ -235,12 +238,12 @@ def parse_arrow(line: Line) -> str:
     while True:
         c = line.get()
         if not c:
-            raise RuleParseException(line, "Expected rest of arrow")
+            raise RuleParseError(line, "Expected rest of arrow")
         elif c == "-":
             line.advance()
             c = line.get()
             if not c:
-                raise RuleParseException(line, "Expected rest of arrow")
+                raise RuleParseError(line, "Expected rest of arrow")
             elif c == ">":
                 line.advance()
                 break  # End of arrow
@@ -267,7 +270,7 @@ def parse_rule(line: Line) -> Rule:
     left = parse_string(line)
     if isinstance(left, bool):
         line.index = leftindex
-        raise RuleParseException(line, "Left side can't be '!'")
+        raise RuleParseError(line, "Left side can't be '!'")
 
     # Parse arrow
     parse_whitespace(line)
@@ -301,7 +304,7 @@ def parse_rule(line: Line) -> Rule:
         return NameRule(ReRule(left, right))
     else:
         line.index = arrowindex + 1  # For nicer error message
-        raise RuleParseException(line, "Invalid arrow name")
+        raise RuleParseError(line, "Invalid arrow name")
 
 
 class Transformer:
