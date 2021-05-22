@@ -316,33 +316,3 @@ class HttpCrawler(Crawler):
             cookie_jar.save(self._cookie_jar_path)
         except Exception:
             log.print(f"[bold red]Warning:[/] Failed to save cookies to {escape(str(self.COOKIE_FILE))}")
-
-
-def repeat(attempts: int) -> Callable[[Wrapped], Wrapped]:
-    """Deprecated."""
-    def decorator(f: Wrapped) -> Wrapped:
-        def wrapper(self: "Crawler", *args: Any, **kwargs: Any) -> None:
-            for _ in range(attempts - 1):
-                try:
-                    f(self, *args, **kwargs)
-                    return
-                except Exception:
-                    pass
-            f(self, *args, **kwargs)
-        return wrapper  # type: ignore
-    return decorator
-
-
-def arepeat(attempts: int) -> Callable[[AWrapped], AWrapped]:
-    """Deprecated."""
-    def decorator(f: AWrapped) -> AWrapped:
-        async def wrapper(self: "Crawler", *args: Any, **kwargs: Any) -> None:
-            for _ in range(attempts - 1):
-                try:
-                    await f(self, *args, **kwargs)
-                    return
-                except Exception:
-                    pass
-            await f(self, *args, **kwargs)
-        return wrapper  # type: ignore
-    return decorator
