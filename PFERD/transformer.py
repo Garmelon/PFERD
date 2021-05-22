@@ -51,6 +51,7 @@ class NormalRule(Rule):
         if left_parts:
             return None
 
+        path_parts.reverse()
         return PurePath(*path_parts)
 
     def transform(self, path: PurePath) -> Union[PurePath, bool]:
