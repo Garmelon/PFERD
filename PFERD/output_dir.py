@@ -8,8 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from pathlib import Path, PurePath
-# TODO In Python 3.9 and above, AsyncContextManager is deprecated
-from typing import AsyncContextManager, BinaryIO, Iterator, Optional, Tuple
+from typing import BinaryIO, Iterator, Optional, Tuple
 
 from rich.markup import escape
 
@@ -307,7 +306,7 @@ class OutputDirectory:
             mtime: Optional[datetime] = None,
             redownload: Optional[Redownload] = None,
             on_conflict: Optional[OnConflict] = None,
-    ) -> Optional[AsyncContextManager[FileSink]]:
+    ) -> Optional[FileSinkToken]:
         """
         May throw an OutputDirError, a MarkDuplicateError or a
         MarkConflictError.
