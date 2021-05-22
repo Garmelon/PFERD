@@ -117,12 +117,11 @@ def main() -> None:
 
     try:
         pferd = Pferd(config)
+        asyncio.run(pferd.run())
     except ConfigOptionError as e:
+        log.unlock()
         log.error(str(e))
         exit(1)
-
-    try:
-        asyncio.run(pferd.run())
     except KeyboardInterrupt:
         log.unlock()
         log.explain_topic("Interrupted, exiting immediately")

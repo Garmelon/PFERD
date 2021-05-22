@@ -20,9 +20,6 @@ class Pferd:
         self._authenticators: Dict[str, Authenticator] = {}
         self._crawlers: Dict[str, Crawler] = {}
 
-        self._load_authenticators()
-        self._load_crawlers()
-
     def _load_authenticators(self) -> None:
         for name, section in self._config.authenticator_sections():
             log.print(f"[bold bright_cyan]Loading[/] {escape(name)}")
@@ -46,6 +43,12 @@ class Pferd:
             self._crawlers[name] = crawler
 
     async def run(self) -> None:
+        # These two functions must run inside the same event loop as the
+        # crawlers, so that any new objects (like Conditions or Futures) can
+        # obtain the correct event loop.
+        self._load_authenticators()
+        self._load_crawlers()
+
         for name, crawler in self._crawlers.items():
             log.print("")
             log.print(f"[bold bright_cyan]Running[/] {escape(name)}")
