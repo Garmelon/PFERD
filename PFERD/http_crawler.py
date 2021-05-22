@@ -1,5 +1,6 @@
 import asyncio
 from pathlib import PurePath
+from typing import Optional
 
 import aiohttp
 from rich.markup import escape
@@ -25,6 +26,7 @@ class HttpCrawler(Crawler):
         self._output_dir.register_reserved(self.COOKIE_FILE)
         self._authentication_id = 0
         self._authentication_lock = asyncio.Lock()
+        self._current_cookie_jar: Optional[aiohttp.CookieJar] = None
 
     async def prepare_request(self) -> int:
         # We acquire the lock here to ensure we wait for any concurrent authenticate to finish.
@@ -43,6 +45,9 @@ class HttpCrawler(Crawler):
                 return
             await self._authenticate()
             self._authentication_id += 1
+            # Saving the cookies after the first auth ensures we won't need to re-authenticate
+            # on the next run, should this one be aborted or crash
+            await self._save_cookies()
 
     async def _authenticate(self) -> None:
         """
@@ -51,17 +56,29 @@ class HttpCrawler(Crawler):
         """
         raise RuntimeError("_authenticate() was called but crawler doesn't provide an implementation")
 
-    async def run(self) -> None:
-        cookie_jar = aiohttp.CookieJar()
+    async def _save_cookies(self) -> None:
+        log.explain_topic("Saving cookies")
+        if not self._current_cookie_jar:
+            log.explain("No cookie jar - save aborted")
+            return
 
         try:
-            cookie_jar.load(self._cookie_jar_path)
+            self._current_cookie_jar.save(self._cookie_jar_path)
+            log.explain(f"Cookies saved to {escape(str(self.COOKIE_FILE))}")
+        except Exception:
+            log.print(f"[bold red]Warning:[/] Failed to save cookies to {escape(str(self.COOKIE_FILE))}")
+
+    async def run(self) -> None:
+        self._current_cookie_jar = aiohttp.CookieJar()
+
+        try:
+            self._current_cookie_jar.load(self._cookie_jar_path)
         except Exception:
             pass
 
         async with aiohttp.ClientSession(
                 headers={"User-Agent": f"{NAME}/{VERSION}"},
-                cookie_jar=cookie_jar,
+                cookie_jar=self._current_cookie_jar,
         ) as session:
             self.session = session
             try:
@@ -69,7 +86,5 @@ class HttpCrawler(Crawler):
             finally:
                 del self.session
 
-        try:
-            cookie_jar.save(self._cookie_jar_path)
-        except Exception:
-            log.print(f"[bold red]Warning:[/] Failed to save cookies to {escape(str(self.COOKIE_FILE))}")
+        # They are saved in authenticate, but a final save won't hurt
+        await self._save_cookies()
