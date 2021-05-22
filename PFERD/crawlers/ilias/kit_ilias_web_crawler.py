@@ -187,7 +187,7 @@ class KitIliasWebCrawler(HttpCrawler):
             await self._download_file(element, element_path)
         elif element.type == IliasElementType.FORUM:
             log.explain_topic(f"Decision: Crawl {escape(str(element_path))}")
-            log.explain("Is a forum")
+            log.explain("Forums are not supported")
             log.explain("Answer: No")
         elif element.type == IliasElementType.LINK:
             await self._download_link(element, element_path)
