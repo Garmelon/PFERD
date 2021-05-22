@@ -72,11 +72,11 @@ AWrapped = TypeVar("AWrapped", bound=Callable[..., Awaitable[None]])
 
 def _iorepeat(attempts: int, name: str) -> Callable[[AWrapped], AWrapped]:
     def decorator(f: AWrapped) -> AWrapped:
-        async def wrapper(self: "HttpCrawler", *args: Any, **kwargs: Any) -> None:
+        async def wrapper(*args: Any, **kwargs: Any) -> None:
             last_exception: Optional[BaseException] = None
             for round in range(attempts):
                 try:
-                    await f(self, *args, **kwargs)
+                    await f(*args, **kwargs)
                     return
                 except aiohttp.ContentTypeError:  # invalid content type
                     raise CrawlWarning("ILIAS returned an invalid content type")
@@ -96,6 +96,43 @@ def _iorepeat(attempts: int, name: str) -> Callable[[AWrapped], AWrapped]:
         return wrapper  # type: ignore
     return decorator
 
+
+def _wrap_io_in_warning(name: str) -> Callable[[AWrapped], AWrapped]:
+    """
+    Wraps any I/O exception in a CrawlWarning.
+    """
+    return _iorepeat(1, name)
+
+
+# Crawler control flow:
+#
+#     crawl_desktop -+
+#                    |
+#     crawl_course --+
+#                    |
+#  +- crawl_url    <-+
+#  |
+#  |
+#  |  @_wrap_io_exception     # does not need to retry as children acquire bars
+#  +> crawl_ilias_element -+
+#  ^                       |
+#  |  @_io_repeat          |  # retries internally (before the bar)
+#  +- crawl_ilias_page <---+
+#  |                       |
+#  +> get_page             |  # Handles and retries authentication
+#                          |
+#     @_io_repeat          |  # retries internally (before the bar)
+#  +- download_link    <---+
+#  |                       |
+#  +> resolve_target       |  # Handles and retries authentication
+#                          |
+#     @_io_repeat          |  # retries internally (before the bar)
+#  +- download_video   <---+
+#  |                       |
+#  |  @_io_repeat          |  # retries internally (before the bar)
+#  +- download_file    <---+
+#  |
+#  +> stream_from_url         # Handles and retries authentication
 
 class KitIliasWebCrawler(HttpCrawler):
     def __init__(
@@ -169,18 +206,30 @@ class KitIliasWebCrawler(HttpCrawler):
         if not cl:
             return
 
-        tasks = []
-        async with cl:
-            soup = await self._get_page(url)
-            page = IliasPage(soup, url, parent)
+        @_iorepeat(3, "crawling folder")
+        async def impl() -> None:
+            assert cl  # The function is only reached when cl is not None
+            tasks = []
+            async with cl:
+                soup = await self._get_page(url)
+                page = IliasPage(soup, url, parent)
 
-            for child in page.get_child_elements():
-                tasks.append(self._handle_ilias_element(path, child))
+                for child in page.get_child_elements():
+                    tasks.append(self._handle_ilias_element(path, child))
 
-        await asyncio.gather(*tasks)
+            # The only point an I/O exception can be thrown is in `get_page`.
+            # If that happens, no task was spawned yet. Therefore, we only retry
+            # this method without having spawned a single task. Due to this we do
+            # not need to cancel anything or worry about this gather call or the forks
+            # further up.
+            await asyncio.gather(*tasks)
+
+        await impl()
 
     @anoncritical
-    @_iorepeat(3, "ILIAS element crawling")
+    # Shouldn't happen but this method must never raise an I/O error as that might interfere with
+    # handle_ilias_page
+    @_wrap_io_in_warning("ilias element handling")
     async def _handle_ilias_element(self, parent_path: PurePath, element: IliasPageElement) -> None:
         element_path = PurePath(parent_path, element.name)
 
@@ -208,19 +257,37 @@ class KitIliasWebCrawler(HttpCrawler):
         if not dl:
             return
 
-        async with dl as (bar, sink):
-            export_url = element.url.replace("cmd=calldirectlink", "cmd=exportHTML")
-            async with self.session.get(export_url) as response:
-                html_page: BeautifulSoup = soupify(await response.read())
-                real_url: str = html_page.select_one("a").get("href").strip()
+        @_iorepeat(3, "link resolving")
+        async def impl() -> None:
+            assert dl  # This function is only reached when dl is not None
+            async with dl as (bar, sink):
+                export_url = element.url.replace("cmd=calldirectlink", "cmd=exportHTML")
+                real_url = await self._resolve_link_target(export_url)
 
-            content = link_template_plain if self._link_file_use_plaintext else link_template_rich
-            content = content.replace("{{link}}", real_url)
-            content = content.replace("{{name}}", element.name)
-            content = content.replace("{{description}}", str(element.description))
-            content = content.replace("{{redirect_delay}}", str(self._link_file_redirect_delay))
-            sink.file.write(content.encode("utf-8"))
-            sink.done()
+                content = link_template_plain if self._link_file_use_plaintext else link_template_rich
+                content = content.replace("{{link}}", real_url)
+                content = content.replace("{{name}}", element.name)
+                content = content.replace("{{description}}", str(element.description))
+                content = content.replace("{{redirect_delay}}", str(self._link_file_redirect_delay))
+                sink.file.write(content.encode("utf-8"))
+                sink.done()
+
+        await impl()
+
+    async def _resolve_link_target(self, export_url: str) -> str:
+        async with self.session.get(export_url, allow_redirects=False) as resp:
+            # No redirect means we were authenticated
+            if hdrs.LOCATION not in resp.headers:
+                return soupify(await resp.read()).select_one("a").get("href").strip()
+
+        self._authenticate()
+
+        async with self.session.get(export_url, allow_redirects=False) as resp:
+            # No redirect means we were authenticated
+            if hdrs.LOCATION not in resp.headers:
+                return soupify(await resp.read()).select_one("a").get("href").strip()
+
+        raise CrawlError("resolve_link_target failed even after authenticating")
 
     async def _download_video(self, element: IliasPageElement, element_path: PurePath) -> None:
         # Videos will NOT be redownloaded - their content doesn't really change and they are chunky
@@ -228,19 +295,29 @@ class KitIliasWebCrawler(HttpCrawler):
         if not dl:
             return
 
-        async with dl as (bar, sink):
-            page = IliasPage(await self._get_page(element.url), element.url, element)
-            real_element = page.get_child_elements()[0]
+        @_iorepeat(3, "video download")
+        async def impl() -> None:
+            assert dl  # The function is only reached when dl is not None
+            async with dl as (bar, sink):
+                page = IliasPage(await self._get_page(element.url), element.url, element)
+                real_element = page.get_child_elements()[0]
 
-            await self._stream_from_url(real_element.url, sink, bar)
+                await self._stream_from_url(real_element.url, sink, bar)
+
+        await impl()
 
     async def _download_file(self, element: IliasPageElement, element_path: PurePath) -> None:
         dl = await self.download(element_path, mtime=element.mtime)
         if not dl:
             return
 
-        async with dl as (bar, sink):
-            await self._stream_from_url(element.url, sink, bar)
+        @_iorepeat(3, "file download")
+        async def impl() -> None:
+            assert dl  # The function is only reached when dl is not None
+            async with dl as (bar, sink):
+                await self._stream_from_url(element.url, sink, bar)
+
+        await impl()
 
     async def _stream_from_url(self, url: str, sink: FileSink, bar: ProgressBar) -> None:
         async def try_stream() -> bool:
