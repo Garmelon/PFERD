@@ -244,8 +244,15 @@ class Crawler(ABC):
         desc = f"[bold bright_cyan]Downloading[/] {escape(str(path))}"
         return DownloadToken(self._limiter, fs_token, desc)
 
-    async def cleanup(self) -> None:
-        await self._output_dir.cleanup()
+    async def _cleanup(self) -> None:
+        log.explain_topic("Decision: Clean up files?")
+        if self.error_free:
+            log.explain("No warnings or errors occurred during this run")
+            log.explain("Cleaning up files")
+            await self._output_dir.cleanup()
+        else:
+            log.explain("Warnings or errors occurred during this run")
+            log.explain("Not cleaning up files")
 
     async def run(self) -> None:
         """
@@ -255,6 +262,7 @@ class Crawler(ABC):
 
         with log.show_progress():
             await self._run()
+            await self._cleanup()
 
     @abstractmethod
     async def _run(self) -> None:
