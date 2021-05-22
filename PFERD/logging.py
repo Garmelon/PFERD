@@ -113,24 +113,27 @@ class Log:
         self.print(f"[red]{escape(text)}")
 
     def unexpected_exception(self) -> None:
+        """
+        Call this in an "except" clause to log an unexpected exception.
+        """
+
         t, v, tb = sys.exc_info()
-
-        self.error("An unexpected exception occurred")
-        self.error_contd("")
-
-        for line in traceback.format_tb(tb):
-            self.error_contd(line[:-1])  # Without trailing newline
-
-        if str(v):
-            self.error_contd(f"{t.__name__}: {v}")
+        if t is None or v is None or tb is None:
+            # We're not currently handling an exception, so somebody probably
+            # called this function where they shouldn't.
+            self.error("Something unexpected happened")
+            self.error_contd("")
+            for line in traceback.format_stack():
+                self.error_contd(line[:-1])  # Without the newline
+            self.error_contd("")
         else:
-            self.error_contd(t.__name__)
+            self.error("An unexpected exception occurred")
+            self.error_contd("")
+            self.error_contd(traceback.format_exc())
 
-        self.error_contd("")
         self.error_contd("""
-An unexpected exception occurred. This usually shouldn't happen. Please copy
-your program output and send it to the PFERD maintainers, either directly or as
-a GitHub issue: https://github.com/Garmelon/PFERD/issues/new
+Please copy your program output and send it to the PFERD maintainers, either
+directly or as a GitHub issue: https://github.com/Garmelon/PFERD/issues/new
         """.strip())
 
     def explain_topic(self, text: str) -> None:
