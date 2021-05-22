@@ -11,7 +11,8 @@ from rich.markup import escape
 
 from PFERD.authenticators import Authenticator
 from PFERD.config import Config
-from PFERD.crawler import CrawlError, CrawlerSection, CrawlWarning, HttpCrawler, anoncritical
+from PFERD.crawler import CrawlError, CrawlerSection, CrawlWarning, anoncritical
+from PFERD.http_crawler import HttpCrawler
 from PFERD.logging import ProgressBar, log
 from PFERD.output_dir import FileSink, Redownload
 from PFERD.utils import soupify, url_set_query_param
