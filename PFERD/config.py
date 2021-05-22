@@ -2,7 +2,6 @@ import asyncio
 import os
 import sys
 from configparser import ConfigParser, SectionProxy
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, List, NoReturn, Optional, Tuple
 
@@ -10,21 +9,34 @@ from .logging import log
 from .utils import prompt_yes_no
 
 
-@dataclass
-class ConfigLoadException(Exception):
-    path: Path
-    reason: str
+class ConfigLoadError(Exception):
+    """
+    Something went wrong while loading the config from a file.
+    """
+
+    def __init__(self, path: Path, reason: str):
+        super().__init__(f"Failed to load config from {path}")
+        self.path = path
+        self.reason = reason
 
 
-class ConfigDumpException(Exception):
-    pass
+class ConfigOptionError(Exception):
+    """
+    An option in the config file has an invalid or missing value.
+    """
+
+    def __init__(self, section: str, key: str, desc: str):
+        super().__init__(f"Section {section!r}, key {key!r}: {desc}")
+        self.section = section
+        self.key = key
+        self.desc = desc
 
 
-@dataclass
-class ConfigFormatException(Exception):
-    section: str
-    key: str
-    desc: str
+class ConfigDumpError(Exception):
+    def __init__(self, path: Path, reason: str):
+        super().__init__(f"Failed to dump config to {path}")
+        self.path = path
+        self.reason = reason
 
 
 class Section:
@@ -36,7 +48,7 @@ class Section:
         self.s = section
 
     def error(self, key: str, desc: str) -> NoReturn:
-        raise ConfigFormatException(self.s.name, key, desc)
+        raise ConfigOptionError(self.s.name, key, desc)
 
     def invalid_value(
             self,
@@ -83,7 +95,7 @@ class Config:
     @staticmethod
     def load_parser(parser: ConfigParser, path: Optional[Path] = None) -> None:
         """
-        May throw a ConfigLoadException.
+        May throw a ConfigLoadError.
         """
 
         if path:
@@ -99,21 +111,15 @@ class Config:
             with open(path) as f:
                 parser.read_file(f, source=str(path))
         except FileNotFoundError:
-            raise ConfigLoadException(path, "File does not exist")
+            raise ConfigLoadError(path, "File does not exist")
         except IsADirectoryError:
-            raise ConfigLoadException(path, "That's a directory, not a file")
+            raise ConfigLoadError(path, "That's a directory, not a file")
         except PermissionError:
-            raise ConfigLoadException(path, "Insufficient permissions")
-
-    @staticmethod
-    def _fail_dump(path: Path, reason: str) -> None:
-        print(f"Failed to dump config file to {path}")
-        print(f"Reason: {reason}")
-        raise ConfigDumpException()
+            raise ConfigLoadError(path, "Insufficient permissions")
 
     def dump(self, path: Optional[Path] = None) -> None:
         """
-        May throw a ConfigDumpException.
+        May throw a ConfigDumpError.
         """
 
         if not path:
@@ -124,7 +130,7 @@ class Config:
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
         except PermissionError:
-            self._fail_dump(path, "Could not create parent directory")
+            raise ConfigDumpError(path, "Could not create parent directory")
 
         try:
             # Ensuring we don't accidentally overwrite any existing files by
@@ -140,11 +146,11 @@ class Config:
                     with open(path, "w") as f:
                         self._parser.write(f)
                 else:
-                    self._fail_dump(path, "File already exists")
+                    raise ConfigDumpError(path, "File already exists")
         except IsADirectoryError:
-            self._fail_dump(path, "That's a directory, not a file")
+            raise ConfigDumpError(path, "That's a directory, not a file")
         except PermissionError:
-            self._fail_dump(path, "Insufficient permissions")
+            raise ConfigDumpError(path, "Insufficient permissions")
 
     def dump_to_stdout(self) -> None:
         self._parser.write(sys.stdout)

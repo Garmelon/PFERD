@@ -4,15 +4,13 @@ import configparser
 from pathlib import Path
 
 from .cli import PARSER, load_default_section
-from .config import Config, ConfigDumpException, ConfigLoadException
+from .config import Config, ConfigDumpError, ConfigLoadError, ConfigOptionError
 from .logging import log
 from .pferd import Pferd
 from .version import NAME, VERSION
 
 
-def load_parser(
-        args: argparse.Namespace,
-) -> configparser.ConfigParser:
+def load_config_parser(args: argparse.Namespace) -> configparser.ConfigParser:
     log.explain_topic("Loading config")
     parser = configparser.ConfigParser()
 
@@ -47,46 +45,88 @@ def prune_crawlers(
     # TODO Check if crawlers actually exist
 
 
-def main() -> None:
-    args = PARSER.parse_args()
+def load_config(args: argparse.Namespace) -> Config:
+    try:
+        return Config(load_config_parser(args))
+    except ConfigLoadError as e:
+        log.error(str(e))
+        log.error_contd(e.reason)
+        exit(1)
 
-    # Configure log levels set by command line arguments
+
+def configure_logging_from_args(args: argparse.Namespace) -> None:
     if args.explain is not None:
         log.output_explain = args.explain
-    if args.dump_config:
+
+    # We want to prevent any unnecessary output if we're printing the config to
+    # stdout, otherwise it would not be a valid config file.
+    if args.dump_config == "-":
         log.output_explain = False
+
+
+def configure_logging_from_config(args: argparse.Namespace, config: Config) -> None:
+    # In configure_logging_from_args(), all normal logging is already disabled
+    # whenever we dump the config. We don't want to override that decision with
+    # values from the config file.
+    if args.dump_config == "-":
+        return
+
+    try:
+        if args.explain is None:
+            log.output_explain = config.default_section.explain()
+    except ConfigOptionError as e:
+        log.error(str(e))
+        exit(1)
+
+
+def dump_config(args: argparse.Namespace, config: Config) -> None:
+    try:
+        if args.dump_config is True:
+            config.dump()
+        elif args.dump_config == "-":
+            config.dump_to_stdout()
+        else:
+            config.dump(Path(args.dump_config))
+    except ConfigDumpError as e:
+        log.error(str(e))
+        log.error_contd(e.reason)
+        exit(1)
+
+
+def main() -> None:
+    args = PARSER.parse_args()
 
     if args.version:
         print(f"{NAME} {VERSION}")
         exit()
 
-    try:
-        config = Config(load_parser(args))
-    except ConfigLoadException as e:
-        log.error(f"Failed to load config file at path {str(e.path)!r}")
-        log.error_contd(f"Reason: {e.reason}")
-        exit(1)
+    # Configuring logging happens in two stages because CLI args have
+    # precedence over config file options and loading the config already
+    # produces some kinds of log messages (usually only explain()-s).
+    configure_logging_from_args(args)
 
-    # Configure log levels set in the config file
-    # TODO Catch config section exceptions
-    if args.explain is None:
-        log.output_explain = config.default_section.explain()
+    config = load_config(args)
+
+    # Now, after loading the config file, we can apply its logging settings in
+    # all places that were not already covered by CLI args.
+    configure_logging_from_config(args, config)
 
     if args.dump_config is not None:
-        try:
-            if args.dump_config is True:
-                config.dump()
-            elif args.dump_config == "-":
-                config.dump_to_stdout()
-            else:
-                config.dump(Path(args.dump_config))
-        except ConfigDumpException:
-            exit(1)
+        dump_config(args, config)
         exit()
 
+    # TODO Unset exclusive output on exceptions (if it was being held)
     pferd = Pferd(config)
     try:
         asyncio.run(pferd.run())
     except KeyboardInterrupt:
+        log.explain_topic("Interrupted, exiting immediately")
+        log.explain("Open files and connections are left for the OS to clean up")
+        log.explain("Temporary files are not cleaned up")
         # TODO Clean up tmp files
-        pass
+        # And when those files *do* actually get cleaned up properly,
+        # reconsider what exit code to use here.
+        exit(1)
+    except Exception:
+        log.unexpected_exception()
+        exit(1)

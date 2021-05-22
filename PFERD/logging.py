@@ -1,4 +1,6 @@
 import asyncio
+import sys
+import traceback
 from contextlib import asynccontextmanager, contextmanager
 # TODO In Python 3.9 and above, ContextManager and AsyncContextManager are deprecated
 from typing import AsyncIterator, ContextManager, Iterator, List, Optional
@@ -109,6 +111,27 @@ class Log:
 
     def error_contd(self, text: str) -> None:
         self.print(f"[red]{escape(text)}")
+
+    def unexpected_exception(self) -> None:
+        t, v, tb = sys.exc_info()
+
+        self.error("An unexpected exception occurred")
+        self.error_contd("")
+
+        for line in traceback.format_tb(tb):
+            self.error_contd(line[:-1])  # Without trailing newline
+
+        if str(v):
+            self.error_contd(f"{t.__name__}: {v}")
+        else:
+            self.error_contd(t.__name__)
+
+        self.error_contd("")
+        self.error_contd("""
+An unexpected exception occurred. This usually shouldn't happen. Please copy
+your program output and send it to the PFERD maintainers, either directly or as
+a GitHub issue: https://github.com/Garmelon/PFERD/issues/new
+        """.strip())
 
     def explain_topic(self, text: str) -> None:
         if self.output_explain:
