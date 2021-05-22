@@ -14,7 +14,7 @@ from typing import AsyncContextManager, BinaryIO, Iterator, Optional, Tuple
 from rich.markup import escape
 
 from .logging import log
-from .report import MarkConflictException, MarkDuplicateException, Report
+from .report import Report
 from .utils import ReusableAsyncContextManager, prompt_yes_no
 
 SUFFIX_CHARS = string.ascii_lowercase + string.digits
@@ -22,7 +22,7 @@ SUFFIX_LENGTH = 6
 TRIES = 5
 
 
-class OutputDirException(Exception):
+class OutputDirError(Exception):
     pass
 
 
@@ -146,25 +146,15 @@ class OutputDirectory:
     def register_reserved(self, path: PurePath) -> None:
         self._report.mark_reserved(path)
 
-    def _mark(self, path: PurePath) -> None:
-        """
-        May throw an OutputDirException
-        """
-
-        try:
-            self._report.mark(path)
-        except MarkDuplicateException:
-            raise OutputDirException("Another file has already been placed here.")
-        except MarkConflictException as e:
-            raise OutputDirException(f"Collides with other file: {e.collides_with}")
-
     def resolve(self, path: PurePath) -> Path:
         """
-        May throw an OutputDirException.
+        May throw an OutputDirError.
         """
 
         if ".." in path.parts:
-            raise OutputDirException(f"Path {path} contains forbidden '..'")
+            raise OutputDirError(f"Forbidden segment '..' in path {path}")
+        if "." in path.parts:
+            raise OutputDirError(f"Forbidden segment '.' in path {path}")
         return self._root / path
 
     def _should_download(
@@ -297,7 +287,7 @@ class OutputDirectory:
             local_path: Path,
     ) -> Tuple[Path, BinaryIO]:
         """
-        May raise an OutputDirException.
+        May raise an OutputDirError.
         """
 
         # Create tmp file
@@ -309,7 +299,7 @@ class OutputDirectory:
             except FileExistsError:
                 pass  # Try again
 
-        raise OutputDirException(f"Failed to create temporary file {tmp_path}")
+        raise OutputDirError("Failed to create temporary file")
 
     async def download(
             self,
@@ -319,7 +309,8 @@ class OutputDirectory:
             on_conflict: Optional[OnConflict] = None,
     ) -> Optional[AsyncContextManager[FileSink]]:
         """
-        May throw an OutputDirException.
+        May throw an OutputDirError, a MarkDuplicateError or a
+        MarkConflictError.
         """
 
         heuristics = Heuristics(mtime)
@@ -327,7 +318,7 @@ class OutputDirectory:
         on_conflict = self._on_conflict if on_conflict is None else on_conflict
         local_path = self.resolve(path)
 
-        self._mark(path)
+        self._report.mark(path)
 
         if not self._should_download(local_path, heuristics, redownload):
             return None

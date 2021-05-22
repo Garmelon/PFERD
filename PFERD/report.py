@@ -1,19 +1,18 @@
-from dataclasses import dataclass
 from pathlib import PurePath
 from typing import Set
 
 
-@dataclass
-class MarkDuplicateException(Exception):
+class MarkDuplicateError(Exception):
     """
     Tried to mark a file that was already marked.
     """
 
-    path: PurePath
+    def __init__(self, path: PurePath):
+        super().__init__(f"A previous file already used path {path}")
+        self.path = path
 
 
-@dataclass
-class MarkConflictException(Exception):
+class MarkConflictError(Exception):
     """
     Marking the path would have caused a conflict.
 
@@ -24,8 +23,10 @@ class MarkConflictException(Exception):
     usually not possible.
     """
 
-    path: PurePath
-    collides_with: PurePath
+    def __init__(self, path: PurePath, collides_with: PurePath):
+        super().__init__(f"File at {path} collides with previous file at {collides_with}")
+        self.path = path
+        self.collides_with = collides_with
 
 
 # TODO Use PurePath.is_relative_to when updating to 3.9
@@ -58,16 +59,16 @@ class Report:
         """
         Mark a previously unknown file as known.
 
-        May throw a MarkDuplicateException or a MarkConflictException. For more
-        detail, see the respective exception's docstring.
+        May throw a MarkDuplicateError or a MarkConflictError. For more detail,
+        see the respective exception's docstring.
         """
 
         for other in self.marked:
             if path == other:
-                raise MarkDuplicateException(path)
+                raise MarkDuplicateError(path)
 
             if is_relative_to(path, other) or is_relative_to(other, path):
-                raise MarkConflictException(path, other)
+                raise MarkConflictError(path, other)
 
         self.known_files.add(path)
 

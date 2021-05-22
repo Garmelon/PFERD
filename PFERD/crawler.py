@@ -13,7 +13,8 @@ from .authenticator import Authenticator
 from .config import Config, Section
 from .limiter import Limiter
 from .logging import ProgressBar, log
-from .output_dir import FileSink, OnConflict, OutputDirectory, Redownload
+from .output_dir import FileSink, OnConflict, OutputDirectory, OutputDirError, Redownload
+from .report import MarkConflictError, MarkDuplicateError
 from .transformer import Transformer
 from .version import NAME, VERSION
 
@@ -45,12 +46,10 @@ def noncritical(f: Wrapped) -> Wrapped:
 
         try:
             f(*args, **kwargs)
-        except CrawlWarning as e:
-            log.print(f"[bold bright_red]Warning[/] {escape(str(e))}")
+        except (CrawlWarning, OutputDirError, MarkDuplicateError, MarkConflictError) as e:
+            log.warn(str(e))
             crawler.error_free = False
-        except CrawlError as e:
-            # TODO Don't print error, just pass it on upwards
-            log.print(f"[bold bright_red]Error[/] [red]{escape(str(e))}")
+        except CrawlError:
             crawler.error_free = False
             raise
 
