@@ -116,7 +116,7 @@ class KitIliasWebCrawler(HttpCrawler):
         self._link_file_redirect_delay = section.link_file_redirect_delay()
         self._link_file_use_plaintext = section.link_file_use_plaintext()
 
-    async def crawl(self) -> None:
+    async def _run(self) -> None:
         if isinstance(self._target, int):
             log.explain_topic(f"Inferred crawl target: Course with id {self._target}")
             await self._crawl_course(self._target)
@@ -126,11 +126,6 @@ class KitIliasWebCrawler(HttpCrawler):
         else:
             log.explain_topic(f"Inferred crawl target: URL {escape(self._target)}")
             await self._crawl_url(self._target)
-
-        if self.error_free:
-            await self.cleanup()
-        else:
-            log.explain_topic("Skipping file cleanup as errors occurred earlier")
 
     async def _crawl_course(self, course_id: int) -> None:
         # Start crawling at the given course
@@ -144,10 +139,14 @@ class KitIliasWebCrawler(HttpCrawler):
         await self._crawl_url(self._base_url)
 
     async def _crawl_url(self, url: str, expected_id: Optional[int] = None) -> None:
+        cl = await self.crawl(PurePath("."))
+        if not cl:
+            return
+
         tasks = []
 
         # TODO: Retry this when the crawl and download bar are reworked
-        async with self.crawl_bar(PurePath("Root element")):
+        async with cl:
             soup = await self._get_page(url)
 
             if expected_id is not None:
@@ -165,14 +164,12 @@ class KitIliasWebCrawler(HttpCrawler):
         await asyncio.gather(*tasks)
 
     async def _handle_ilias_page(self, url: str, parent: IliasPageElement, path: PurePath) -> None:
-        # We might not want to crawl this directory-ish page.
-        # This is not in #handle_element, as the download methods check it themselves and therefore
-        # would perform this check twice - messing with the explain output
-        if not self.should_crawl(path):
+        cl = await self.crawl(path)
+        if not cl:
             return
 
         tasks = []
-        async with self.crawl_bar(path):
+        async with cl:
             soup = await self._get_page(url)
             page = IliasPage(soup, url, parent)
 
@@ -189,7 +186,9 @@ class KitIliasWebCrawler(HttpCrawler):
         if element.type == IliasElementType.FILE:
             await self._download_file(element, element_path)
         elif element.type == IliasElementType.FORUM:
-            log.explain_topic(f"Skipping forum at {escape(str(element_path))}")
+            log.explain_topic(f"Decision: Crawl {escape(str(element_path))}")
+            log.explain("Is a forum")
+            log.explain("Answer: No")
         elif element.type == IliasElementType.LINK:
             await self._download_link(element, element_path)
         elif element.type == IliasElementType.VIDEO:
@@ -208,20 +207,19 @@ class KitIliasWebCrawler(HttpCrawler):
         if not dl:
             return
 
-        async with self.download_bar(element_path):
+        async with dl as (bar, sink):
             export_url = element.url.replace("cmd=calldirectlink", "cmd=exportHTML")
             async with self.session.get(export_url) as response:
                 html_page: BeautifulSoup = soupify(await response.read())
                 real_url: str = html_page.select_one("a").get("href").strip()
 
-            async with dl as sink:
-                content = link_template_plain if self._link_file_use_plaintext else link_template_rich
-                content = content.replace("{{link}}", real_url)
-                content = content.replace("{{name}}", element.name)
-                content = content.replace("{{description}}", str(element.description))
-                content = content.replace("{{redirect_delay}}", str(self._link_file_redirect_delay))
-                sink.file.write(content.encode("utf-8"))
-                sink.done()
+            content = link_template_plain if self._link_file_use_plaintext else link_template_rich
+            content = content.replace("{{link}}", real_url)
+            content = content.replace("{{name}}", element.name)
+            content = content.replace("{{description}}", str(element.description))
+            content = content.replace("{{redirect_delay}}", str(self._link_file_redirect_delay))
+            sink.file.write(content.encode("utf-8"))
+            sink.done()
 
     async def _download_video(self, element: IliasPageElement, element_path: PurePath) -> None:
         # Videos will NOT be redownloaded - their content doesn't really change and they are chunky
@@ -229,19 +227,18 @@ class KitIliasWebCrawler(HttpCrawler):
         if not dl:
             return
 
-        async with self.download_bar(element_path) as bar:
+        async with dl as (bar, sink):
             page = IliasPage(await self._get_page(element.url), element.url, element)
             real_element = page.get_child_elements()[0]
 
-            async with dl as sink:
-                await self._stream_from_url(real_element.url, sink, bar)
+            await self._stream_from_url(real_element.url, sink, bar)
 
     async def _download_file(self, element: IliasPageElement, element_path: PurePath) -> None:
         dl = await self.download(element_path, mtime=element.mtime)
         if not dl:
             return
 
-        async with self.download_bar(element_path) as bar, dl as sink:
+        async with dl as (bar, sink):
             await self._stream_from_url(element.url, sink, bar)
 
     async def _stream_from_url(self, url: str, sink: FileSink, bar: ProgressBar) -> None:
