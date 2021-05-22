@@ -3,192 +3,11 @@ import asyncio
 import configparser
 from pathlib import Path
 
+from .cli import PARSER, load_default_section
 from .config import Config, ConfigDumpException, ConfigLoadException
 from .logging import log
-from .output_dir import OnConflict, Redownload
 from .pferd import Pferd
 from .version import NAME, VERSION
-
-GENERAL_PARSER = argparse.ArgumentParser(add_help=False)
-GENERAL_PARSER.add_argument(
-    "--version",
-    action="store_true",
-    help="print version and exit"
-)
-GENERAL_PARSER.add_argument(
-    "--config", "-c",
-    type=Path,
-    metavar="PATH",
-    help="custom config file"
-)
-GENERAL_PARSER.add_argument(
-    "--dump-config",
-    nargs="?",
-    const=True,
-    metavar="PATH",
-    help="dump current configuration to a file and exit."
-    " Uses default config file path if no path is specified"
-)
-GENERAL_PARSER.add_argument(
-    "--crawler",
-    action="append",
-    type=str,
-    metavar="NAME",
-    help="only execute a single crawler."
-    " Can be specified multiple times to execute multiple crawlers"
-)
-GENERAL_PARSER.add_argument(
-    "--working-dir",
-    type=Path,
-    metavar="PATH",
-    help="custom working directory"
-)
-GENERAL_PARSER.add_argument(
-    "--explain", "-e",
-    # TODO Use argparse.BooleanOptionalAction after updating to 3.9
-    action="store_const",
-    const=True,
-    help="log and explain in detail what PFERD is doing"
-)
-
-
-def load_general(
-        args: argparse.Namespace,
-        parser: configparser.ConfigParser,
-) -> None:
-    section = parser[parser.default_section]
-
-    if args.working_dir is not None:
-        section["working_dir"] = str(args.working_dir)
-    if args.explain is not None:
-        section["explain"] = "true" if args.explain else "false"
-
-
-CRAWLER_PARSER = argparse.ArgumentParser(add_help=False)
-CRAWLER_PARSER_GROUP = CRAWLER_PARSER.add_argument_group(
-    title="general crawler arguments",
-    description="arguments common to all crawlers",
-)
-CRAWLER_PARSER_GROUP.add_argument(
-    "--redownload",
-    type=Redownload.from_string,
-    metavar="OPTION",
-    help="when to redownload a file that's already present locally"
-)
-CRAWLER_PARSER_GROUP.add_argument(
-    "--on-conflict",
-    type=OnConflict.from_string,
-    metavar="OPTION",
-    help="what to do when local and remote files or directories differ"
-)
-CRAWLER_PARSER_GROUP.add_argument(
-    "--transform", "-t",
-    action="append",
-    type=str,
-    metavar="RULE",
-    help="add a single transformation rule. Can be specified multiple times"
-)
-CRAWLER_PARSER_GROUP.add_argument(
-    "--max-concurrent-tasks",
-    type=int,
-    metavar="N",
-    help="maximum number of concurrent tasks (crawling, downloading)"
-)
-CRAWLER_PARSER_GROUP.add_argument(
-    "--max-concurrent-downloads",
-    type=int,
-    metavar="N",
-    help="maximum number of tasks that may download data at the same time"
-)
-CRAWLER_PARSER_GROUP.add_argument(
-    "--delay-between-tasks",
-    type=float,
-    metavar="SECONDS",
-    help="time the crawler should wait between subsequent tasks"
-)
-
-
-def load_crawler(
-        args: argparse.Namespace,
-        section: configparser.SectionProxy,
-) -> None:
-    if args.redownload is not None:
-        section["redownload"] = args.redownload.value
-    if args.on_conflict is not None:
-        section["on_conflict"] = args.on_conflict.value
-    if args.transform is not None:
-        section["transform"] = "\n" + "\n".join(args.transform)
-    if args.max_concurrent_tasks is not None:
-        section["max_concurrent_tasks"] = str(args.max_concurrent_tasks)
-    if args.max_concurrent_downloads is not None:
-        section["max_concurrent_downloads"] = str(args.max_concurrent_downloads)
-    if args.delay_between_tasks is not None:
-        section["delay_between_tasks"] = str(args.delay_between_tasks)
-
-
-PARSER = argparse.ArgumentParser(parents=[GENERAL_PARSER])
-PARSER.set_defaults(command=None)
-SUBPARSERS = PARSER.add_subparsers(title="crawlers")
-
-
-LOCAL_CRAWLER = SUBPARSERS.add_parser(
-    "local",
-    parents=[CRAWLER_PARSER],
-)
-LOCAL_CRAWLER.set_defaults(command="local")
-LOCAL_CRAWLER_GROUP = LOCAL_CRAWLER.add_argument_group(
-    title="local crawler arguments",
-    description="arguments for the 'local' crawler",
-)
-LOCAL_CRAWLER_GROUP.add_argument(
-    "target",
-    type=Path,
-    metavar="TARGET",
-    help="directory to crawl"
-)
-LOCAL_CRAWLER_GROUP.add_argument(
-    "output",
-    type=Path,
-    metavar="OUTPUT",
-    help="output directory"
-)
-LOCAL_CRAWLER_GROUP.add_argument(
-    "--crawl-delay",
-    type=float,
-    metavar="SECONDS",
-    help="artificial delay to simulate for crawl requests"
-)
-LOCAL_CRAWLER_GROUP.add_argument(
-    "--download-delay",
-    type=float,
-    metavar="SECONDS",
-    help="artificial delay to simulate for download requests"
-)
-LOCAL_CRAWLER_GROUP.add_argument(
-    "--download-speed",
-    type=int,
-    metavar="BYTES_PER_SECOND",
-    help="download speed to simulate"
-)
-
-
-def load_local_crawler(
-        args: argparse.Namespace,
-        parser: configparser.ConfigParser,
-) -> None:
-    parser["crawl:local"] = {}
-    section = parser["crawl:local"]
-    load_crawler(args, section)
-
-    section["type"] = "local"
-    section["target"] = str(args.target)
-    section["output_dir"] = str(args.output)
-    if args.crawl_delay is not None:
-        section["crawl_delay"] = str(args.crawl_delay)
-    if args.download_delay is not None:
-        section["download_delay"] = str(args.download_delay)
-    if args.download_speed is not None:
-        section["download_speed"] = str(args.download_speed)
 
 
 def load_parser(
@@ -202,10 +21,10 @@ def load_parser(
         Config.load_parser(parser, path=args.config)
     else:
         log.explain(f"CLI command specified, creating config for {args.command!r}")
-        if args.command == "local":
-            load_local_crawler(args, parser)
+        if args.command:
+            args.command(args, parser)
 
-    load_general(args, parser)
+    load_default_section(args, parser)
     prune_crawlers(args, parser)
 
     return parser
