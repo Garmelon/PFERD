@@ -37,10 +37,10 @@ class HttpCrawler(Crawler):
 
     async def authenticate(self, current_id: int) -> None:
         async with self._authentication_lock:
-            # Another thread successfully called authenticate in between
-            # We do not want to perform auth again, so return here. We can
-            # assume auth suceeded as authenticate will throw an error if
-            # it failed.
+            # Another thread successfully called authenticate in-between
+            # We do not want to perform auth again, so we return here. We can
+            # assume the other thread suceeded as authenticate will throw an error
+            # if it failed and aborts the crawl process.
             if current_id != self._authentication_id:
                 return
             await self._authenticate()
@@ -52,7 +52,7 @@ class HttpCrawler(Crawler):
     async def _authenticate(self) -> None:
         """
         Performs authentication. This method must only return normally if authentication suceeded.
-        In all other cases it mus either retry internally or throw a terminal exception.
+        In all other cases it must either retry internally or throw a terminal exception.
         """
         raise RuntimeError("_authenticate() was called but crawler doesn't provide an implementation")
 
