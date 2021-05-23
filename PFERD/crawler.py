@@ -28,8 +28,11 @@ Wrapped = TypeVar("Wrapped", bound=Callable[..., None])
 
 def noncritical(f: Wrapped) -> Wrapped:
     """
-    Catches all exceptions occuring during the function call. If an exception
-    occurs, the crawler's error_free variable is set to False.
+    Catches and logs a few noncritical exceptions occurring during the function
+    call, mainly CrawlWarning.
+
+    If any exception occurs during the function call, the crawler's error_free
+    variable is set to False. This includes noncritical exceptions.
 
     Warning: Must only be applied to member functions of the Crawler class!
     """
@@ -45,7 +48,7 @@ def noncritical(f: Wrapped) -> Wrapped:
         except (CrawlWarning, OutputDirError, MarkDuplicateError, MarkConflictError) as e:
             log.warn(str(e))
             crawler.error_free = False
-        except CrawlError:
+        except:  # noqa: E722 do not use bare 'except'
             crawler.error_free = False
             raise
 
@@ -59,8 +62,11 @@ def anoncritical(f: AWrapped) -> AWrapped:
     """
     An async version of @noncritical.
 
-    Catches all exceptions occuring during the function call. If an exception
-    occurs, the crawler's error_free variable is set to False.
+    Catches and logs a few noncritical exceptions occurring during the function
+    call, mainly CrawlWarning.
+
+    If any exception occurs during the function call, the crawler's error_free
+    variable is set to False. This includes noncritical exceptions.
 
     Warning: Must only be applied to member functions of the Crawler class!
     """
@@ -73,11 +79,10 @@ def anoncritical(f: AWrapped) -> AWrapped:
 
         try:
             await f(*args, **kwargs)
-        except CrawlWarning as e:
-            log.print(f"[bold bright_red]Warning[/] {escape(str(e))}")
+        except (CrawlWarning, OutputDirError, MarkDuplicateError, MarkConflictError) as e:
+            log.warn(str(e))
             crawler.error_free = False
-        except CrawlError as e:
-            log.print(f"[bold bright_red]Error[/] [red]{escape(str(e))}")
+        except:  # noqa: E722 do not use bare 'except'
             crawler.error_free = False
             raise
 
