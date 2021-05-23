@@ -37,7 +37,7 @@ class SimpleAuthenticator(Authenticator):
             if self._username is None:
                 self._username = await ainput("Username: ")
             else:
-                print(f"Username: {self.username}")
+                print(f"Username: {self._username}")
 
             if self._password is None:
                 self._password = await agetpass("Password: ")
