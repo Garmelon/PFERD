@@ -3,7 +3,6 @@ import re
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from enum import Enum
-# TODO In Python 3.9 and above, AsyncContextManager is deprecated
 from typing import List, Optional, Union
 from urllib.parse import urljoin, urlparse
 

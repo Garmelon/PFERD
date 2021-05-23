@@ -2,7 +2,7 @@ import asyncio
 import sys
 import traceback
 from contextlib import asynccontextmanager, contextmanager
-# TODO In Python 3.9 and above, ContextManager and AsyncContextManager are deprecated
+# TODO In Python 3.9 and above, ContextManager is deprecated
 from typing import AsyncIterator, ContextManager, Iterator, List, Optional
 
 from rich.console import Console, RenderGroup
