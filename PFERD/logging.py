@@ -181,7 +181,7 @@ directly or as a GitHub issue: https://github.com/Garmelon/PFERD/issues/new
         """
 
         if self.output_explain:
-            self.print(f"[cyan]{escape(text)}")
+            self.print(f"[yellow]{escape(text)}")
 
     def explain(self, text: str) -> None:
         """

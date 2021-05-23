@@ -399,7 +399,7 @@ class OutputDirectory:
 
     async def _after_download(self, info: DownloadInfo) -> None:
         with self._ensure_deleted(info.tmp_path):
-            log.action(f"[bold bright_cyan]Downloaded[/] {fmt_path(info.remote_path)}")
+            log.action(f"[bold cyan]Downloaded[/] {fmt_path(info.remote_path)}")
             log.explain_topic(f"Processing downloaded file for {fmt_path(info.path)}")
 
             changed = False
