@@ -328,10 +328,10 @@ class Transformer:
 
             result = rule.transform(path)
             if isinstance(result, PurePath):
-                log.explain(f"Match! Transformed to {fmt_path(result)}")
+                log.explain(f"Match found, transformed path to {fmt_path(result)}")
                 return result
             elif result:  # Exclamation mark
-                log.explain("Match! Ignored")
+                log.explain("Match found, path ignored")
                 return None
             else:
                 continue
