@@ -52,12 +52,12 @@ class IliasPage:
             log.explain("Page is a video player, extracting URL")
             return self._player_to_video()
         if self._is_video_listing():
-            log.explain("Page is a video listing, finding elements")
+            log.explain("Page is a video listing, searching for elements")
             return self._find_video_entries()
         if self._is_exercise_file():
-            log.explain("Page is an exercise, finding elements")
+            log.explain("Page is an exercise, searching for elements")
             return self._find_exercise_entries()
-        log.explain("Page is a normal folder, finding elements")
+        log.explain("Page is a normal folder, searching for elements")
         return self._find_normal_entries()
 
     def _is_video_player(self) -> bool:

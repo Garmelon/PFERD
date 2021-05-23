@@ -206,6 +206,8 @@ class KitIliasWebCrawler(HttpCrawler):
                         raise CrawlError("Invalid course id? Didn't find anything looking like a course")
 
                 # Duplicated code, but the root page is special - we want to avoid fetching it twice!
+                log.explain_topic("Parsing root HTML page")
+                log.explain(f"URL: {url}")
                 page = IliasPage(soup, url, None)
                 elements.extend(page.get_child_elements())
 
@@ -229,8 +231,8 @@ class KitIliasWebCrawler(HttpCrawler):
             elements.clear()
             async with cl:
                 soup = await self._get_page(url)
-                log.explain_topic(f"Parsing HTML page for {path!r}")
-                log.explain(f"URL: {url!r}")
+                log.explain_topic(f"Parsing HTML page for {fmt_path(path)}")
+                log.explain(f"URL: {url}")
                 page = IliasPage(soup, url, parent)
 
                 elements.extend(page.get_child_elements())
