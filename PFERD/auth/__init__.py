@@ -3,6 +3,7 @@ from typing import Callable, Dict
 
 from ..config import Config
 from .authenticator import Authenticator, AuthSection
+from .keyring_authenticator import KeyringAuthenticator, KeyringAuthSection
 from .simple import SimpleAuthenticator, SimpleAuthSection
 from .tfa import TfaAuthenticator
 
@@ -17,4 +18,6 @@ AUTHENTICATORS: Dict[str, AuthConstructor] = {
         SimpleAuthenticator(n, SimpleAuthSection(s), c),
     "tfa": lambda n, s, c:
         TfaAuthenticator(n, AuthSection(s), c),
+    "keyring": lambda n, s, c:
+        KeyringAuthenticator(n, KeyringAuthSection(s), c)
 }

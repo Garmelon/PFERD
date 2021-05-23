@@ -154,6 +154,15 @@ This authenticator prompts the user on the console for a two-factor
 authentication token. The token is provided as password and it is not cached.
 This authenticator does not support usernames.
 
+### The `keyring` authenticator
+
+This authenticator uses the system keyring to store passwords. It expects a 
+username in the config and will prompt *once* for the password. After that it
+receives the password from the system keyring.
+
+- `username`: The username. (Required)
+- `keyring_name`: The service name PFERD uses for storing credentials. (Optional)
+
 ## Transformation rules
 
 Transformation rules are rules for renaming and excluding files and directories.
