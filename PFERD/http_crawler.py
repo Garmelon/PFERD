@@ -27,6 +27,7 @@ class HttpCrawler(Crawler):
         self._authentication_id = 0
         self._authentication_lock = asyncio.Lock()
         self._current_cookie_jar: Optional[aiohttp.CookieJar] = None
+        self._request_count = 0
 
     async def _current_auth_id(self) -> int:
         """
@@ -41,6 +42,7 @@ class HttpCrawler(Crawler):
         # This should reduce the amount of requests we make: If an authentication is in progress
         # all future requests wait for authentication to complete.
         async with self._authentication_lock:
+            self._request_count += 1
             return self._authentication_id
 
     async def authenticate(self, caller_auth_id: int) -> None:
@@ -85,6 +87,7 @@ class HttpCrawler(Crawler):
 
     async def run(self) -> None:
         self._current_cookie_jar = aiohttp.CookieJar()
+        self._request_count = 0
 
         try:
             self._current_cookie_jar.load(self._cookie_jar_path)
@@ -100,6 +103,7 @@ class HttpCrawler(Crawler):
                 await super().run()
             finally:
                 del self.session
+        log.explain_topic(f"Total amount of HTTP requests: {self._request_count}")
 
         # They are saved in authenticate, but a final save won't hurt
         await self._save_cookies()
