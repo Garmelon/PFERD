@@ -2,11 +2,9 @@ from typing import Dict, List, Optional
 
 from rich.markup import escape
 
-from .authenticator import Authenticator
-from .authenticators import AUTHENTICATORS
+from .auth import AUTHENTICATORS, Authenticator
 from .config import Config, ConfigOptionError
-from .crawler import Crawler, CrawlError
-from .crawlers import CRAWLERS
+from .crawl import CRAWLERS, Crawler, CrawlError
 from .logging import log
 
 

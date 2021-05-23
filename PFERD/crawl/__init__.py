@@ -1,11 +1,11 @@
 from configparser import SectionProxy
 from typing import Callable, Dict
 
-from ..authenticator import Authenticator
+from ..auth import Authenticator
 from ..config import Config
-from ..crawler import Crawler
+from .crawler import Crawler, CrawlError  # noqa: F401
 from .ilias import KitIliasWebCrawler, KitIliasWebCrawlerSection
-from .local import LocalCrawler, LocalCrawlerSection
+from .local_crawler import LocalCrawler, LocalCrawlerSection
 
 CrawlerConstructor = Callable[[
     str,                       # Name (without the "crawl:" prefix)

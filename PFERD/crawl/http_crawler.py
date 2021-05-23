@@ -4,11 +4,11 @@ from typing import Optional
 
 import aiohttp
 
-from .config import Config
+from ..config import Config
+from ..logging import log
+from ..utils import fmt_real_path
+from ..version import NAME, VERSION
 from .crawler import Crawler, CrawlerSection
-from .logging import log
-from .utils import fmt_real_path
-from .version import NAME, VERSION
 
 
 class HttpCrawler(Crawler):

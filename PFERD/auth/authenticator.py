@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Tuple
 
-from .config import Config, Section
+from ..config import Config, Section
 
 
 class AuthLoadException(Exception):

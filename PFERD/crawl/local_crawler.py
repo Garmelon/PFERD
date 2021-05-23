@@ -5,7 +5,7 @@ from pathlib import Path, PurePath
 from typing import Optional
 
 from ..config import Config
-from ..crawler import Crawler, CrawlerSection, anoncritical
+from .crawler import Crawler, CrawlerSection, anoncritical
 
 
 class LocalCrawlerSection(CrawlerSection):

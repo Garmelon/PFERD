@@ -6,14 +6,14 @@ from typing import Any, Awaitable, Callable, Dict, List, Optional, Sequence, Tup
 
 from rich.markup import escape
 
-from .authenticator import Authenticator
-from .config import Config, Section
-from .limiter import Limiter
-from .logging import ProgressBar, log
-from .output_dir import FileSink, FileSinkToken, OnConflict, OutputDirectory, OutputDirError, Redownload
-from .report import MarkConflictError, MarkDuplicateError
-from .transformer import Transformer
-from .utils import ReusableAsyncContextManager, fmt_path
+from ..auth import Authenticator
+from ..config import Config, Section
+from ..limiter import Limiter
+from ..logging import ProgressBar, log
+from ..output_dir import FileSink, FileSinkToken, OnConflict, OutputDirectory, OutputDirError, Redownload
+from ..report import MarkConflictError, MarkDuplicateError
+from ..transformer import Transformer
+from ..utils import ReusableAsyncContextManager, fmt_path
 
 
 class CrawlWarning(Exception):

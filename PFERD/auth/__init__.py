@@ -1,8 +1,8 @@
 from configparser import SectionProxy
 from typing import Callable, Dict
 
-from ..authenticator import Authenticator, AuthSection
 from ..config import Config
+from .authenticator import Authenticator, AuthSection
 from .simple import SimpleAuthenticator, SimpleAuthSection
 from .tfa import TfaAuthenticator
 

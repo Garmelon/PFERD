@@ -6,15 +6,13 @@ import aiohttp
 from aiohttp import hdrs
 from bs4 import BeautifulSoup, Tag
 
-from PFERD.authenticators import Authenticator
-from PFERD.config import Config
-from PFERD.crawler import CrawlError, CrawlerSection, CrawlWarning, anoncritical
-from PFERD.http_crawler import HttpCrawler
-from PFERD.logging import ProgressBar, log
-from PFERD.output_dir import FileSink, Redownload
-from PFERD.utils import soupify, url_set_query_param
-
-from ...utils import fmt_path
+from ...auth import Authenticator
+from ...config import Config
+from ...logging import ProgressBar, log
+from ...output_dir import FileSink, Redownload
+from ...utils import fmt_path, soupify, url_set_query_param
+from ..crawler import CrawlError, CrawlerSection, CrawlWarning, anoncritical
+from ..http_crawler import HttpCrawler
 from .file_templates import link_template_plain, link_template_rich
 from .kit_ilias_html import IliasElementType, IliasPage, IliasPageElement
 

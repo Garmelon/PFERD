@@ -1,9 +1,9 @@
 from typing import Optional, Tuple
 
-from ..authenticator import Authenticator, AuthException, AuthSection
 from ..config import Config
 from ..logging import log
 from ..utils import agetpass, ainput
+from .authenticator import Authenticator, AuthException, AuthSection
 
 
 class SimpleAuthSection(AuthSection):
