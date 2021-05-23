@@ -37,6 +37,11 @@ GROUP.add_argument(
     help="user name for authentication"
 )
 GROUP.add_argument(
+    "--keyring",
+    action=BooleanOptionalAction,
+    help="use the system keyring to store and retrieve passwords"
+)
+GROUP.add_argument(
     "--link-file-redirect-delay",
     type=int,
     metavar="SECONDS",
@@ -70,7 +75,11 @@ def load(
 
     parser["auth:kit-ilias-web"] = {}
     auth_section = parser["auth:kit-ilias-web"]
-    auth_section["type"] = "simple"
+
+    if args.keyring:
+        auth_section["type"] = "keyring"
+    else:
+        auth_section["type"] = "simple"
 
     if args.username is not None:
         auth_section["username"] = str(args.username)
