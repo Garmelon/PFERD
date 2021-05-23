@@ -120,9 +120,9 @@ class DownloadToken(ReusableAsyncContextManager[Tuple[ProgressBar, FileSink]]):
         bar_desc = f"[bold bright_cyan]Downloading[/] {escape(fmt_path(self._path))}"
         # The "Downloaded ..." message is printed in the output dir, not here
 
-        await self._stack.enter_async_context(self._limiter.limit_crawl())
+        await self._stack.enter_async_context(self._limiter.limit_download())
         sink = await self._stack.enter_async_context(self._fs_token)
-        bar = self._stack.enter_context(log.crawl_bar(bar_desc))
+        bar = self._stack.enter_context(log.download_bar(bar_desc))
 
         return bar, sink
 
