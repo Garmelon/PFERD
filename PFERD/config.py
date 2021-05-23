@@ -75,6 +75,12 @@ class DefaultSection(Section):
     def explain(self) -> bool:
         return self.s.getboolean("explain", fallback=False)
 
+    def status(self) -> bool:
+        return self.s.getboolean("status", fallback=True)
+
+    def report(self) -> bool:
+        return self.s.getboolean("report", fallback=True)
+
 
 class Config:
     @staticmethod

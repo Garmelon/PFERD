@@ -159,6 +159,16 @@ PARSER.add_argument(
     action=BooleanOptionalAction,
     help="log and explain in detail what PFERD is doing"
 )
+PARSER.add_argument(
+    "--status",
+    action=BooleanOptionalAction,
+    help="print status updates while PFERD is crawling"
+)
+PARSER.add_argument(
+    "--report",
+    action=BooleanOptionalAction,
+    help="print a report of all local changes before exiting"
+)
 
 
 def load_default_section(

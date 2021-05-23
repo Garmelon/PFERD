@@ -39,11 +39,17 @@ def load_config(args: argparse.Namespace) -> Config:
 def configure_logging_from_args(args: argparse.Namespace) -> None:
     if args.explain is not None:
         log.output_explain = args.explain
+    if args.status is not None:
+        log.output_status = args.status
+    if args.report is not None:
+        log.output_report = args.report
 
     # We want to prevent any unnecessary output if we're printing the config to
     # stdout, otherwise it would not be a valid config file.
     if args.dump_config == "-":
         log.output_explain = False
+        log.output_status = False
+        log.output_report = False
 
 
 def configure_logging_from_config(args: argparse.Namespace, config: Config) -> None:
@@ -56,6 +62,10 @@ def configure_logging_from_config(args: argparse.Namespace, config: Config) -> N
     try:
         if args.explain is None:
             log.output_explain = config.default_section.explain()
+        if args.status is None:
+            log.output_status = config.default_section.status()
+        if args.report is None:
+            log.output_report = config.default_section.report()
     except ConfigOptionError as e:
         log.error(str(e))
         exit(1)
