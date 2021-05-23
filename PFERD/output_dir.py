@@ -443,7 +443,7 @@ class OutputDirectory:
         if await self._conflict_delete_lf(self._on_conflict, pure):
             try:
                 path.unlink()
-                log.action(f"[bold bright_magenta]Deleted[/] {escape(fmt_path(path))}")
+                log.action(f"[bold bright_magenta]Deleted[/] {escape(fmt_path(pure))}")
                 self._report.delete_file(pure)
             except OSError:
                 pass
