@@ -109,6 +109,7 @@ def _wrap_io_in_warning(name: str) -> Callable[[AWrapped], AWrapped]:
 #                    |
 #     crawl_course --+
 #                    |
+#     @_io_repeat    |        # retries internally (before the bar)
 #  +- crawl_url    <-+
 #  |
 #  |
@@ -176,36 +177,45 @@ class KitIliasWebCrawler(HttpCrawler):
         await self._crawl_url(self._base_url)
 
     async def _crawl_url(self, url: str, expected_id: Optional[int] = None) -> None:
-        cl = await self.crawl(PurePath("."))
-        if not cl:
+        maybe_cl = await self.crawl(PurePath("."))
+        if not maybe_cl:
             return
+        cl = maybe_cl  # Not mypy's fault, but explained here: https://github.com/python/mypy/issues/2608
 
-        tasks = []
+        @_iorepeat(3, "crawling url")
+        async def impl() -> None:
+            tasks = []
 
-        # TODO: Retry this when the crawl and download bar are reworked
-        async with cl:
-            soup = await self._get_page(url)
+            async with cl:
+                soup = await self._get_page(url)
 
-            if expected_id is not None:
-                perma_link_element: Tag = soup.find(id="current_perma_link")
-                if not perma_link_element or "crs_" not in perma_link_element.get("value"):
-                    raise CrawlError("Invalid course id? Didn't find anything looking like a course")
+                if expected_id is not None:
+                    perma_link_element: Tag = soup.find(id="current_perma_link")
+                    if not perma_link_element or "crs_" not in perma_link_element.get("value"):
+                        raise CrawlError("Invalid course id? Didn't find anything looking like a course")
 
-            # Duplicated code, but the root page is special - we want to void fetching it twice!
-            page = IliasPage(soup, url, None)
-            for child in page.get_child_elements():
-                tasks.append(self._handle_ilias_element(PurePath("."), child))
+                # Duplicated code, but the root page is special - we want to void fetching it twice!
+                page = IliasPage(soup, url, None)
+                for child in page.get_child_elements():
+                    tasks.append(self._handle_ilias_element(PurePath("."), child))
 
-        await asyncio.gather(*tasks)
+            # The only point an I/O exception can be thrown is in `get_page`.
+            # If that happens, no task was spawned yet. Therefore, we only retry
+            # this method without having spawned a single task. Due to this we do
+            # not need to cancel anything or worry about this gather call or the forks
+            # further up.
+            await asyncio.gather(*tasks)
+
+        await impl()
 
     async def _handle_ilias_page(self, url: str, parent: IliasPageElement, path: PurePath) -> None:
-        cl = await self.crawl(path)
-        if not cl:
+        maybe_cl = await self.crawl(path)
+        if not maybe_cl:
             return
+        cl = maybe_cl  # Not mypy's fault, but explained here: https://github.com/python/mypy/issues/2608
 
         @_iorepeat(3, "crawling folder")
         async def impl() -> None:
-            assert cl  # The function is only reached when cl is not None
             tasks = []
             async with cl:
                 soup = await self._get_page(url)
@@ -225,8 +235,8 @@ class KitIliasWebCrawler(HttpCrawler):
 
     @anoncritical
     # Shouldn't happen but this method must never raise an I/O error as that might interfere with
-    # handle_ilias_page
-    @_wrap_io_in_warning("ilias element handling")
+    # handle_ilias_page or crawl_url
+    @_wrap_io_in_warning("handling ilias element")
     async def _handle_ilias_element(self, parent_path: PurePath, element: IliasPageElement) -> None:
         element_path = PurePath(parent_path, element.name)
 
@@ -250,13 +260,13 @@ class KitIliasWebCrawler(HttpCrawler):
             raise CrawlWarning(f"Unknown element type: {element.type!r}")
 
     async def _download_link(self, element: IliasPageElement, element_path: PurePath) -> None:
-        dl = await self.download(element_path, mtime=element.mtime)
-        if not dl:
+        maybe_dl = await self.download(element_path, mtime=element.mtime)
+        if not maybe_dl:
             return
+        dl = maybe_dl  # Not mypy's fault, but explained here: https://github.com/python/mypy/issues/2608
 
-        @_iorepeat(3, "link resolving")
+        @_iorepeat(3, "resolving link")
         async def impl() -> None:
-            assert dl  # This function is only reached when dl is not None
             async with dl as (bar, sink):
                 export_url = element.url.replace("cmd=calldirectlink", "cmd=exportHTML")
                 real_url = await self._resolve_link_target(export_url)
@@ -288,11 +298,12 @@ class KitIliasWebCrawler(HttpCrawler):
 
     async def _download_video(self, element: IliasPageElement, element_path: PurePath) -> None:
         # Videos will NOT be redownloaded - their content doesn't really change and they are chunky
-        dl = await self.download(element_path, mtime=element.mtime, redownload=Redownload.NEVER)
-        if not dl:
+        maybe_dl = await self.download(element_path, mtime=element.mtime, redownload=Redownload.NEVER)
+        if not maybe_dl:
             return
+        dl = maybe_dl  # Not mypy's fault, but explained here: https://github.com/python/mypy/issues/2608
 
-        @_iorepeat(3, "video download")
+        @_iorepeat(3, "downloading video")
         async def impl() -> None:
             assert dl  # The function is only reached when dl is not None
             async with dl as (bar, sink):
@@ -304,11 +315,12 @@ class KitIliasWebCrawler(HttpCrawler):
         await impl()
 
     async def _download_file(self, element: IliasPageElement, element_path: PurePath) -> None:
-        dl = await self.download(element_path, mtime=element.mtime)
-        if not dl:
+        maybe_dl = await self.download(element_path, mtime=element.mtime)
+        if not maybe_dl:
             return
+        dl = maybe_dl  # Not mypy's fault, but explained here: https://github.com/python/mypy/issues/2608
 
-        @_iorepeat(3, "file download")
+        @_iorepeat(3, "downloading file")
         async def impl() -> None:
             assert dl  # The function is only reached when dl is not None
             async with dl as (bar, sink):
