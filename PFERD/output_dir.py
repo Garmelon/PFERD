@@ -142,6 +142,14 @@ class OutputDirectory:
 
         self._report = Report()
 
+    def prepare(self) -> None:
+        log.explain_topic(f"Creating base directory at {str(self._root.absolute())!r}")
+
+        try:
+            self._root.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            raise OutputDirError("Failed to create base directory")
+
     def register_reserved(self, path: PurePath) -> None:
         self._report.mark_reserved(path)
 
@@ -385,9 +393,6 @@ class OutputDirectory:
                 self._report.add_file(info.path)
 
     async def cleanup(self) -> None:
-        if not self._root.exists():
-            return
-
         await self._cleanup_dir(self._root, PurePath(), delete_self=False)
 
     async def _cleanup(self, path: Path, pure: PurePath) -> None:

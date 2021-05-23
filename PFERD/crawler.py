@@ -269,6 +269,7 @@ class Crawler(ABC):
         """
 
         with log.show_progress():
+            self._output_dir.prepare()
             await self._run()
             await self._cleanup()
 
