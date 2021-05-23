@@ -1,4 +1,5 @@
 import filecmp
+import json
 import os
 import random
 import shutil
@@ -13,7 +14,7 @@ from typing import BinaryIO, Iterator, Optional, Tuple
 from rich.markup import escape
 
 from .logging import log
-from .report import Report
+from .report import Report, ReportLoadError
 from .utils import ReusableAsyncContextManager, fmt_path, fmt_real_path, prompt_yes_no
 
 SUFFIX_CHARS = string.ascii_lowercase + string.digits
@@ -134,6 +135,8 @@ class FileSinkToken(ReusableAsyncContextManager[FileSink]):
 
 
 class OutputDirectory:
+    REPORT_FILE = PurePath(".report")
+
     def __init__(
             self,
             root: Path,
@@ -144,7 +147,19 @@ class OutputDirectory:
         self._redownload = redownload
         self._on_conflict = on_conflict
 
+        self._report_path = self.resolve(self.REPORT_FILE)
         self._report = Report()
+        self._prev_report: Optional[Report] = None
+
+        self.register_reserved(self.REPORT_FILE)
+
+    @property
+    def report(self) -> Report:
+        return self._report
+
+    @property
+    def prev_report(self) -> Optional[Report]:
+        return self._prev_report
 
     def prepare(self) -> None:
         log.explain_topic(f"Creating base directory at {fmt_real_path(self._root)}")
@@ -452,3 +467,21 @@ class OutputDirectory:
                 self._report.delete_file(pure)
             except OSError:
                 pass
+
+    def load_prev_report(self) -> None:
+        log.explain_topic(f"Loading previous report from {fmt_real_path(self._report_path)}")
+        try:
+            self._prev_report = Report.load(self._report_path)
+            log.explain("Loaded report successfully")
+        except (OSError, json.JSONDecodeError, ReportLoadError) as e:
+            log.explain("Failed to load report")
+            log.explain(str(e))
+
+    def store_report(self) -> None:
+        log.explain_topic(f"Storing report to {fmt_real_path(self._report_path)}")
+        try:
+            self._report.store(self._report_path)
+            log.explain("Stored report successfully")
+        except OSError as e:
+            log.warn(f"Failed to save report to {fmt_real_path(self._report_path)}")
+            log.warn_contd(str(e))

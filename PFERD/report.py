@@ -1,5 +1,10 @@
-from pathlib import PurePath
-from typing import Set
+import json
+from pathlib import Path, PurePath
+from typing import Any, Dict, List, Set
+
+
+class ReportLoadError(Exception):
+    pass
 
 
 class MarkDuplicateError(Exception):
@@ -48,9 +53,65 @@ class Report:
         self.reserved_files: Set[PurePath] = set()
         self.known_files: Set[PurePath] = set()
 
-        self.new_files: Set[PurePath] = set()
+        self.added_files: Set[PurePath] = set()
         self.changed_files: Set[PurePath] = set()
         self.deleted_files: Set[PurePath] = set()
+
+    @staticmethod
+    def _get_list_of_strs(data: Dict[str, Any], key: str) -> List[str]:
+        result: Any = data.get(key, [])
+
+        if not isinstance(result, list):
+            raise ReportLoadError(f"Incorrect format: {key!r} is not a list")
+
+        for elem in result:
+            if not isinstance(elem, str):
+                raise ReportLoadError(f"Incorrect format: {key!r} must contain only strings")
+
+        return result
+
+    @classmethod
+    def load(cls, path: Path) -> "Report":
+        """
+        May raise OSError, JsonDecodeError, ReportLoadError.
+        """
+
+        with open(path) as f:
+            data = json.load(f)
+
+        if not isinstance(data, dict):
+            raise ReportLoadError("Incorrect format: Root is not an object")
+
+        self = cls()
+        for elem in self._get_list_of_strs(data, "reserved"):
+            self.mark_reserved(PurePath(elem))
+        for elem in self._get_list_of_strs(data, "known"):
+            self.mark(PurePath(elem))
+        for elem in self._get_list_of_strs(data, "added"):
+            self.add_file(PurePath(elem))
+        for elem in self._get_list_of_strs(data, "changed"):
+            self.change_file(PurePath(elem))
+        for elem in self._get_list_of_strs(data, "deleted"):
+            self.delete_file(PurePath(elem))
+
+        return self
+
+    def store(self, path: Path) -> None:
+        """
+        May raise OSError.
+        """
+
+        data = {
+            "reserved": [str(path) for path in sorted(self.reserved_files)],
+            "known": [str(path) for path in sorted(self.known_files)],
+            "added": [str(path) for path in sorted(self.added_files)],
+            "changed": [str(path) for path in sorted(self.changed_files)],
+            "deleted": [str(path) for path in sorted(self.deleted_files)],
+        }
+
+        with open(path, "w") as f:
+            json.dump(data, f, indent=2, sort_keys=True)
+            f.write("\n")  # json.dump doesn't do this
 
     def mark_reserved(self, path: PurePath) -> None:
         self.reserved_files.add(path)
@@ -84,7 +145,7 @@ class Report:
         Unlike mark(), this function accepts any paths.
         """
 
-        self.new_files.add(path)
+        self.added_files.add(path)
 
     def change_file(self, path: PurePath) -> None:
         """

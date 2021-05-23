@@ -11,7 +11,7 @@ from ..config import Config, Section
 from ..limiter import Limiter
 from ..logging import ProgressBar, log
 from ..output_dir import FileSink, FileSinkToken, OnConflict, OutputDirectory, OutputDirError, Redownload
-from ..report import MarkConflictError, MarkDuplicateError
+from ..report import MarkConflictError, MarkDuplicateError, Report
 from ..transformer import Transformer
 from ..utils import ReusableAsyncContextManager, fmt_path
 
@@ -229,6 +229,14 @@ class Crawler(ABC):
             section.on_conflict(),
         )
 
+    @property
+    def report(self) -> Report:
+        return self._output_dir.report
+
+    @property
+    def prev_report(self) -> Optional[Report]:
+        return self._output_dir.prev_report
+
     @staticmethod
     async def gather(awaitables: Sequence[Awaitable[Any]]) -> List[Any]:
         """
@@ -298,8 +306,10 @@ class Crawler(ABC):
 
         with log.show_progress():
             self._output_dir.prepare()
+            self._output_dir.load_prev_report()
             await self._run()
             await self._cleanup()
+            self._output_dir.store_report()
 
     @abstractmethod
     async def _run(self) -> None:
