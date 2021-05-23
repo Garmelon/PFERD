@@ -1,6 +1,6 @@
 import re
 from pathlib import PurePath
-from typing import Any, Awaitable, Callable, Dict, Optional, Set, TypeVar, Union
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Set, TypeVar, Union
 
 import aiohttp
 from aiohttp import hdrs
@@ -192,10 +192,11 @@ class KitIliasWebCrawler(HttpCrawler):
             return
         cl = maybe_cl  # Not mypy's fault, but explained here: https://github.com/python/mypy/issues/2608
 
-        @_iorepeat(3, "crawling url")
-        async def impl() -> None:
-            tasks = []
+        elements: List[IliasPageElement] = []
 
+        @_iorepeat(3, "crawling url")
+        async def gather_elements() -> None:
+            elements.clear()
             async with cl:
                 soup = await self._get_page(url)
 
@@ -204,19 +205,16 @@ class KitIliasWebCrawler(HttpCrawler):
                     if not perma_link_element or "crs_" not in perma_link_element.get("value"):
                         raise CrawlError("Invalid course id? Didn't find anything looking like a course")
 
-                # Duplicated code, but the root page is special - we want to void fetching it twice!
+                # Duplicated code, but the root page is special - we want to avoid fetching it twice!
                 page = IliasPage(soup, url, None)
-                for child in page.get_child_elements():
-                    tasks.append(self._handle_ilias_element(PurePath("."), child))
+                elements.extend(page.get_child_elements())
 
-            # The only point an I/O exception can be thrown is in `get_page`.
-            # If that happens, no task was spawned yet. Therefore, we only retry
-            # this method without having spawned a single task. Due to this we do
-            # not need to cancel anything or worry about this gather call or the forks
-            # further up.
-            await self.gather(tasks)
+        # Fill up our task list with the found elements
+        await gather_elements()
+        tasks = [self._handle_ilias_element(PurePath("."), element) for element in elements]
 
-        await impl()
+        # And execute them
+        await self.gather(tasks)
 
     async def _handle_ilias_page(self, url: str, parent: IliasPageElement, path: PurePath) -> None:
         maybe_cl = await self.crawl(path)
@@ -224,28 +222,27 @@ class KitIliasWebCrawler(HttpCrawler):
             return
         cl = maybe_cl  # Not mypy's fault, but explained here: https://github.com/python/mypy/issues/2608
 
+        elements: List[IliasPageElement] = []
+
         @_iorepeat(3, "crawling folder")
-        async def impl() -> None:
-            tasks = []
+        async def gather_elements() -> None:
+            elements.clear()
             async with cl:
                 soup = await self._get_page(url)
                 page = IliasPage(soup, url, parent)
 
-                for child in page.get_child_elements():
-                    tasks.append(self._handle_ilias_element(path, child))
+                elements.extend(page.get_child_elements())
 
-            # The only point an I/O exception can be thrown is in `get_page`.
-            # If that happens, no task was spawned yet. Therefore, we only retry
-            # this method without having spawned a single task. Due to this we do
-            # not need to cancel anything or worry about this gather call or the forks
-            # further up.
-            await self.gather(tasks)
+        # Fill up our task list with the found elements
+        await gather_elements()
+        tasks = [self._handle_ilias_element(PurePath("."), element) for element in elements]
 
-        await impl()
+        # And execute them
+        await self.gather(tasks)
 
     @anoncritical
-    # Shouldn't happen but this method must never raise an I/O error as that might interfere with
-    # handle_ilias_page or crawl_url
+    # Shouldn't happen but we also really don't want to let I/O errors bubble up to anoncritical.
+    # If that happens we will be terminated as anoncritical doesn't tream them as non-critical.
     @_wrap_io_in_warning("handling ilias element")
     async def _handle_ilias_element(self, parent_path: PurePath, element: IliasPageElement) -> None:
         element_path = PurePath(parent_path, element.name)
