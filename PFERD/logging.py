@@ -55,7 +55,7 @@ class Log:
 
         # Whether different parts of the output are enabled or disabled
         self.output_explain = False
-        self.output_action = True
+        self.output_status = True
         self.output_report = True
 
     def _update_live(self) -> None:
@@ -191,12 +191,12 @@ directly or as a GitHub issue: https://github.com/Garmelon/PFERD/issues/new
         if self.output_explain:
             self.print(f"  {escape(text)}")
 
-    def action(self, text: str) -> None:
+    def status(self, text: str) -> None:
         """
         Print a status update while crawling. Allows markup.
         """
 
-        if self.output_action:
+        if self.output_status:
             self.print(text)
 
     def report(self, text: str) -> None:

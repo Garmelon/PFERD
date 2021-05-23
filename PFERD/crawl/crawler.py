@@ -101,7 +101,7 @@ class CrawlToken(ReusableAsyncContextManager[ProgressBar]):
         bar_desc = f"[bold bright_cyan]Crawling[/] {escape(fmt_path(self._path))}"
         after_desc = f"[bold cyan]Crawled[/] {escape(fmt_path(self._path))}"
 
-        self._stack.callback(lambda: log.action(after_desc))
+        self._stack.callback(lambda: log.status(after_desc))
         await self._stack.enter_async_context(self._limiter.limit_crawl())
         bar = self._stack.enter_context(log.crawl_bar(bar_desc))
 

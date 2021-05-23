@@ -399,7 +399,7 @@ class OutputDirectory:
 
     async def _after_download(self, info: DownloadInfo) -> None:
         with self._ensure_deleted(info.tmp_path):
-            log.action(f"[bold cyan]Downloaded[/] {fmt_path(info.remote_path)}")
+            log.status(f"[bold cyan]Downloaded[/] {fmt_path(info.remote_path)}")
             log.explain_topic(f"Processing downloaded file for {fmt_path(info.path)}")
 
             changed = False
@@ -430,10 +430,10 @@ class OutputDirectory:
             self._update_metadata(info)
 
             if changed:
-                log.action(f"[bold bright_yellow]Changed[/] {escape(fmt_path(info.path))}")
+                log.status(f"[bold bright_yellow]Changed[/] {escape(fmt_path(info.path))}")
                 self._report.change_file(info.path)
             else:
-                log.action(f"[bold bright_green]Added[/] {escape(fmt_path(info.path))}")
+                log.status(f"[bold bright_green]Added[/] {escape(fmt_path(info.path))}")
                 self._report.add_file(info.path)
 
     async def cleanup(self) -> None:
@@ -463,7 +463,7 @@ class OutputDirectory:
         if await self._conflict_delete_lf(self._on_conflict, pure):
             try:
                 path.unlink()
-                log.action(f"[bold bright_magenta]Deleted[/] {escape(fmt_path(pure))}")
+                log.status(f"[bold bright_magenta]Deleted[/] {escape(fmt_path(pure))}")
                 self._report.delete_file(pure)
             except OSError:
                 pass
