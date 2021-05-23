@@ -197,7 +197,7 @@ class OutputDirectory:
             if remote_newer:
                 log.explain("Remote file seems to be newer")
             else:
-                log.explain("Local file seems to be newer")
+                log.explain("Remote file doesn't seem to be newer")
 
         if redownload == Redownload.NEVER_SMART:
             if remote_newer is None:
@@ -344,12 +344,12 @@ class OutputDirectory:
 
         # Detect and solve local-dir-remote-file conflict
         if local_path.is_dir():
-            log.explain("Conflict: There's a dir in place of the local file")
+            log.explain("Conflict: There's a directory in place of the local file")
             if await self._conflict_ldrf(on_conflict, path):
-                log.explain("Result: Delete the dir")
+                log.explain("Result: Delete the obstructing directory")
                 shutil.rmtree(local_path)
             else:
-                log.explain("Result: Keep the dir")
+                log.explain("Result: Keep the obstructing directory")
                 return None
 
         # Detect and solve local-file-remote-dir conflict
@@ -399,20 +399,19 @@ class OutputDirectory:
 
                 if filecmp.cmp(info.local_path, info.tmp_path):
                     log.explain("Contents identical with existing file")
-                    log.explain("Updating metadata on existing file instead")
+                    log.explain("Updating metadata of existing file")
                     self._update_metadata(info)
                     return
 
                 log.explain("Conflict: The local and remote versions differ")
                 if await self._conflict_lfrf(info.on_conflict, info.path):
-                    log.explain("Result: Keeping the remote version")
+                    log.explain("Result: Replacing local with remote version")
                 else:
-                    log.explain("Result: Keeping the local version")
+                    log.explain("Result: Keeping local version")
                     return
 
-            log.explain("Replacing local file with temporary file")
             info.tmp_path.replace(info.local_path)
-            log.explain("Updating metadata on local file")
+            log.explain("Updating file metadata")
             self._update_metadata(info)
 
             if changed:
