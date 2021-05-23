@@ -6,6 +6,7 @@ from .auth import AUTHENTICATORS, Authenticator
 from .config import Config, ConfigOptionError
 from .crawl import CRAWLERS, Crawler, CrawlError
 from .logging import log
+from .utils import fmt_path
 
 
 class PferdLoadError(Exception):
@@ -97,10 +98,11 @@ class Pferd:
         # obtain the correct event loop.
         self._load_authenticators()
         loaded_crawlers = self._load_crawlers()
+        names = self._find_crawlers_to_run(loaded_crawlers)
 
         log.print("")
 
-        for name in self._find_crawlers_to_run(loaded_crawlers):
+        for name in names:
             crawler = self._crawlers[name]
 
             log.print(f"[bold bright_cyan]Running[/] {escape(name)}")
@@ -111,3 +113,23 @@ class Pferd:
                 log.error(str(e))
             except Exception:
                 log.unexpected_exception()
+
+        for name in names:
+            crawler = self._crawlers[name]
+
+            log.report("")
+            log.report(f"[bold bright_cyan]Report[/] for {escape(name)}")
+
+            something_happened = False
+            for path in sorted(crawler.report.added_files):
+                something_happened = True
+                log.report(f"  [bold bright_green]Added[/] {fmt_path(path)}")
+            for path in sorted(crawler.report.changed_files):
+                something_happened = True
+                log.report(f"  [bold bright_yellow]Changed[/] {fmt_path(path)}")
+            for path in sorted(crawler.report.deleted_files):
+                something_happened = True
+                log.report(f"  [bold bright_magenta]Deleted[/] {fmt_path(path)}")
+
+            if not something_happened:
+                log.report("  Nothing happened")
