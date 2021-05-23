@@ -2,7 +2,7 @@ import argparse
 import configparser
 from pathlib import Path
 
-from . import CRAWLER_PARSER, SUBPARSERS, load_crawler
+from .parser import CRAWLER_PARSER, SUBPARSERS, load_crawler
 
 SUBPARSER = SUBPARSERS.add_parser(
     "local",
