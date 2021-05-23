@@ -55,10 +55,10 @@ class KitIliasWebCrawlerSection(CrawlerSection):
         return self.s.getint("link_file_redirect_delay", fallback=-1)
 
     def link_file_use_plaintext(self) -> bool:
-        return self.s.getboolean("link_file_plain_text", fallback=False)
+        return self.s.getboolean("link_file_plaintext", fallback=False)
 
-    def no_videos(self) -> bool:
-        return self.s.getboolean("no-videos", fallback=True)
+    def videos(self) -> bool:
+        return self.s.getboolean("videos", fallback=False)
 
 
 _DIRECTORY_PAGES: Set[IliasElementType] = set([
@@ -163,7 +163,7 @@ class KitIliasWebCrawler(HttpCrawler):
         self._target = section.target()
         self._link_file_redirect_delay = section.link_file_redirect_delay()
         self._link_file_use_plaintext = section.link_file_use_plaintext()
-        self._no_videos = section.no_videos()
+        self._videos = section.videos()
 
     async def _run(self) -> None:
         if isinstance(self._target, int):
@@ -253,7 +253,7 @@ class KitIliasWebCrawler(HttpCrawler):
 
         if element.type in _VIDEO_ELEMENTS:
             log.explain_topic(f"Decision: Crawl video element {fmt_path(element_path)}")
-            if self._no_videos:
+            if not self._videos:
                 log.explain("Video crawling is disabled")
                 log.explain("Answer: no")
                 return
