@@ -8,7 +8,6 @@ from .config import Config, ConfigDumpError, ConfigLoadError, ConfigOptionError
 from .logging import log
 from .pferd import Pferd, PferdLoadError
 from .transformer import RuleParseError
-from .version import NAME, VERSION
 
 
 def load_config_parser(args: argparse.Namespace) -> configparser.ConfigParser:
@@ -80,10 +79,6 @@ def dump_config(args: argparse.Namespace, config: Config) -> None:
 
 def main() -> None:
     args = PARSER.parse_args()
-
-    if args.version:
-        print(f"{NAME} {VERSION}")
-        exit()
 
     # Configuring logging happens in two stages because CLI args have
     # precedence over config file options and loading the config already

@@ -3,6 +3,7 @@ import configparser
 from pathlib import Path
 
 from ..output_dir import OnConflict, Redownload
+from ..version import NAME, VERSION
 
 CRAWLER_PARSER = argparse.ArgumentParser(add_help=False)
 CRAWLER_PARSER_GROUP = CRAWLER_PARSER.add_argument_group(
@@ -70,8 +71,8 @@ PARSER = argparse.ArgumentParser()
 PARSER.set_defaults(command=None)
 PARSER.add_argument(
     "--version",
-    action="store_true",
-    help="print version and exit"
+    action="version",
+    version=f"{NAME} {VERSION}",
 )
 PARSER.add_argument(
     "--config", "-c",
