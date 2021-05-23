@@ -8,6 +8,7 @@ from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup, Tag
 
+from PFERD.logging import log
 from PFERD.utils import url_set_query_params
 
 TargetType = Union[str, int]
@@ -48,11 +49,15 @@ class IliasPage:
         Return all child page elements you can find here.
         """
         if self._is_video_player():
+            log.explain("Page is a video player, extracting URL")
             return self._player_to_video()
         if self._is_video_listing():
+            log.explain("Page is a video listing, finding elements")
             return self._find_video_entries()
         if self._is_exercise_file():
+            log.explain("Page is an exercise, finding elements")
             return self._find_exercise_entries()
+        log.explain("Page is a normal folder, finding elements")
         return self._find_normal_entries()
 
     def _is_video_player(self) -> bool:
@@ -96,7 +101,7 @@ class IliasPage:
         json_match = regex.search(str(self._soup))
 
         if json_match is None:
-            print(f"Could not find json stream info for {self._page_url!r}")
+            log.warn("Could not find JSON stream info in video player. Ignoring video.")
             return []
         json_str = json_match.group(1)
 
@@ -125,6 +130,7 @@ class IliasPage:
             url: str = self._abs_url_from_link(content_link)
             query_params = {"limit": "800", "cmd": "asyncGetTableGUI", "cmdMode": "asynch"}
             url = url_set_query_params(url, query_params)
+            log.explain("Found ILIAS redirection page, following it as a new entry")
             return [IliasPageElement(IliasElementType.VIDEO_FOLDER_MAYBE_PAGINATED, url, "")]
 
         is_paginated = self._soup.find(id=re.compile(r"tab_page_sel.+")) is not None
@@ -139,20 +145,12 @@ class IliasPage:
         table_element: Tag = self._soup.find(name="table", id=re.compile(r"tbl_xoct_.+"))
 
         if table_element is None:
-            # TODO: Properly log this
-            print(
-                "Could not increase elements per page (table not found)."
-                " Some might not be crawled!"
-            )
+            log.warn("Couldn't increase elements per page (table not found). I might miss elements.")
             return self._find_video_entries_no_paging()
 
         id_match = re.match(r"tbl_xoct_(.+)", table_element.attrs["id"])
         if id_match is None:
-            # TODO: Properly log this
-            print(
-                "Could not increase elements per page (table id not found)."
-                " Some might not be crawled!"
-            )
+            log.warn("Couldn't increase elements per page (table id not found). I might miss elements.")
             return self._find_video_entries_no_paging()
 
         table_id = id_match.group(1)
@@ -160,6 +158,8 @@ class IliasPage:
         query_params = {f"tbl_xoct_{table_id}_trows": "800",
                         "cmd": "asyncGetTableGUI", "cmdMode": "asynch"}
         url = url_set_query_params(self._page_url, query_params)
+
+        log.explain("Disabled pagination, retrying folder as a new entry")
         return [IliasPageElement(IliasElementType.VIDEO_FOLDER, url, "")]
 
     def _find_video_entries_no_paging(self) -> List[IliasPageElement]:
@@ -173,7 +173,6 @@ class IliasPage:
 
         results: List[IliasPageElement] = []
 
-        # TODO: Sadly the download button is currently broken, so never do that
         for link in video_links:
             results.append(self._listed_video_to_element(link))
 
@@ -194,6 +193,7 @@ class IliasPage:
 
         video_url = self._abs_url_from_link(link)
 
+        log.explain(f"Found video {video_name!r} at {video_url!r}")
         return IliasPageElement(IliasElementType.VIDEO_PLAYER, video_url, video_name, modification_time)
 
     def _find_exercise_entries(self) -> List[IliasPageElement]:
@@ -213,6 +213,8 @@ class IliasPage:
                 text="Download"
             )
 
+            log.explain(f"Found exercise container {container_name!r}")
+
             # Grab each file as you now have the link
             for file_link in files:
                 # Two divs, side by side. Left is the name, right is the link ==> get left
@@ -221,6 +223,7 @@ class IliasPage:
                 file_name = _sanitize_path_name(file_name)
                 url = self._abs_url_from_link(file_link)
 
+                log.explain(f"Found exercise entry {file_name!r}")
                 results.append(IliasPageElement(
                     IliasElementType.FILE,
                     url,
@@ -245,11 +248,14 @@ class IliasPage:
             if not element_type:
                 continue
             if element_type == IliasElementType.MEETING:
-                element_name = _sanitize_path_name(self._normalize_meeting_name(element_name))
+                normalized = _sanitize_path_name(self._normalize_meeting_name(element_name))
+                log.explain(f"Normalized meeting name from {element_name!r} to {normalized!r}")
+                element_name = normalized
             elif element_type == IliasElementType.FILE:
                 result.append(self._file_to_element(element_name, abs_url, link))
                 continue
 
+            log.explain(f"Found {element_name!r}")
             result.append(IliasPageElement(element_type, abs_url, element_name, description=description))
 
         return result
@@ -282,8 +288,8 @@ class IliasPage:
         )
         if modification_date_match is None:
             modification_date = None
-            # TODO: Properly log this
-            print(f"Could not extract start date from {all_properties_text!r}")
+            # TODO: Figure out if this is expected or *always* an error.
+            log.explain(f"Element {name} at {url} has no date. Properties: {all_properties_text!r}")
         else:
             modification_date_str = modification_date_match.group(1)
             modification_date = demangle_date(modification_date_str)
@@ -292,6 +298,7 @@ class IliasPage:
         name = _sanitize_path_name(link_element.getText())
         full_path = name + "." + file_type
 
+        log.explain(f"Found file {full_path!r}")
         return IliasPageElement(IliasElementType.FILE, url, full_path, modification_date)
 
     @staticmethod
@@ -318,8 +325,10 @@ class IliasPage:
         if "ref_id=" in parsed_url.query:
             return IliasPage._find_type_from_folder_like(link_element, url)
 
-        # TODO: Log this properly
-        print(f"Unknown type: The element was at {str(element_name)!r} and it is {link_element!r})")
+        _unexpected_html_warning()
+        log.warn_contd(
+            f"Tried to figure out element type, but failed for {str(element_name)!r} / {link_element!r})"
+        )
         return None
 
     @staticmethod
@@ -339,16 +348,16 @@ class IliasPage:
                 break
 
         if found_parent is None:
-            # TODO: Log this properly
-            print(f"Could not find element icon for {url!r}")
+            _unexpected_html_warning()
+            log.warn_contd(f"Tried to figure out element type, but did not find an icon for {url!r}")
             return None
 
         # Find the small descriptive icon to figure out the type
         img_tag: Optional[Tag] = found_parent.select_one("img.ilListItemIcon")
 
         if img_tag is None:
-            # TODO: Log this properly
-            print(f"Could not find image tag for {url!r}")
+            _unexpected_html_warning()
+            log.warn_contd(f"Tried to figure out element type, but did not find an image for {url!r}")
             return None
 
         if "opencast" in str(img_tag["alt"]).lower():
@@ -393,6 +402,10 @@ class IliasPage:
         return urljoin(self._page_url, link_tag.get("href"))
 
 
+def _unexpected_html_warning() -> None:
+    log.warn("Encountered unexpected HTML structure, ignoring element.")
+
+
 german_months = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez']
 english_months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -429,8 +442,7 @@ def demangle_date(date_str: str) -> Optional[datetime]:
 
         return datetime(year, month, day, hour, minute)
     except Exception:
-        # TODO: Properly log this
-        print(f"Could not parse date {date_str!r}")
+        log.warn(f"Date parsing failed for {date_str!r}")
         return None
 
 

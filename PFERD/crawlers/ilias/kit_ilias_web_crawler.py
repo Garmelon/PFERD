@@ -229,6 +229,8 @@ class KitIliasWebCrawler(HttpCrawler):
             elements.clear()
             async with cl:
                 soup = await self._get_page(url)
+                log.explain_topic(f"Parsing HTML page for {path!r}")
+                log.explain(f"URL: {url!r}")
                 page = IliasPage(soup, url, parent)
 
                 elements.extend(page.get_child_elements())
