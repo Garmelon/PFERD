@@ -81,6 +81,8 @@ def configure_logging_from_config(args: argparse.Namespace, config: Config) -> N
 
 
 def dump_config(args: argparse.Namespace, config: Config) -> None:
+    log.explain_topic("Dumping config")
+
     try:
         if args.dump_config is True:
             config.dump()

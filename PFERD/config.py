@@ -5,6 +5,8 @@ from configparser import ConfigParser, SectionProxy
 from pathlib import Path
 from typing import Any, List, NoReturn, Optional, Tuple
 
+from rich.markup import escape
+
 from .logging import log
 from .utils import prompt_yes_no
 
@@ -122,10 +124,14 @@ class Config:
         May throw a ConfigDumpError.
         """
 
-        if not path:
+        if path:
+            log.explain("Using custom path")
+        else:
+            log.explain("Using default path")
             path = self._default_path()
 
-        print(f"Dumping config to {path}")
+        log.explain(f"Dumping to {str(path.absolute())!r}")
+        log.print(f"[bold bright_cyan]Dumping[/] to {escape(repr(str(path.absolute())))}")
 
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
