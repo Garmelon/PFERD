@@ -208,7 +208,7 @@ class OutputDirectory:
             if remote_newer is None:
                 return True
             else:
-                return not remote_newer
+                return remote_newer
 
         # This should never be reached
         raise ValueError(f"{redownload!r} is not a valid redownload policy")
