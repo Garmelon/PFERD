@@ -174,8 +174,11 @@ class OutputDirectory:
         # since we know that the remote is different from the local files. This
         # includes the case where no local file exists.
         if not local_path.is_file():
+            log.explain("No corresponding file present locally")
             # TODO Don't download if on_conflict is LOCAL_FIRST or NO_DELETE
             return True
+
+        log.explain(f"Redownload policy is {redownload.value}")
 
         if redownload == Redownload.NEVER:
             return False
@@ -187,6 +190,10 @@ class OutputDirectory:
         remote_newer = None
         if mtime := heuristics.mtime:
             remote_newer = mtime.timestamp() > stat.st_mtime
+            if remote_newer:
+                log.explain("Remote file seems to be newer")
+            else:
+                log.explain("Local file seems to be newer")
 
         if redownload == Redownload.NEVER_SMART:
             if remote_newer is None:
@@ -332,19 +339,25 @@ class OutputDirectory:
 
         # Detect and solve local-dir-remote-file conflict
         if local_path.is_dir():
+            log.explain("Conflict: There's a dir in place of the local file")
             if await self._conflict_ldrf(on_conflict, path):
+                log.explain("Result: Delete the dir")
                 shutil.rmtree(local_path)
             else:
+                log.explain("Result: Keep the dir")
                 return None
 
         # Detect and solve local-file-remote-dir conflict
         for parent in path.parents:
             local_parent = self.resolve(parent)
             if local_parent.exists() and not local_parent.is_dir():
+                log.explain("Conflict: One of the local file's parents is a file")
                 if await self._conflict_lfrd(on_conflict, path, parent):
+                    log.explain("Result: Delete the obstructing file")
                     local_parent.unlink()
                     break
                 else:
+                    log.explain("Result: Keep the obstructing file")
                     return None
 
         # Ensure parent directory exists
@@ -366,9 +379,12 @@ class OutputDirectory:
 
     async def _after_download(self, info: DownloadInfo) -> None:
         with self._ensure_deleted(info.tmp_path):
+            log.explain_topic(f"Processing downloaded file for {fmt_path(info.path)}")
+
             changed = False
 
             if not info.success:
+                log.explain("Download unsuccessful, aborting")
                 return
 
             # Solve conflicts arising from existing local file
@@ -376,13 +392,21 @@ class OutputDirectory:
                 changed = True
 
                 if filecmp.cmp(info.local_path, info.tmp_path):
+                    log.explain("Contents identical with existing file")
+                    log.explain("Updating metadata on existing file instead")
                     self._update_metadata(info)
                     return
 
-                if not await self._conflict_lfrf(info.on_conflict, info.path):
+                log.explain("Conflict: The local and remote versions differ")
+                if await self._conflict_lfrf(info.on_conflict, info.path):
+                    log.explain("Result: Keeping the remote version")
+                else:
+                    log.explain("Result: Keeping the local version")
                     return
 
+            log.explain("Replacing local file with temporary file")
             info.tmp_path.replace(info.local_path)
+            log.explain("Updating metadata on local file")
             self._update_metadata(info)
 
             if changed:
