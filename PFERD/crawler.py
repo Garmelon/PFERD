@@ -1,7 +1,8 @@
+import asyncio
 from abc import ABC, abstractmethod
 from datetime import datetime
 from pathlib import Path, PurePath
-from typing import Any, Awaitable, Callable, Dict, Optional, Tuple, TypeVar
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Sequence, Tuple, TypeVar
 
 from rich.markup import escape
 
@@ -227,6 +228,25 @@ class Crawler(ABC):
             section.redownload(),
             section.on_conflict(),
         )
+
+    @staticmethod
+    async def gather(awaitables: Sequence[Awaitable[Any]]) -> List[Any]:
+        """
+        Similar to asyncio.gather. However, in the case of an exception, all
+        still running tasks are cancelled and the exception is rethrown.
+
+        This should always be preferred over asyncio.gather in crawler code so
+        that an exception like CrawlError may actually stop the crawler.
+        """
+
+        tasks = [asyncio.ensure_future(aw) for aw in awaitables]
+        result = asyncio.gather(*tasks)
+        try:
+            return await result
+        except:  # noqa: E722
+            for task in tasks:
+                task.cancel()
+            raise
 
     async def crawl(self, path: PurePath) -> Optional[CrawlToken]:
         log.explain_topic(f"Decision: Crawl {fmt_path(path)}")

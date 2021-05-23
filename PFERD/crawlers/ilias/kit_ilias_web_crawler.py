@@ -1,4 +1,3 @@
-import asyncio
 import re
 from pathlib import PurePath
 from typing import Any, Awaitable, Callable, Dict, Optional, Set, TypeVar, Union
@@ -215,7 +214,7 @@ class KitIliasWebCrawler(HttpCrawler):
             # this method without having spawned a single task. Due to this we do
             # not need to cancel anything or worry about this gather call or the forks
             # further up.
-            await asyncio.gather(*tasks)
+            await self.gather(tasks)
 
         await impl()
 
@@ -240,7 +239,7 @@ class KitIliasWebCrawler(HttpCrawler):
             # this method without having spawned a single task. Due to this we do
             # not need to cancel anything or worry about this gather call or the forks
             # further up.
-            await asyncio.gather(*tasks)
+            await self.gather(tasks)
 
         await impl()
 

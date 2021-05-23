@@ -83,7 +83,7 @@ class LocalCrawler(Crawler):
                 pure_child = pure / child.name
                 tasks.append(self._crawl_path(child, pure_child))
 
-        await asyncio.gather(*tasks)
+        await self.gather(tasks)
 
     async def _crawl_file(self, path: Path, pure: PurePath) -> None:
         stat = path.stat()
