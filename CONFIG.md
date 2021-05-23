@@ -21,6 +21,10 @@ default values for the other sections.
   expanded to the current user's home directory. (Default: `.`)
 - `explain`: Whether PFERD should log and explain its actions and decisions in
   detail. (Default: `no`)
+- `status`: Whether PFERD should print status updates while crawling. (Default:
+   `yes`)
+- `report`: Whether PFERD should print a report of added, changed and deleted
+   local files for all crawlers before exiting. (Default: `yes`)
 
 ## The `crawl:*` sections
 
