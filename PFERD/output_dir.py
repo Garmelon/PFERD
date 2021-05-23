@@ -431,7 +431,7 @@ class OutputDirectory:
             await self._cleanup_file(path, pure)
 
     async def _cleanup_dir(self, path: Path, pure: PurePath, delete_self: bool = True) -> None:
-        for child in path.iterdir():
+        for child in sorted(path.iterdir()):
             pure_child = pure / child.name
             await self._cleanup(child, pure_child)
 
