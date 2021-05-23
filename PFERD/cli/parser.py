@@ -1,9 +1,61 @@
 import argparse
 import configparser
 from pathlib import Path
+from typing import Any, List, Optional, Sequence, Union
 
 from ..output_dir import OnConflict, Redownload
 from ..version import NAME, VERSION
+
+
+# TODO Replace with argparse version when updating to 3.9?
+class BooleanOptionalAction(argparse.Action):
+    def __init__(
+            self,
+            option_strings: List[str],
+            dest: Any,
+            default: Any = None,
+            type: Any = None,
+            choices: Any = None,
+            required: Any = False,
+            help: Any = None,
+            metavar: Any = None,
+    ):
+        if len(option_strings) != 1:
+            raise ValueError("There must be exactly one option string")
+        [self.name] = option_strings
+        if not self.name.startswith("--"):
+            raise ValueError(f"{self.name!r} doesn't start with '--'")
+        if self.name.startswith("--no-"):
+            raise ValueError(f"{self.name!r} starts with '--no-'")
+
+        options = [self.name, "--no-" + self.name[2:]]
+
+        super().__init__(
+            options,
+            dest,
+            nargs=0,
+            default=default,
+            type=type,
+            choices=choices,
+            required=required,
+            help=help,
+            metavar=metavar,
+        )
+
+    def __call__(
+            self,
+            parser: argparse.ArgumentParser,
+            namespace: argparse.Namespace,
+            values: Union[str, Sequence[Any], None],
+            option_string: Optional[str] = None,
+    ) -> None:
+        if option_string and option_string in self.option_strings:
+            value = not option_string.startswith("--no-")
+            setattr(namespace, self.dest, value)
+
+    def format_usage(self) -> str:
+        return "--[no-]" + self.name[2:]
+
 
 CRAWLER_PARSER = argparse.ArgumentParser(add_help=False)
 CRAWLER_PARSER_GROUP = CRAWLER_PARSER.add_argument_group(
@@ -103,10 +155,8 @@ PARSER.add_argument(
     help="custom working directory"
 )
 PARSER.add_argument(
-    "--explain", "-e",
-    # TODO Use argparse.BooleanOptionalAction after updating to 3.9
-    action="store_const",
-    const=True,
+    "--explain",
+    action=BooleanOptionalAction,
     help="log and explain in detail what PFERD is doing"
 )
 
