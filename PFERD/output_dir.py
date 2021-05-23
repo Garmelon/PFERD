@@ -385,7 +385,10 @@ class OutputDirectory:
                 self._report.add_file(info.path)
 
     async def cleanup(self) -> None:
-        await self._cleanup_dir(self._root, PurePath())
+        if not self._root.exists():
+            return
+
+        await self._cleanup_dir(self._root, PurePath(), delete_self=False)
 
     async def _cleanup(self, path: Path, pure: PurePath) -> None:
         if path.is_dir():
@@ -393,15 +396,16 @@ class OutputDirectory:
         elif path.is_file():
             await self._cleanup_file(path, pure)
 
-    async def _cleanup_dir(self, path: Path, pure: PurePath) -> None:
+    async def _cleanup_dir(self, path: Path, pure: PurePath, delete_self: bool = True) -> None:
         for child in path.iterdir():
             pure_child = pure / child.name
             await self._cleanup(child, pure_child)
 
-        try:
-            path.rmdir()
-        except OSError:
-            pass
+        if delete_self:
+            try:
+                path.rmdir()
+            except OSError:
+                pass
 
     async def _cleanup_file(self, path: Path, pure: PurePath) -> None:
         if self._report.is_marked(pure):
