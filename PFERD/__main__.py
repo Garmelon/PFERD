@@ -6,7 +6,7 @@ from pathlib import Path
 from .cli import PARSER, load_default_section
 from .config import Config, ConfigDumpError, ConfigLoadError, ConfigOptionError
 from .logging import log
-from .pferd import Pferd
+from .pferd import Pferd, PferdLoadError
 from .transformer import RuleParseError
 from .version import NAME, VERSION
 
@@ -24,26 +24,8 @@ def load_config_parser(args: argparse.Namespace) -> configparser.ConfigParser:
             args.command(args, parser)
 
     load_default_section(args, parser)
-    prune_crawlers(args, parser)
 
     return parser
-
-
-def prune_crawlers(
-        args: argparse.Namespace,
-        parser: configparser.ConfigParser,
-) -> None:
-    if not args.crawler:
-        return
-
-    for section in parser.sections():
-        if section.startswith("crawl:"):
-            # TODO Use removeprefix() when switching to 3.9
-            name = section[len("crawl:"):]
-            if name not in args.crawler:
-                parser.remove_section(section)
-
-    # TODO Check if crawlers actually exist
 
 
 def load_config(args: argparse.Namespace) -> Config:
@@ -119,9 +101,9 @@ def main() -> None:
         exit()
 
     try:
-        pferd = Pferd(config)
+        pferd = Pferd(config, args.crawler)
         asyncio.run(pferd.run())
-    except ConfigOptionError as e:
+    except (PferdLoadError, ConfigOptionError) as e:
         log.unlock()
         log.error(str(e))
         exit(1)
