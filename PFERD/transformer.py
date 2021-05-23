@@ -323,7 +323,7 @@ class Transformer:
 
     def transform(self, path: PurePath) -> Optional[PurePath]:
         for i, (line, rule) in enumerate(self._rules):
-            log.explain(f"Testing rule {i}: {line}")
+            log.explain(f"Testing rule {i+1}: {line}")
 
             result = rule.transform(path)
             if isinstance(result, PurePath):
