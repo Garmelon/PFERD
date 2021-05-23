@@ -130,6 +130,13 @@ class Log:
 
         self.print(f"[bold bright_red]Warning[/] {escape(text)}")
 
+    def warn_contd(self, text: str) -> None:
+        """
+        Print further lines of a warning message. Allows no markup.
+        """
+
+        self.print(f"{escape(text)}")
+
     def error(self, text: str) -> None:
         """
         Print an error message. Allows no markup.
