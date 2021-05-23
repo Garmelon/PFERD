@@ -2,7 +2,7 @@ import argparse
 import configparser
 from pathlib import Path
 
-from .parser import CRAWLER_PARSER, SUBPARSERS, load_crawler
+from .parser import CRAWLER_PARSER, SUBPARSERS, BooleanOptionalAction, load_crawler
 
 SUBPARSER = SUBPARSERS.add_parser(
     "kit-ilias-web",
@@ -27,9 +27,7 @@ GROUP.add_argument(
 )
 GROUP.add_argument(
     "--videos",
-    # TODO Use argparse.BooleanOptionalAction after updating to 3.9
-    action="store_const",
-    const=True,
+    action=BooleanOptionalAction,
     help="crawl and download videos"
 )
 GROUP.add_argument(
@@ -46,9 +44,7 @@ GROUP.add_argument(
 )
 GROUP.add_argument(
     "--link-file-plaintext",
-    # TODO Use argparse.BooleanOptionalAction after updating to 3.9
-    action="store_const",
-    const=True,
+    action=BooleanOptionalAction,
     help="use plain text files for external links"
 )
 
