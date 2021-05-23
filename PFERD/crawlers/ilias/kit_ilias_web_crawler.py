@@ -239,7 +239,7 @@ class KitIliasWebCrawler(HttpCrawler):
 
         # Fill up our task list with the found elements
         await gather_elements()
-        tasks = [self._handle_ilias_element(PurePath("."), element) for element in elements]
+        tasks = [self._handle_ilias_element(path, element) for element in elements]
 
         # And execute them
         await self.gather(tasks)
