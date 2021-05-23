@@ -88,7 +88,7 @@ PARSER.add_argument(
     " Uses default config file path if no path is specified"
 )
 PARSER.add_argument(
-    "--crawler",
+    "--crawler", "-C",
     action="append",
     type=str,
     metavar="NAME",
