@@ -140,7 +140,9 @@ This crawler crawls the KIT ILIAS instance. It performs remote calls to a poor S
 - `link_file_plain_text`: If this is set to true, PFERD will generate plain-text files containing only the link
    target for external links. If this is false or not specified, PFERD will generate a neat, pretty and functional 
    HTML page instead.
-- `no-videos`: If this is set to true, PFERD will not crawl or download any videos.
+- `videos`: If this is set to false, PFERD will not crawl or download any videos.
+- `http_timeout`: The timeout for http requests
+
 ## Authenticator types
 
 ### The `simple` authenticator

@@ -52,6 +52,12 @@ GROUP.add_argument(
     action=BooleanOptionalAction,
     help="use plain text files for external links"
 )
+GROUP.add_argument(
+    "--http-timeout",
+    type=float,
+    metavar="SECONDS",
+    help="the timeout to use for HTTP requests"
+)
 
 
 def load(
@@ -72,6 +78,8 @@ def load(
         section["link_file_plaintext"] = str(args.link_file_plaintext)
     if args.videos is not None:
         section["videos"] = str(False)
+    if args.http_timeout is not None:
+        section["http_timeout"] = str(args.http_timeout)
 
     parser["auth:kit-ilias-web"] = {}
     auth_section = parser["auth:kit-ilias-web"]

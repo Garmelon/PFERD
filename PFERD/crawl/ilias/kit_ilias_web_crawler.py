@@ -1,3 +1,4 @@
+import asyncio
 import re
 from pathlib import PurePath
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Set, TypeVar, Union
@@ -11,15 +12,15 @@ from ...config import Config
 from ...logging import ProgressBar, log
 from ...output_dir import FileSink, Redownload
 from ...utils import fmt_path, soupify, url_set_query_param
-from ..crawler import CrawlError, CrawlerSection, CrawlWarning, anoncritical
-from ..http_crawler import HttpCrawler
+from ..crawler import CrawlError, CrawlWarning, anoncritical
+from ..http_crawler import HttpCrawler, HttpCrawlerSection
 from .file_templates import link_template_plain, link_template_rich
 from .kit_ilias_html import IliasElementType, IliasPage, IliasPageElement
 
 TargetType = Union[str, int]
 
 
-class KitIliasWebCrawlerSection(CrawlerSection):
+class KitIliasWebCrawlerSection(HttpCrawlerSection):
 
     def target(self) -> TargetType:
         target = self.s.get("target")
@@ -91,6 +92,8 @@ def _iorepeat(attempts: int, name: str) -> Callable[[AWrapped], AWrapped]:
                 except aiohttp.ClientPayloadError as e:  # encoding or not enough bytes
                     last_exception = e
                 except aiohttp.ClientConnectionError as e:  # e.g. timeout, disconnect, resolve failed, etc.
+                    last_exception = e
+                except asyncio.exceptions.TimeoutError as e:  # explicit http timeouts in HttpCrawler
                     last_exception = e
                 log.explain_topic(f"Retrying operation {name}. Retries left: {attempts - 1 - round}")
 

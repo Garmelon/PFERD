@@ -3,6 +3,7 @@ from pathlib import PurePath
 from typing import Optional
 
 import aiohttp
+from aiohttp.client import ClientTimeout
 
 from ..config import Config
 from ..logging import log
@@ -11,13 +12,18 @@ from ..version import NAME, VERSION
 from .crawler import Crawler, CrawlerSection
 
 
+class HttpCrawlerSection(CrawlerSection):
+    def http_timeout(self) -> float:
+        return self.s.getfloat("http_timeout", fallback=20)
+
+
 class HttpCrawler(Crawler):
     COOKIE_FILE = PurePath(".cookies")
 
     def __init__(
             self,
             name: str,
-            section: CrawlerSection,
+            section: HttpCrawlerSection,
             config: Config,
     ) -> None:
         super().__init__(name, section, config)
@@ -28,6 +34,7 @@ class HttpCrawler(Crawler):
         self._authentication_lock = asyncio.Lock()
         self._current_cookie_jar: Optional[aiohttp.CookieJar] = None
         self._request_count = 0
+        self._http_timeout = section.http_timeout()
 
     async def _current_auth_id(self) -> int:
         """
@@ -97,6 +104,7 @@ class HttpCrawler(Crawler):
         async with aiohttp.ClientSession(
                 headers={"User-Agent": f"{NAME}/{VERSION}"},
                 cookie_jar=self._current_cookie_jar,
+                timeout=ClientTimeout(total=self._http_timeout)
         ) as session:
             self.session = session
             try:
