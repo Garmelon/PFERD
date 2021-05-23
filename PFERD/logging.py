@@ -112,6 +112,10 @@ class Log:
             self.print(line)
 
     def print(self, text: str) -> None:
+        """
+        Print a normal message. Allows markup.
+        """
+
         if self._progress_suspended:
             self._lines.append(text)
         else:
@@ -120,12 +124,24 @@ class Log:
     # TODO Print errors (and warnings?) to stderr
 
     def warn(self, text: str) -> None:
+        """
+        Print a warning message. Allows no markup.
+        """
+
         self.print(f"[bold bright_red]Warning[/] {escape(text)}")
 
     def error(self, text: str) -> None:
+        """
+        Print an error message. Allows no markup.
+        """
+
         self.print(f"[bold bright_red]Error[/] [red]{escape(text)}")
 
     def error_contd(self, text: str) -> None:
+        """
+        Print further lines of an error message. Allows no markup.
+        """
+
         self.print(f"[red]{escape(text)}")
 
     def unexpected_exception(self) -> None:
@@ -153,18 +169,34 @@ directly or as a GitHub issue: https://github.com/Garmelon/PFERD/issues/new
         """.strip())
 
     def explain_topic(self, text: str) -> None:
+        """
+        Print a top-level explain text. Allows no markup.
+        """
+
         if self.output_explain:
             self.print(f"[cyan]{escape(text)}")
 
     def explain(self, text: str) -> None:
+        """
+        Print an indented explain text. Allows no markup.
+        """
+
         if self.output_explain:
             self.print(f"  {escape(text)}")
 
     def action(self, text: str) -> None:
+        """
+        Print a status update while crawling. Allows markup.
+        """
+
         if self.output_action:
             self.print(text)
 
     def report(self, text: str) -> None:
+        """
+        Print a report after crawling. Allows markup.
+        """
+
         if self.output_report:
             self.print(text)
 

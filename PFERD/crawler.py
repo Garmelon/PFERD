@@ -12,7 +12,7 @@ from .logging import ProgressBar, log
 from .output_dir import FileSink, FileSinkToken, OnConflict, OutputDirectory, OutputDirError, Redownload
 from .report import MarkConflictError, MarkDuplicateError
 from .transformer import Transformer
-from .utils import ReusableAsyncContextManager
+from .utils import ReusableAsyncContextManager, fmt_path
 
 
 class CrawlWarning(Exception):
@@ -217,7 +217,7 @@ class Crawler(ABC):
         )
 
     async def crawl(self, path: PurePath) -> Optional[CrawlToken]:
-        log.explain_topic(f"Decision: Crawl {path}")
+        log.explain_topic(f"Decision: Crawl {fmt_path(path)}")
 
         if self._transformer.transform(path) is None:
             log.explain("Answer: No")
@@ -225,7 +225,7 @@ class Crawler(ABC):
 
         log.explain("Answer: Yes")
 
-        desc = f"[bold bright_cyan]Crawling[/] {escape(str(path))}"
+        desc = f"[bold bright_cyan]Crawling[/] {escape(fmt_path(path))}"
         return CrawlToken(self._limiter, desc)
 
     async def download(
@@ -235,7 +235,7 @@ class Crawler(ABC):
             redownload: Optional[Redownload] = None,
             on_conflict: Optional[OnConflict] = None,
     ) -> Optional[DownloadToken]:
-        log.explain_topic(f"Decision: Download {path}")
+        log.explain_topic(f"Decision: Download {fmt_path(path)}")
 
         transformed_path = self._transformer.transform(path)
         if transformed_path is None:
@@ -249,7 +249,7 @@ class Crawler(ABC):
 
         log.explain("Answer: Yes")
 
-        desc = f"[bold bright_cyan]Downloading[/] {escape(str(path))}"
+        desc = f"[bold bright_cyan]Downloading[/] {escape(fmt_path(path))}"
         return DownloadToken(self._limiter, fs_token, desc)
 
     async def _cleanup(self) -> None:

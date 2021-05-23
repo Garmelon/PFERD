@@ -14,7 +14,7 @@ from rich.markup import escape
 
 from .logging import log
 from .report import Report
-from .utils import ReusableAsyncContextManager, prompt_yes_no
+from .utils import ReusableAsyncContextManager, fmt_path, fmt_real_path, prompt_yes_no
 
 SUFFIX_CHARS = string.ascii_lowercase + string.digits
 SUFFIX_LENGTH = 6
@@ -143,7 +143,7 @@ class OutputDirectory:
         self._report = Report()
 
     def prepare(self) -> None:
-        log.explain_topic(f"Creating base directory at {str(self._root.absolute())!r}")
+        log.explain_topic(f"Creating base directory at {fmt_real_path(self._root)}")
 
         try:
             self._root.mkdir(parents=True, exist_ok=True)
@@ -159,9 +159,9 @@ class OutputDirectory:
         """
 
         if ".." in path.parts:
-            raise OutputDirError(f"Forbidden segment '..' in path {path}")
+            raise OutputDirError(f"Forbidden segment '..' in path {fmt_path(path)}")
         if "." in path.parts:
-            raise OutputDirError(f"Forbidden segment '.' in path {path}")
+            raise OutputDirError(f"Forbidden segment '.' in path {fmt_path(path)}")
         return self._root / path
 
     def _should_download(
@@ -213,7 +213,7 @@ class OutputDirectory:
     ) -> bool:
         if on_conflict == OnConflict.PROMPT:
             async with log.exclusive_output():
-                prompt = f"Replace {path} with remote file?"
+                prompt = f"Replace {fmt_path(path)} with remote file?"
                 return await prompt_yes_no(prompt, default=False)
         elif on_conflict == OnConflict.LOCAL_FIRST:
             return False
@@ -232,7 +232,7 @@ class OutputDirectory:
     ) -> bool:
         if on_conflict == OnConflict.PROMPT:
             async with log.exclusive_output():
-                prompt = f"Recursively delete {path} and replace with remote file?"
+                prompt = f"Recursively delete {fmt_path(path)} and replace with remote file?"
                 return await prompt_yes_no(prompt, default=False)
         elif on_conflict == OnConflict.LOCAL_FIRST:
             return False
@@ -252,7 +252,7 @@ class OutputDirectory:
     ) -> bool:
         if on_conflict == OnConflict.PROMPT:
             async with log.exclusive_output():
-                prompt = f"Delete {parent} so remote file {path} can be downloaded?"
+                prompt = f"Delete {fmt_path(parent)} so remote file {fmt_path(path)} can be downloaded?"
                 return await prompt_yes_no(prompt, default=False)
         elif on_conflict == OnConflict.LOCAL_FIRST:
             return False
@@ -271,7 +271,7 @@ class OutputDirectory:
     ) -> bool:
         if on_conflict == OnConflict.PROMPT:
             async with log.exclusive_output():
-                prompt = f"Delete {path}?"
+                prompt = f"Delete {fmt_path(path)}?"
                 return await prompt_yes_no(prompt, default=False)
         elif on_conflict == OnConflict.LOCAL_FIRST:
             return False
@@ -386,10 +386,10 @@ class OutputDirectory:
             self._update_metadata(info)
 
             if changed:
-                log.action(f"[bold bright_yellow]Changed[/] {escape(str(info.path))}")
+                log.action(f"[bold bright_yellow]Changed[/] {escape(fmt_path(info.path))}")
                 self._report.change_file(info.path)
             else:
-                log.action(f"[bold bright_green]Added[/] {escape(str(info.path))}")
+                log.action(f"[bold bright_green]Added[/] {escape(fmt_path(info.path))}")
                 self._report.add_file(info.path)
 
     async def cleanup(self) -> None:
@@ -419,7 +419,7 @@ class OutputDirectory:
         if await self._conflict_delete_lf(self._on_conflict, pure):
             try:
                 path.unlink()
-                log.action(f"[bold bright_magenta]Deleted[/] {escape(str(path))}")
+                log.action(f"[bold bright_magenta]Deleted[/] {escape(fmt_path(path))}")
                 self._report.delete_file(pure)
             except OSError:
                 pass

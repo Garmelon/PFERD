@@ -3,11 +3,11 @@ from pathlib import PurePath
 from typing import Optional
 
 import aiohttp
-from rich.markup import escape
 
 from .config import Config
 from .crawler import Crawler, CrawlerSection
 from .logging import log
+from .utils import fmt_real_path
 from .version import NAME, VERSION
 
 
@@ -59,14 +59,14 @@ class HttpCrawler(Crawler):
     async def _save_cookies(self) -> None:
         log.explain_topic("Saving cookies")
         if not self._current_cookie_jar:
-            log.explain("No cookie jar - save aborted")
+            log.explain("No cookie jar, save aborted")
             return
 
         try:
             self._current_cookie_jar.save(self._cookie_jar_path)
-            log.explain(f"Cookies saved to {escape(str(self.COOKIE_FILE))}")
+            log.explain(f"Cookies saved to {fmt_real_path(self._cookie_jar_path)}")
         except Exception:
-            log.print(f"[bold red]Warning:[/] Failed to save cookies to {escape(str(self.COOKIE_FILE))}")
+            log.warn(f"Failed to save cookies to {fmt_real_path(self._cookie_jar_path)}")
 
     async def run(self) -> None:
         self._current_cookie_jar = aiohttp.CookieJar()

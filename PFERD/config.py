@@ -8,7 +8,7 @@ from typing import Any, List, NoReturn, Optional, Tuple
 from rich.markup import escape
 
 from .logging import log
-from .utils import prompt_yes_no
+from .utils import fmt_real_path, prompt_yes_no
 
 
 class ConfigLoadError(Exception):
@@ -17,7 +17,7 @@ class ConfigLoadError(Exception):
     """
 
     def __init__(self, path: Path, reason: str):
-        super().__init__(f"Failed to load config from {path}")
+        super().__init__(f"Failed to load config from {fmt_real_path(path)}")
         self.path = path
         self.reason = reason
 
@@ -36,7 +36,7 @@ class ConfigOptionError(Exception):
 
 class ConfigDumpError(Exception):
     def __init__(self, path: Path, reason: str):
-        super().__init__(f"Failed to dump config to {path}")
+        super().__init__(f"Failed to dump config to {fmt_real_path(path)}")
         self.path = path
         self.reason = reason
 
@@ -105,7 +105,7 @@ class Config:
         else:
             log.explain("Using default path")
             path = Config._default_path()
-        log.explain(f"Loading {str(path)!r}")
+        log.explain(f"Loading {fmt_real_path(path)}")
 
         # Using config.read_file instead of config.read because config.read
         # would just ignore a missing file and carry on.
@@ -130,8 +130,8 @@ class Config:
             log.explain("Using default path")
             path = self._default_path()
 
-        log.explain(f"Dumping to {str(path.absolute())!r}")
-        log.print(f"[bold bright_cyan]Dumping[/] to {escape(repr(str(path.absolute())))}")
+        log.explain(f"Dumping to {fmt_real_path(path)}")
+        log.print(f"[bold bright_cyan]Dumping[/] to {escape(fmt_real_path(path))}")
 
         try:
             path.parent.mkdir(parents=True, exist_ok=True)

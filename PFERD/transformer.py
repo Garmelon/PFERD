@@ -10,6 +10,7 @@ from pathlib import PurePath
 from typing import Dict, Optional, Union
 
 from .logging import log
+from .utils import fmt_path
 
 
 class Rule(ABC):
@@ -327,7 +328,7 @@ class Transformer:
 
             result = rule.transform(path)
             if isinstance(result, PurePath):
-                log.explain(f"Match! Transformed to {result}")
+                log.explain(f"Match! Transformed to {fmt_path(result)}")
                 return result
             elif result:  # Exclamation mark
                 log.explain("Match! Ignored")

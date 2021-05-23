@@ -4,6 +4,7 @@ import sys
 import threading
 from abc import ABC, abstractmethod
 from contextlib import AsyncExitStack
+from pathlib import Path, PurePath
 from types import TracebackType
 from typing import Any, Callable, Dict, Generic, Optional, Type, TypeVar
 from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
@@ -32,6 +33,30 @@ async def ainput(prompt: str) -> str:
 
 async def agetpass(prompt: str) -> str:
     return await in_daemon_thread(lambda: getpass.getpass(prompt))
+
+
+async def prompt_yes_no(query: str, default: Optional[bool]) -> bool:
+    """
+    Asks the user a yes/no question and returns their choice.
+    """
+
+    if default is True:
+        query += " [Y/n] "
+    elif default is False:
+        query += " [y/N] "
+    else:
+        query += " [y/n] "
+
+    while True:
+        response = (await ainput(query)).strip().lower()
+        if response == "y":
+            return True
+        elif response == "n":
+            return False
+        elif response == "" and default is not None:
+            return default
+
+        print("Please answer with 'y' or 'n'.")
 
 
 def soupify(data: bytes) -> bs4.BeautifulSoup:
@@ -66,28 +91,12 @@ def url_set_query_params(url: str, params: Dict[str, str]) -> str:
     return result
 
 
-async def prompt_yes_no(query: str, default: Optional[bool]) -> bool:
-    """
-    Asks the user a yes/no question and returns their choice.
-    """
+def fmt_path(path: PurePath) -> str:
+    return repr(str(path))
 
-    if default is True:
-        query += " [Y/n] "
-    elif default is False:
-        query += " [y/N] "
-    else:
-        query += " [y/n] "
 
-    while True:
-        response = (await ainput(query)).strip().lower()
-        if response == "y":
-            return True
-        elif response == "n":
-            return False
-        elif response == "" and default is not None:
-            return default
-
-        print("Please answer with 'y' or 'n'.")
+def fmt_real_path(path: Path) -> str:
+    return repr(str(path.absolute()))
 
 
 class ReusableAsyncContextManager(ABC, Generic[T]):

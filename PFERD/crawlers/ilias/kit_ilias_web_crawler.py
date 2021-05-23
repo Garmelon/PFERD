@@ -1,13 +1,11 @@
 import asyncio
 import re
 from pathlib import PurePath
-# TODO In Python 3.9 and above, AsyncContextManager is deprecated
 from typing import Any, Awaitable, Callable, Dict, Optional, Set, TypeVar, Union
 
 import aiohttp
 from aiohttp import hdrs
 from bs4 import BeautifulSoup, Tag
-from rich.markup import escape
 
 from PFERD.authenticators import Authenticator
 from PFERD.config import Config
@@ -17,6 +15,7 @@ from PFERD.logging import ProgressBar, log
 from PFERD.output_dir import FileSink, Redownload
 from PFERD.utils import soupify, url_set_query_param
 
+from ...utils import fmt_path
 from .file_templates import link_template_plain, link_template_rich
 from .kit_ilias_html import IliasElementType, IliasPage, IliasPageElement
 
@@ -86,10 +85,10 @@ def _iorepeat(attempts: int, name: str) -> Callable[[AWrapped], AWrapped]:
                     last_exception = e
                 except aiohttp.ClientConnectionError as e:  # e.g. timeout, disconnect, resolve failed, etc.
                     last_exception = e
-                log.explain_topic(f"Retrying operation {escape(name)}. Retries left: {attempts - 1 - round}")
+                log.explain_topic(f"Retrying operation {name}. Retries left: {attempts - 1 - round}")
 
             if last_exception:
-                message = f"Error in I/O Operation: {escape(str(last_exception))}"
+                message = f"Error in I/O Operation: {last_exception}"
                 raise CrawlWarning(message) from last_exception
             raise CrawlError("Impossible return in ilias _iorepeat")
 
@@ -162,7 +161,7 @@ class KitIliasWebCrawler(HttpCrawler):
             log.explain_topic("Inferred crawl target: Personal desktop")
             await self._crawl_desktop()
         else:
-            log.explain_topic(f"Inferred crawl target: URL {escape(self._target)}")
+            log.explain_topic(f"Inferred crawl target: URL {self._target}")
             await self._crawl_url(self._target)
 
     async def _crawl_course(self, course_id: int) -> None:
@@ -190,9 +189,7 @@ class KitIliasWebCrawler(HttpCrawler):
             if expected_id is not None:
                 perma_link_element: Tag = soup.find(id="current_perma_link")
                 if not perma_link_element or "crs_" not in perma_link_element.get("value"):
-                    raise CrawlError(
-                        "Invalid course id? I didn't find anything looking like a course"
-                    )
+                    raise CrawlError("Invalid course id? Didn't find anything looking like a course")
 
             # Duplicated code, but the root page is special - we want to void fetching it twice!
             page = IliasPage(soup, url, None)
@@ -236,7 +233,7 @@ class KitIliasWebCrawler(HttpCrawler):
         if element.type == IliasElementType.FILE:
             await self._download_file(element, element_path)
         elif element.type == IliasElementType.FORUM:
-            log.explain_topic(f"Decision: Crawl {escape(str(element_path))}")
+            log.explain_topic(f"Decision: Crawl {fmt_path(element_path)}")
             log.explain("Forums are not supported")
             log.explain("Answer: No")
         elif element.type == IliasElementType.LINK:
