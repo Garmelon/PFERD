@@ -78,6 +78,7 @@ class FileSink:
 
 @dataclass
 class DownloadInfo:
+    remote_path: PurePath
     path: PurePath
     local_path: Path
     tmp_path: Path
@@ -96,6 +97,7 @@ class FileSinkToken(ReusableAsyncContextManager[FileSink]):
     def __init__(
             self,
             output_dir: "OutputDirectory",
+            remote_path: PurePath,
             path: PurePath,
             local_path: Path,
             heuristics: Heuristics,
@@ -104,6 +106,7 @@ class FileSinkToken(ReusableAsyncContextManager[FileSink]):
         super().__init__()
 
         self._output_dir = output_dir
+        self._remote_path = remote_path
         self._path = path
         self._local_path = local_path
         self._heuristics = heuristics
@@ -115,6 +118,7 @@ class FileSinkToken(ReusableAsyncContextManager[FileSink]):
 
         async def after_download() -> None:
             await self._output_dir._after_download(DownloadInfo(
+                self._remote_path,
                 self._path,
                 self._local_path,
                 tmp_path,
@@ -317,6 +321,7 @@ class OutputDirectory:
 
     async def download(
             self,
+            remote_path: PurePath,
             path: PurePath,
             mtime: Optional[datetime] = None,
             redownload: Optional[Redownload] = None,
@@ -363,7 +368,7 @@ class OutputDirectory:
         # Ensure parent directory exists
         local_path.parent.mkdir(parents=True, exist_ok=True)
 
-        return FileSinkToken(self, path, local_path, heuristics, on_conflict)
+        return FileSinkToken(self, remote_path, path, local_path, heuristics, on_conflict)
 
     def _update_metadata(self, info: DownloadInfo) -> None:
         if mtime := info.heuristics.mtime:
@@ -379,6 +384,7 @@ class OutputDirectory:
 
     async def _after_download(self, info: DownloadInfo) -> None:
         with self._ensure_deleted(info.tmp_path):
+            log.action(f"[bold bright_cyan]Downloaded[/] {fmt_path(info.remote_path)}")
             log.explain_topic(f"Processing downloaded file for {fmt_path(info.path)}")
 
             changed = False

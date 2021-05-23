@@ -90,31 +90,38 @@ def anoncritical(f: AWrapped) -> AWrapped:
 
 
 class CrawlToken(ReusableAsyncContextManager[ProgressBar]):
-    def __init__(self, limiter: Limiter, desc: str):
+    def __init__(self, limiter: Limiter, path: PurePath):
         super().__init__()
 
         self._limiter = limiter
-        self._desc = desc
+        self._path = path
 
     async def _on_aenter(self) -> ProgressBar:
+        bar_desc = f"[bold bright_cyan]Crawling[/] {escape(fmt_path(self._path))}"
+        after_desc = f"[bold bright_cyan]Crawled[/] {escape(fmt_path(self._path))}"
+
+        self._stack.callback(lambda: log.action(after_desc))
         await self._stack.enter_async_context(self._limiter.limit_crawl())
-        bar = self._stack.enter_context(log.crawl_bar(self._desc))
+        bar = self._stack.enter_context(log.crawl_bar(bar_desc))
 
         return bar
 
 
 class DownloadToken(ReusableAsyncContextManager[Tuple[ProgressBar, FileSink]]):
-    def __init__(self, limiter: Limiter, fs_token: FileSinkToken, desc: str):
+    def __init__(self, limiter: Limiter, fs_token: FileSinkToken, path: PurePath):
         super().__init__()
 
         self._limiter = limiter
         self._fs_token = fs_token
-        self._desc = desc
+        self._path = path
 
     async def _on_aenter(self) -> Tuple[ProgressBar, FileSink]:
+        bar_desc = f"[bold bright_cyan]Downloading[/] {escape(fmt_path(self._path))}"
+        # The "Downloaded ..." message is printed in the output dir, not here
+
         await self._stack.enter_async_context(self._limiter.limit_crawl())
         sink = await self._stack.enter_async_context(self._fs_token)
-        bar = self._stack.enter_context(log.crawl_bar(self._desc))
+        bar = self._stack.enter_context(log.crawl_bar(bar_desc))
 
         return bar, sink
 
@@ -229,9 +236,7 @@ class Crawler(ABC):
             return None
 
         log.explain("Answer: Yes")
-
-        desc = f"[bold bright_cyan]Crawling[/] {escape(fmt_path(path))}"
-        return CrawlToken(self._limiter, desc)
+        return CrawlToken(self._limiter, path)
 
     async def download(
             self,
@@ -247,15 +252,13 @@ class Crawler(ABC):
             log.explain("Answer: No")
             return None
 
-        fs_token = await self._output_dir.download(transformed_path, mtime, redownload, on_conflict)
+        fs_token = await self._output_dir.download(path, transformed_path, mtime, redownload, on_conflict)
         if fs_token is None:
             log.explain("Answer: No")
             return None
 
         log.explain("Answer: Yes")
-
-        desc = f"[bold bright_cyan]Downloading[/] {escape(fmt_path(path))}"
-        return DownloadToken(self._limiter, fs_token, desc)
+        return DownloadToken(self._limiter, fs_token, path)
 
     async def _cleanup(self) -> None:
         log.explain_topic("Decision: Clean up files")
