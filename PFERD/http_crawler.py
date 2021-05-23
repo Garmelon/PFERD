@@ -28,20 +28,35 @@ class HttpCrawler(Crawler):
         self._authentication_lock = asyncio.Lock()
         self._current_cookie_jar: Optional[aiohttp.CookieJar] = None
 
-    async def prepare_request(self) -> int:
+    async def _current_auth_id(self) -> int:
+        """
+        Returns the id for the current authentication, i.e. an identifier for the last
+        successful call to [authenticate].
+
+        This method must be called before any request that might authenticate is made, so the
+        HttpCrawler can properly track when [authenticate] can return early and when actual
+        authentication is necessary.
+        """
         # We acquire the lock here to ensure we wait for any concurrent authenticate to finish.
         # This should reduce the amount of requests we make: If an authentication is in progress
         # all future requests wait for authentication to complete.
         async with self._authentication_lock:
             return self._authentication_id
 
-    async def authenticate(self, current_id: int) -> None:
+    async def authenticate(self, caller_auth_id: int) -> None:
+        """
+        Starts the authentication process. The main work is offloaded to _authenticate, which
+        you should overwrite in a subclass if needed. This method should *NOT* be overwritten.
+
+        The [caller_auth_id] should be the result of a [_current_auth_id] call made *before*
+        the request was made. This ensures that authentication is not performed needlessly.
+        """
         async with self._authentication_lock:
             # Another thread successfully called authenticate in-between
             # We do not want to perform auth again, so we return here. We can
             # assume the other thread suceeded as authenticate will throw an error
             # if it failed and aborts the crawl process.
-            if current_id != self._authentication_id:
+            if caller_auth_id != self._authentication_id:
                 return
             await self._authenticate()
             self._authentication_id += 1

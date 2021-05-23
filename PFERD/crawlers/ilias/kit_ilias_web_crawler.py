@@ -333,7 +333,7 @@ class KitIliasWebCrawler(HttpCrawler):
                 sink.done()
             return True
 
-        auth_id = await self.prepare_request()
+        auth_id = await self._current_auth_id()
         if await try_stream():
             return
 
@@ -343,7 +343,7 @@ class KitIliasWebCrawler(HttpCrawler):
             raise CrawlError("File streaming failed after authenticate()")
 
     async def _get_page(self, url: str) -> BeautifulSoup:
-        auth_id = await self.prepare_request()
+        auth_id = await self._current_auth_id()
         async with self.session.get(url) as request:
             soup = soupify(await request.read())
             if self._is_logged_in(soup):
