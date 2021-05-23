@@ -57,11 +57,21 @@ class KitIliasWebCrawlerSection(CrawlerSection):
     def link_file_use_plaintext(self) -> bool:
         return self.s.getboolean("link_file_plain_text", fallback=False)
 
+    def no_videos(self) -> bool:
+        return self.s.getboolean("no-videos", fallback=True)
+
 
 _DIRECTORY_PAGES: Set[IliasElementType] = set([
     IliasElementType.EXERCISE,
     IliasElementType.FOLDER,
     IliasElementType.MEETING,
+    IliasElementType.VIDEO_FOLDER,
+    IliasElementType.VIDEO_FOLDER_MAYBE_PAGINATED,
+])
+
+_VIDEO_ELEMENTS: Set[IliasElementType] = set([
+    IliasElementType.VIDEO,
+    IliasElementType.VIDEO_PLAYER,
     IliasElementType.VIDEO_FOLDER,
     IliasElementType.VIDEO_FOLDER_MAYBE_PAGINATED,
 ])
@@ -153,6 +163,7 @@ class KitIliasWebCrawler(HttpCrawler):
         self._target = section.target()
         self._link_file_redirect_delay = section.link_file_redirect_delay()
         self._link_file_use_plaintext = section.link_file_use_plaintext()
+        self._no_videos = section.no_videos()
 
     async def _run(self) -> None:
         if isinstance(self._target, int):
@@ -239,6 +250,16 @@ class KitIliasWebCrawler(HttpCrawler):
     @_wrap_io_in_warning("handling ilias element")
     async def _handle_ilias_element(self, parent_path: PurePath, element: IliasPageElement) -> None:
         element_path = PurePath(parent_path, element.name)
+
+        if element.type in _VIDEO_ELEMENTS:
+            log.explain_topic(f"Decision: Crawl video element {fmt_path(element_path)}")
+            if self._no_videos:
+                log.explain("Video crawling is disabled")
+                log.explain("Answer: no")
+                return
+            else:
+                log.explain("Video crawling is enabled")
+                log.explain("Answer: yes")
 
         if element.type == IliasElementType.FILE:
             await self._download_file(element, element_path)
