@@ -299,7 +299,13 @@ class IliasPage:
 
         for link in links:
             abs_url = self._abs_url_from_link(link)
-            element_name = _sanitize_path_name(link.getText())
+            parents = self._find_upwards_folder_hierarchy(link)
+
+            if parents:
+                element_name = "/".join(parents) + "/" + _sanitize_path_name(link.getText())
+            else:
+                element_name = _sanitize_path_name(link.getText())
+
             element_type = self._find_type_from_link(element_name, link, abs_url)
             description = self._find_link_description(link)
 
@@ -317,6 +323,47 @@ class IliasPage:
             result.append(IliasPageElement(element_type, abs_url, element_name, description=description))
 
         return result
+
+    def _find_upwards_folder_hierarchy(self, tag: Tag) -> List[str]:
+        """
+        Interprets accordions and expandable blocks as virtual folders and returns them
+        in order. This allows us to find a file named "Test" in an accordion "Acc" as "Acc/Test"
+        """
+        found_titles = []
+
+        outer_accordion_content: Optional[Tag] = None
+
+        parents: List[Tag] = list(tag.parents)
+        for parent in parents:
+            if not parent.get("class"):
+                continue
+
+            # ILIAS has proper accordions and weird blocks that look like normal headings,
+            # but some JS later transforms them into an accordion.
+
+            # This is for these weird JS-y blocks
+            if "ilContainerItemsContainer" in parent.get("class"):
+                # I am currently under the impression that *only* those JS blocks have an
+                # ilNoDisplay class.
+                if "ilNoDisplay" not in parent.get("class"):
+                    continue
+                prev: Tag = parent.findPreviousSibling("div")
+                if "ilContainerBlockHeader" in prev.get("class"):
+                    found_titles.append(prev.find("h3").getText().strip())
+
+            # And this for real accordions
+            if "il_VAccordionContentDef" in parent.get("class"):
+                outer_accordion_content = parent
+                break
+
+        if outer_accordion_content:
+            accordion_tag: Tag = outer_accordion_content.parent
+            head_tag: Tag = accordion_tag.find(attrs={
+                "class": lambda x: x and "ilc_va_ihead_VAccordIHead" in x
+            })
+            found_titles.append(head_tag.getText().strip())
+
+        return [_sanitize_path_name(x) for x in reversed(found_titles)]
 
     def _find_link_description(self, link: Tag) -> Optional[str]:
         tile: Tag = link.findParent("div", {"class": lambda x: x and "il_ContainerListItem" in x})
@@ -353,7 +400,6 @@ class IliasPage:
             modification_date = demangle_date(modification_date_str)
 
         # Grab the name from the link text
-        name = _sanitize_path_name(link_element.getText())
         full_path = name + "." + file_type
 
         log.explain(f"Found file {full_path!r}")
