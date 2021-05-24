@@ -110,7 +110,7 @@ class Config:
         """
 
         if path:
-            log.explain("Using custom path")
+            log.explain("Path specified on CLI")
         else:
             log.explain("Using default path")
             path = Config._default_path()

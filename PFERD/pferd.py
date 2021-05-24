@@ -80,7 +80,7 @@ class Pferd:
         for name in self._crawlers_to_run:
             section_name = f"crawl:{name}"
             if section_name in self._crawlers:
-                log.explain(f"Found crawler section named {section_name!r}")
+                log.explain(f"Crawler section named {section_name!r} exists")
                 names.append(section_name)
             else:
                 log.explain(f"There's no crawler section named {section_name!r}")
@@ -128,16 +128,16 @@ class Pferd:
             log.report("")
             log.report(f"[bold bright_cyan]Report[/] for {escape(name)}")
 
-            something_happened = False
+            something_changed = False
             for path in sorted(crawler.report.added_files):
-                something_happened = True
+                something_changed = True
                 log.report(f"  [bold bright_green]Added[/] {fmt_path(path)}")
             for path in sorted(crawler.report.changed_files):
-                something_happened = True
+                something_changed = True
                 log.report(f"  [bold bright_yellow]Changed[/] {fmt_path(path)}")
             for path in sorted(crawler.report.deleted_files):
-                something_happened = True
+                something_changed = True
                 log.report(f"  [bold bright_magenta]Deleted[/] {fmt_path(path)}")
 
-            if not something_happened:
-                log.report("  Nothing happened")
+            if not something_changed:
+                log.report("  Nothing changed")
