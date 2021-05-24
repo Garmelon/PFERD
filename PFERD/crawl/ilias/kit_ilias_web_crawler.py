@@ -152,12 +152,15 @@ class KitIliasWebCrawler(HttpCrawler):
             config: Config,
             authenticators: Dict[str, Authenticator]
     ):
-        super().__init__(name, section, config)
+        # Setting a main authenticator for cookie sharing
+        auth = section.auth(authenticators)
+        super().__init__(name, section, config, shared_auth=auth)
 
         self._shibboleth_login = KitShibbolethLogin(
-            section.auth(authenticators),
-            section.tfa_auth(authenticators)
+            auth,
+            section.tfa_auth(authenticators),
         )
+
         self._base_url = "https://ilias.studium.kit.edu"
 
         self._target = section.target()

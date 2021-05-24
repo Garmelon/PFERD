@@ -1,10 +1,11 @@
 import asyncio
-from pathlib import PurePath
-from typing import Optional
+from pathlib import Path, PurePath
+from typing import Dict, List, Optional
 
 import aiohttp
 from aiohttp.client import ClientTimeout
 
+from ..auth import Authenticator
 from ..config import Config
 from ..logging import log
 from ..utils import fmt_real_path
@@ -25,16 +26,21 @@ class HttpCrawler(Crawler):
             name: str,
             section: HttpCrawlerSection,
             config: Config,
+            shared_auth: Optional[Authenticator] = None,
     ) -> None:
         super().__init__(name, section, config)
 
-        self._cookie_jar_path = self._output_dir.resolve(self.COOKIE_FILE)
-        self._output_dir.register_reserved(self.COOKIE_FILE)
         self._authentication_id = 0
         self._authentication_lock = asyncio.Lock()
-        self._current_cookie_jar: Optional[aiohttp.CookieJar] = None
         self._request_count = 0
         self._http_timeout = section.http_timeout()
+
+        self._cookie_jar_path = self._output_dir.resolve(self.COOKIE_FILE)
+        self._shared_cookie_jar_paths: Optional[List[Path]] = None
+        self._shared_auth = shared_auth
+        self._current_cookie_jar: Optional[aiohttp.CookieJar] = None
+
+        self._output_dir.register_reserved(self.COOKIE_FILE)
 
     async def _current_auth_id(self) -> int:
         """
@@ -71,7 +77,7 @@ class HttpCrawler(Crawler):
             self._authentication_id += 1
             # Saving the cookies after the first auth ensures we won't need to re-authenticate
             # on the next run, should this one be aborted or crash
-            await self._save_cookies()
+            self._save_cookies()
 
     async def _authenticate(self) -> None:
         """
@@ -80,26 +86,68 @@ class HttpCrawler(Crawler):
         """
         raise RuntimeError("_authenticate() was called but crawler doesn't provide an implementation")
 
-    async def _save_cookies(self) -> None:
+    def share_cookies(self, shared: Dict[Authenticator, List[Path]]) -> None:
+        if not self._shared_auth:
+            return
+
+        if self._shared_auth in shared:
+            self._shared_cookie_jar_paths = shared[self._shared_auth]
+        else:
+            self._shared_cookie_jar_paths = []
+            shared[self._shared_auth] = self._shared_cookie_jar_paths
+
+        self._shared_cookie_jar_paths.append(self._cookie_jar_path)
+
+    def _load_cookies(self) -> None:
+        log.explain_topic("Loading cookies")
+        cookie_jar_path: Optional[Path] = None
+
+        if self._shared_cookie_jar_paths is None:
+            log.explain("Not sharing any cookies")
+            cookie_jar_path = self._cookie_jar_path
+        else:
+            log.explain("Sharing cookies")
+            max_mtime: Optional[float] = None
+            for path in self._shared_cookie_jar_paths:
+                if not path.is_file():
+                    log.explain(f"{fmt_real_path(path)} is not a file")
+                    continue
+                mtime = path.stat().st_mtime
+                if max_mtime is None or mtime > max_mtime:
+                    log.explain(f"{fmt_real_path(path)} has newest mtime so far")
+                    max_mtime = mtime
+                    cookie_jar_path = path
+                else:
+                    log.explain(f"{fmt_real_path(path)} has older mtime")
+
+        if cookie_jar_path is None:
+            log.explain("Couldn't find a suitable cookie file")
+            return
+
+        log.explain(f"Loading cookies from {fmt_real_path(cookie_jar_path)}")
+        try:
+            self._current_cookie_jar = aiohttp.CookieJar()
+            self._current_cookie_jar.load(cookie_jar_path)
+        except Exception as e:
+            log.explain("Failed to load cookies")
+            log.explain(str(e))
+
+    def _save_cookies(self) -> None:
         log.explain_topic("Saving cookies")
         if not self._current_cookie_jar:
             log.explain("No cookie jar, save aborted")
             return
 
         try:
+            log.explain(f"Saving cookies to {fmt_real_path(self._cookie_jar_path)}")
             self._current_cookie_jar.save(self._cookie_jar_path)
-            log.explain(f"Cookies saved to {fmt_real_path(self._cookie_jar_path)}")
-        except Exception:
+        except Exception as e:
             log.warn(f"Failed to save cookies to {fmt_real_path(self._cookie_jar_path)}")
+            log.warn(str(e))
 
     async def run(self) -> None:
-        self._current_cookie_jar = aiohttp.CookieJar()
         self._request_count = 0
-
-        try:
-            self._current_cookie_jar.load(self._cookie_jar_path)
-        except Exception:
-            pass
+        self._load_cookies()
 
         async with aiohttp.ClientSession(
                 headers={"User-Agent": f"{NAME}/{VERSION}"},
@@ -114,4 +162,4 @@ class HttpCrawler(Crawler):
         log.explain_topic(f"Total amount of HTTP requests: {self._request_count}")
 
         # They are saved in authenticate, but a final save won't hurt
-        await self._save_cookies()
+        self._save_cookies()

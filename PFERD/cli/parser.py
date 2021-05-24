@@ -169,6 +169,11 @@ PARSER.add_argument(
     action=BooleanOptionalAction,
     help="print a report of all local changes before exiting"
 )
+PARSER.add_argument(
+    "--share-cookies",
+    action=BooleanOptionalAction,
+    help="whether crawlers should share cookies where applicable"
+)
 
 
 def load_default_section(
@@ -180,7 +185,9 @@ def load_default_section(
     if args.working_dir is not None:
         section["working_dir"] = str(args.working_dir)
     if args.explain is not None:
-        section["explain"] = "true" if args.explain else "false"
+        section["explain"] = "yes" if args.explain else "no"
+    if args.share_cookies is not None:
+        section["share_cookies"] = "yes" if args.share_cookies else "no"
 
 
 SUBPARSERS = PARSER.add_subparsers(title="crawlers")

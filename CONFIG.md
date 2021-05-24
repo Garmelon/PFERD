@@ -25,6 +25,11 @@ default values for the other sections.
    `yes`)
 - `report`: Whether PFERD should print a report of added, changed and deleted
    local files for all crawlers before exiting. (Default: `yes`)
+- `share_cookies`: Whether crawlers should share cookies where applicable. By
+  default, crawlers are isolated and don't interact with each other. This
+  includes their cookies. However, in situations where multiple crawlers crawl
+  the same website using the same account, sharing cookies between crawlers can
+  make sense. (Default: `yes`)
 
 ## The `crawl:*` sections
 

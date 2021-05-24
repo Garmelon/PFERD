@@ -1,10 +1,11 @@
+from pathlib import Path
 from typing import Dict, List, Optional
 
 from rich.markup import escape
 
 from .auth import AUTHENTICATORS, Authenticator
 from .config import Config, ConfigOptionError
-from .crawl import CRAWLERS, Crawler, CrawlError
+from .crawl import CRAWLERS, Crawler, CrawlError, KitIliasWebCrawler
 from .logging import log
 from .utils import fmt_path
 
@@ -42,6 +43,9 @@ class Pferd:
     def _load_crawlers(self) -> List[str]:
         names = []
 
+        # Cookie sharing
+        kit_ilias_web_paths: Dict[Authenticator, List[Path]] = {}
+
         for name, section in self._config.crawler_sections():
             log.print(f"[bold bright_cyan]Loading[/] {escape(name)}")
             names.append(name)
@@ -53,6 +57,10 @@ class Pferd:
 
             crawler = crawler_constructor(name, section, self._config, self._authenticators)
             self._crawlers[name] = crawler
+
+            if self._config.default_section.share_cookies():
+                if isinstance(crawler, KitIliasWebCrawler):
+                    crawler.share_cookies(kit_ilias_web_paths)
 
         return names
 
