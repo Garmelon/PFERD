@@ -2,7 +2,16 @@
 
 set -e
 
-pip install --upgrade pip setuptools
+# Updating pip and setuptools because some older versions don't recognize the
+# project setup correctly
+if [[ $1 != '--no-pip' ]]; then
+    pip install --upgrade pip
+fi
+pip install --upgrade setuptools
+
+# Installing PFERD itself
 pip install --editable .
+
+# Installing various tools
 pip install --upgrade mypy flake8 autopep8 isort
 pip install --upgrade pyinstaller
