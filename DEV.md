@@ -24,6 +24,9 @@ installs PFERD via `pip install --editable .`, which means that you can just run
 `--editable`, there is no need to re-run `pip install` when the source code is
 changed.
 
+If you get any errors because pip can't update itself, try running
+`./scripts/setup --no-pip` instead of `./scripts/setup`.
+
 For more details, see [this part of the Python Tutorial][venv-tut] and
 [this section on "development mode"][ppug-dev].
 
@@ -50,3 +53,33 @@ that `./scripts/check` returns no warnings and the code has been run through
 `./scripts/format`.
 
 In your first PR, please add your name to the `LICENSE` file.
+
+## Releasing a new version
+
+1. Update the version number in `PFERD/version.py`
+2. Update `CHANGELOG.md`
+3. Commit changes to `master` with message `Bump version to <version>` (e. g. `Bump version to 3.2.5`)
+4. Create annotated tag named `v<version>` (e. g. `v3.2.5`)
+    - Copy changes from changelog
+    - Remove `#` symbols (which git would interpret as comments)
+    - As the first line, add `Version <version> - <date>` (e. g. `Version 3.2.5 - 2021-05-24`)
+    - Leave the second line empty
+5. Fast-forward `latest` to `master`
+6. Push `master`, `latest` and the new tag
+
+Example tag annotation:
+```
+Version 3.2.5 - 2021-05-24
+
+Added
+- Support for concurrent downloads
+- Support for proper config files
+- This changelog
+
+Changed
+- Rewrote almost everything
+- Redesigned CLI
+
+Removed
+- Backwards compatibility with 2.x
+```
