@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
 
+set -e
+
 autopep8 --recursive --in-place PFERD
 isort PFERD

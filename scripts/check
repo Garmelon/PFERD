@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
 
+set -e
+
 mypy PFERD
 flake8 PFERD
