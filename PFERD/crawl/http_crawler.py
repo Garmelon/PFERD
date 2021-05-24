@@ -155,7 +155,15 @@ class HttpCrawler(Crawler):
         async with aiohttp.ClientSession(
                 headers={"User-Agent": f"{NAME}/{VERSION}"},
                 cookie_jar=self._cookie_jar,
-                timeout=ClientTimeout(total=self._http_timeout)
+                timeout=ClientTimeout(
+                    # 30 minutes. No download in the history of downloads was longer than 30 minutes.
+                    # This is enough to transfer a 600 MB file over a 3 Mib/s connection.
+                    # Allowing an arbitrary value could be annoying for overnight batch jobs
+                    total=15 * 60,
+                    connect=self._http_timeout,
+                    sock_connect=self._http_timeout,
+                    sock_read=self._http_timeout,
+                )
         ) as session:
             self.session = session
             try:
