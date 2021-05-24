@@ -1,0 +1,111 @@
+#!/usr/bin/env python3
+
+import argparse
+import time
+import re
+from subprocess import run
+
+
+def load_changelog():
+    with open("CHANGELOG.md") as f:
+        return list(f)
+
+
+def extract_changes(lines):
+    lines = iter(lines)
+    changes = []
+
+    # Find "Unreleased" section
+    for line in lines:
+        if line.strip() == "## Unreleased":
+            break
+    next(lines)
+
+    # Read all lines from that section
+    for line in lines:
+        if line.startswith("## "):
+            # Found the beginning of the next section
+            break
+        elif line.startswith("### "):
+            # Found a heading in the current section
+            # Remove "#" symbols so git doesn't interpret the line as a comment later
+            changes.append(line[4:])
+        else:
+            changes.append(line)
+
+    # Remove trailing empty lines
+    while changes and not changes[-1].strip():
+        changes.pop()
+
+    return changes
+
+
+def update_version(version):
+    with open("PFERD/version.py") as f:
+        text = f.read()
+
+    text = re.sub(r'VERSION = ".*"', f'VERSION = "{version}"', text)
+
+    with open("PFERD/version.py", "w") as f:
+        f.write(text)
+
+
+def update_changelog(lines, version, date):
+    lines = iter(lines)
+    new_lines = []
+
+    # Find "Unreleased" section
+    for line in lines:
+        new_lines.append(line)
+        if line.strip() == "## Unreleased":
+            break
+
+    # Add new heading below that
+    new_lines.append("\n")
+    new_lines.append(f"## {version} - {date}\n")
+
+    # Add remaining lines
+    for line in lines:
+        new_lines.append(line)
+
+    with open("CHANGELOG.md", "w") as f:
+        f.write("".join(new_lines))
+
+
+def commit_changes(version):
+    run(["git", "add", "CHANGELOG.md", "PFERD/version.py"])
+    run(["git", "commit", "-m", f"Bump version to {version}"])
+
+
+def create_tag(version, annotation):
+    run(["git", "tag", "-am", annotation, f"v{version}"])
+
+
+def fastforward_latest():
+    run(["git", "branch", "-f", "latest", "HEAD"])
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("version")
+    args = parser.parse_args()
+
+    version = args.version
+    date = time.strftime("%Y-%m-%d")
+    changelog = load_changelog()
+    changes = extract_changes(changelog)
+    annotation = f"Version {version} - {date}\n\n{''.join(changes)}"
+
+    update_version(version)
+    update_changelog(changelog, version, date)
+    commit_changes(version)
+    create_tag(version, annotation)
+    fastforward_latest()
+
+    print()
+    print("Now the only thing left is to publish the changes:")
+    print(f"  $ git push origin master latest v{version}")
+
+
+if __name__ == "__main__":
+    main()

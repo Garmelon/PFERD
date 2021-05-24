@@ -56,6 +56,10 @@ In your first PR, please add your name to the `LICENSE` file.
 
 ## Releasing a new version
 
+This section describes the steps required to release a new version of PFERD.
+Usually, they don't need to performed manually and `scripts/bump-version` can be
+used instead.
+
 1. Update the version number in `PFERD/version.py`
 2. Update `CHANGELOG.md`
 3. Commit changes to `master` with message `Bump version to <version>` (e. g. `Bump version to 3.2.5`)
