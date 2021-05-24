@@ -38,7 +38,6 @@ class HttpCrawler(Crawler):
         self._cookie_jar_path = self._output_dir.resolve(self.COOKIE_FILE)
         self._shared_cookie_jar_paths: Optional[List[Path]] = None
         self._shared_auth = shared_auth
-        self._current_cookie_jar: Optional[aiohttp.CookieJar] = None
 
         self._output_dir.register_reserved(self.COOKIE_FILE)
 
@@ -106,6 +105,7 @@ class HttpCrawler(Crawler):
 
     def _load_cookies(self) -> None:
         log.explain_topic("Loading cookies")
+
         cookie_jar_path: Optional[Path] = None
 
         if self._shared_cookie_jar_paths is None:
@@ -132,32 +132,29 @@ class HttpCrawler(Crawler):
 
         log.explain(f"Loading cookies from {fmt_real_path(cookie_jar_path)}")
         try:
-            self._current_cookie_jar = aiohttp.CookieJar()
-            self._current_cookie_jar.load(cookie_jar_path)
+            self._cookie_jar.load(cookie_jar_path)
         except Exception as e:
             log.explain("Failed to load cookies")
             log.explain(str(e))
 
     def _save_cookies(self) -> None:
         log.explain_topic("Saving cookies")
-        if not self._current_cookie_jar:
-            log.explain("No cookie jar, save aborted")
-            return
 
         try:
             log.explain(f"Saving cookies to {fmt_real_path(self._cookie_jar_path)}")
-            self._current_cookie_jar.save(self._cookie_jar_path)
+            self._cookie_jar.save(self._cookie_jar_path)
         except Exception as e:
             log.warn(f"Failed to save cookies to {fmt_real_path(self._cookie_jar_path)}")
             log.warn(str(e))
 
     async def run(self) -> None:
         self._request_count = 0
+        self._cookie_jar = aiohttp.CookieJar()
         self._load_cookies()
 
         async with aiohttp.ClientSession(
                 headers={"User-Agent": f"{NAME}/{VERSION}"},
-                cookie_jar=self._current_cookie_jar,
+                cookie_jar=self._cookie_jar,
                 timeout=ClientTimeout(total=self._http_timeout)
         ) as session:
             self.session = session
