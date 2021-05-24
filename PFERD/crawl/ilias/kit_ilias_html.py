@@ -16,6 +16,7 @@ TargetType = Union[str, int]
 
 class IliasElementType(Enum):
     EXERCISE = "exercise"
+    EXERCISE_FILES = "exercise_files"  # own submitted files
     FILE = "file"
     FOLDER = "folder"
     FORUM = "forum"
@@ -197,6 +198,43 @@ class IliasPage:
         return IliasPageElement(IliasElementType.VIDEO_PLAYER, video_url, video_name, modification_time)
 
     def _find_exercise_entries(self) -> List[IliasPageElement]:
+        if self._soup.find(id="tab_submission"):
+            log.explain("Found submission tab. This is an exercise detail page")
+            return self._find_exercise_entries_detail_page()
+        log.explain("Found no submission tab. This is an exercise root page")
+        return self._find_exercise_entries_root_page()
+
+    def _find_exercise_entries_detail_page(self) -> List[IliasPageElement]:
+        results: List[IliasPageElement] = []
+
+        # Find all download links in the container (this will contain all the files)
+        download_links: List[Tag] = self._soup.findAll(
+            name="a",
+            # download links contain the given command class
+            attrs={"href": lambda x: x and "cmd=download" in x},
+            text="Download"
+        )
+
+        for link in download_links:
+            parent_row: Tag = link.findParent("tr")
+            children: List[Tag] = parent_row.findChildren("td")
+
+            # <checkbox> <name> <uploader> <date> <download>
+            #     0         1        2       3        4
+            name = _sanitize_path_name(children[1].getText().strip())
+            date = demangle_date(children[3].getText().strip())
+
+            log.explain(f"Found exercise detail entry {name!r}")
+            results.append(IliasPageElement(
+                IliasElementType.FILE,
+                self._abs_url_from_link(link),
+                name,
+                date
+            ))
+
+        return results
+
+    def _find_exercise_entries_root_page(self) -> List[IliasPageElement]:
         results: List[IliasPageElement] = []
 
         # Each assignment is in an accordion container
@@ -205,6 +243,8 @@ class IliasPage:
         for container in assignment_containers:
             # Fetch the container name out of the header to use it in the path
             container_name = container.select_one(".ilAssignmentHeader").getText().strip()
+            log.explain(f"Found exercise container {container_name!r}")
+
             # Find all download links in the container (this will contain all the files)
             files: List[Tag] = container.findAll(
                 name="a",
@@ -212,8 +252,6 @@ class IliasPage:
                 attrs={"href": lambda x: x and "cmdClass=ilexsubmissiongui" in x},
                 text="Download"
             )
-
-            log.explain(f"Found exercise container {container_name!r}")
 
             # Grab each file as you now have the link
             for file_link in files:
@@ -229,6 +267,25 @@ class IliasPage:
                     url,
                     container_name + "/" + file_name,
                     None  # We do not have any timestamp
+                ))
+
+            # Find all links to file listings (e.g. "Submitted Files" for groups)
+            file_listings: List[Tag] = container.findAll(
+                name="a",
+                # download links contain the given command class
+                attrs={"href": lambda x: x and "cmdClass=ilexsubmissionfilegui" in x}
+            )
+
+            # Add each listing as a new
+            for listing in file_listings:
+                file_name = _sanitize_path_name(listing.getText().strip())
+                url = self._abs_url_from_link(listing)
+                log.explain(f"Found exercise detail {file_name!r} at {url}")
+                results.append(IliasPageElement(
+                    IliasElementType.EXERCISE_FILES,
+                    url,
+                    container_name + "/" + file_name,
+                    None  # we do not have any timestamp
                 ))
 
         return results
@@ -349,7 +406,7 @@ class IliasPage:
 
         if found_parent is None:
             _unexpected_html_warning()
-            log.warn_contd(f"Tried to figure out element type, but did not find an icon for {url!r}")
+            log.warn_contd(f"Tried to figure out element type, but did not find an icon for {url}")
             return None
 
         # Find the small descriptive icon to figure out the type
@@ -357,7 +414,7 @@ class IliasPage:
 
         if img_tag is None:
             _unexpected_html_warning()
-            log.warn_contd(f"Tried to figure out element type, but did not find an image for {url!r}")
+            log.warn_contd(f"Tried to figure out element type, but did not find an image for {url}")
             return None
 
         if "opencast" in str(img_tag["alt"]).lower():

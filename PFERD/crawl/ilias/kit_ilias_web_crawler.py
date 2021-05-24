@@ -61,6 +61,7 @@ class KitIliasWebCrawlerSection(HttpCrawlerSection):
 
 _DIRECTORY_PAGES: Set[IliasElementType] = set([
     IliasElementType.EXERCISE,
+    IliasElementType.EXERCISE_FILES,
     IliasElementType.FOLDER,
     IliasElementType.MEETING,
     IliasElementType.VIDEO_FOLDER,
