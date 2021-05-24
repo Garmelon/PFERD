@@ -274,6 +274,10 @@ class KitIliasWebCrawler(HttpCrawler):
             log.explain_topic(f"Decision: Crawl {fmt_path(element_path)}")
             log.explain("Forums are not supported")
             log.explain("Answer: No")
+        elif element.type == IliasElementType.TEST:
+            log.explain_topic(f"Decision: Crawl {fmt_path(element_path)}")
+            log.explain("Tests contain no relevant files")
+            log.explain("Answer: No")
         elif element.type == IliasElementType.LINK:
             await self._download_link(element, element_path)
         elif element.type == IliasElementType.VIDEO:

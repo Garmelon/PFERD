@@ -17,6 +17,7 @@ TargetType = Union[str, int]
 class IliasElementType(Enum):
     EXERCISE = "exercise"
     EXERCISE_FILES = "exercise_files"  # own submitted files
+    TEST = "test"                      # an online test. Will be ignored currently.
     FILE = "file"
     FOLDER = "folder"
     FORUM = "forum"
@@ -373,9 +374,8 @@ class IliasPage:
         if "target=file_" in parsed_url.query:
             return IliasElementType.FILE
 
-        # Skip forums
-        if "cmd=showThreads" in parsed_url.query:
-            return IliasElementType.FORUM
+        # TODO: Match based on CMD_CLASS or icon? The folder_like check looks at the icon,
+        # but we could also match the command class. I am not sure what's more stable.
 
         # Everything with a ref_id can *probably* be opened to reveal nested things
         # video groups, directories, exercises, etc
@@ -431,6 +431,9 @@ class IliasPage:
 
         if str(img_tag["src"]).endswith("sess.svg"):
             return IliasElementType.MEETING
+
+        if str(img_tag["src"]).endswith("icon_tst.svg"):
+            return IliasElementType.TEST
 
         return IliasElementType.FOLDER
 
