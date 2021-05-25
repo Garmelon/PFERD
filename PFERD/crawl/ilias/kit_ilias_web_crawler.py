@@ -7,7 +7,7 @@ import aiohttp
 from aiohttp import hdrs
 from bs4 import BeautifulSoup, Tag
 
-from ...auth import Authenticator
+from ...auth import Authenticator, TfaAuthenticator
 from ...config import Config
 from ...logging import ProgressBar, log
 from ...output_dir import FileSink, Redownload
@@ -523,7 +523,7 @@ class KitShibbolethLogin:
             soup: BeautifulSoup
     ) -> BeautifulSoup:
         if not self._tfa_auth:
-            raise RuntimeError("No 'tfa_auth' present but you use two-factor authentication!")
+            self._tfa_auth = TfaAuthenticator("ilias-anon-tfa")
 
         tfa_token = await self._tfa_auth.password()
 
