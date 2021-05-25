@@ -170,8 +170,7 @@ class Config:
     def dump_to_stdout(self) -> None:
         self._parser.write(sys.stdout)
 
-    # TODO Rename to "crawl_sections"
-    def crawler_sections(self) -> List[Tuple[str, SectionProxy]]:
+    def crawl_sections(self) -> List[Tuple[str, SectionProxy]]:
         result = []
         for name, proxy in self._parser.items():
             if name.startswith("crawl:"):
@@ -179,8 +178,7 @@ class Config:
 
         return result
 
-    # TODO Rename to "auth_sections"
-    def authenticator_sections(self) -> List[Tuple[str, SectionProxy]]:
+    def auth_sections(self) -> List[Tuple[str, SectionProxy]]:
         result = []
         for name, proxy in self._parser.items():
             if name.startswith("auth:"):

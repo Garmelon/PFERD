@@ -28,7 +28,7 @@ class Pferd:
 
     def _find_crawlers_to_run(self, config: Config, cli_crawlers: Optional[List[str]]) -> List[str]:
         log.explain_topic("Deciding which crawlers to run")
-        crawl_sections = [name for name, _ in config.crawler_sections()]
+        crawl_sections = [name for name, _ in config.crawl_sections()]
 
         if cli_crawlers is None:
             log.explain("No crawlers specified on CLI")
@@ -63,7 +63,7 @@ class Pferd:
         return crawlers_to_run
 
     def _load_authenticators(self) -> None:
-        for name, section in self._config.authenticator_sections():
+        for name, section in self._config.auth_sections():
             log.print(f"[bold bright_cyan]Loading[/] {escape(name)}")
             auth_type = section.get("type")
             authenticator_constructor = AUTHENTICATORS.get(auth_type)
@@ -77,7 +77,7 @@ class Pferd:
         # Cookie sharing
         kit_ilias_web_paths: Dict[Authenticator, List[Path]] = {}
 
-        for name, section in self._config.crawler_sections():
+        for name, section in self._config.crawl_sections():
             log.print(f"[bold bright_cyan]Loading[/] {escape(name)}")
 
             crawl_type = section.get("type")
