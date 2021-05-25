@@ -97,14 +97,14 @@ URL={{link}}
 
 class Links(Enum):
     IGNORE = "ignore"
-    PLAIN = "plain"
+    PLAINTEXT = "plaintext"
     FANCY = "fancy"
     INTERNET_SHORTCUT = "internet-shortcut"
 
     def template(self) -> Optional[str]:
         if self == self.FANCY:
             return _link_template_fancy
-        elif self == self.PLAIN:
+        elif self == self.PLAINTEXT:
             return _link_template_plain
         elif self == self.INTERNET_SHORTCUT:
             return _link_template_internet_shortcut
@@ -115,7 +115,7 @@ class Links(Enum):
     def extension(self) -> Optional[str]:
         if self == self.FANCY:
             return ".html"
-        elif self == self.PLAIN:
+        elif self == self.PLAINTEXT:
             return ".txt"
         elif self == self.INTERNET_SHORTCUT:
             return ".url"
@@ -128,5 +128,5 @@ class Links(Enum):
         try:
             return Links(string)
         except ValueError:
-            raise ValueError("must be one of 'ignore', 'plain',"
+            raise ValueError("must be one of 'ignore', 'plaintext',"
                              " 'html', 'internet-shortcut'")
