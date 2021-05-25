@@ -112,32 +112,28 @@ def main() -> None:
         log.error(str(e))
         exit(1)
 
-    error = False
     try:
         asyncio.run(pferd.run())
     except ConfigOptionError as e:
         log.unlock()
         log.error(str(e))
-        error = True
+        exit(1)
     except RuleParseError as e:
         log.unlock()
         e.pretty_print()
-        error = True
+        exit(1)
     except KeyboardInterrupt:
         log.unlock()
         log.explain_topic("Interrupted, exiting immediately")
         log.explain("Open files and connections are left for the OS to clean up")
         log.explain("Temporary files are not cleaned up")
+        pferd.print_report()
         # TODO Clean up tmp files
         # And when those files *do* actually get cleaned up properly,
-        # reconsider if this should be an error
-        error = True
+        # reconsider if this should really exit with 1
+        exit(1)
     except Exception:
         log.unlock()
         log.unexpected_exception()
-        error = True
-
-    pferd.print_report()
-
-    if error:
+        pferd.print_report()
         exit(1)

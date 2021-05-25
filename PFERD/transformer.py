@@ -266,6 +266,11 @@ def parse_whitespace(line: Line) -> None:
         line.advance()
 
 
+def parse_eol(line: Line) -> None:
+    if line.get() is not None:
+        raise RuleParseError(line, "Expected end of line")
+
+
 def parse_rule(line: Line) -> Rule:
     # Parse left side
     leftindex = line.index
@@ -290,6 +295,8 @@ def parse_rule(line: Line) -> Rule:
         rightpath = right
     else:
         rightpath = PurePath(right)
+
+    parse_eol(line)
 
     # Dispatch
     if arrowname == "":
