@@ -393,8 +393,7 @@ class IliasPage:
         )
         if modification_date_match is None:
             modification_date = None
-            # TODO: Figure out if this is expected or *always* an error.
-            log.explain(f"Element {name} at {url} has no date. Properties: {all_properties_text!r}")
+            log.explain(f"Element {name} at {url} has no date.")
         else:
             modification_date_str = modification_date_match.group(1)
             modification_date = demangle_date(modification_date_str)
@@ -419,9 +418,6 @@ class IliasPage:
         # file URLs contain "target=file"
         if "target=file_" in parsed_url.query:
             return IliasElementType.FILE
-
-        # TODO: Match based on CMD_CLASS or icon? The folder_like check looks at the icon,
-        # but we could also match the command class. I am not sure what's more stable.
 
         # Everything with a ref_id can *probably* be opened to reveal nested things
         # video groups, directories, exercises, etc
