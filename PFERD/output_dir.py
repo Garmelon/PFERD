@@ -142,10 +142,9 @@ class OutputDirectory:
             root: Path,
             redownload: Redownload,
             on_conflict: OnConflict,
-            windows_paths: bool,
     ):
-        if windows_paths:
-            # Windows limits the path length to 260 for some historical reason
+        if os.name == "nt":
+            # Windows limits the path length to 260 for some historical reason.
             # If you want longer paths, you will have to add the "\\?\" prefix
             # in front of your path. See:
             # https://docs.microsoft.com/en-us/windows/win32/fileio/naming-a-file#maximum-path-length-limitation

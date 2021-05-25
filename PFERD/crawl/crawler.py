@@ -242,7 +242,6 @@ class Crawler(ABC):
             config.default_section.working_dir() / section.output_dir(name),
             section.redownload(),
             section.on_conflict(),
-            section.windows_paths(),
         )
 
     @property
