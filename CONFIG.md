@@ -90,7 +90,7 @@ full name of an auth section (including the `auth:` prefix).
 
 Here is a simple example:
 
-```
+```ini
 [auth:example]
 type = simple
 username = foo
