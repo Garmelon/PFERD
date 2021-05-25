@@ -15,19 +15,52 @@ class PferdLoadError(Exception):
 
 
 class Pferd:
-    def __init__(self, config: Config, crawlers_to_run: Optional[List[str]]):
+    def __init__(self, config: Config, cli_crawlers: Optional[List[str]]):
         """
         May throw PferdLoadError.
         """
 
-        if crawlers_to_run is not None and len(crawlers_to_run) != len(set(crawlers_to_run)):
-            raise PferdLoadError("Some crawlers were selected multiple times")
-
         self._config = config
-        self._crawlers_to_run = crawlers_to_run
+        self._crawlers_to_run = self._find_crawlers_to_run(config, cli_crawlers)
 
         self._authenticators: Dict[str, Authenticator] = {}
         self._crawlers: Dict[str, Crawler] = {}
+
+    def _find_crawlers_to_run(self, config: Config, cli_crawlers: Optional[List[str]]) -> List[str]:
+        log.explain_topic("Deciding which crawlers to run")
+        crawl_sections = [name for name, _ in config.crawler_sections()]
+
+        if cli_crawlers is None:
+            log.explain("No crawlers specified on CLI")
+            log.explain("Running all crawlers specified in config")
+            return crawl_sections
+
+        if len(cli_crawlers) != len(set(cli_crawlers)):
+            raise PferdLoadError("Some crawlers were selected multiple times")
+
+        log.explain("Crawlers specified on CLI")
+
+        crawlers_to_run = []  # With crawl: prefix
+        unknown_names = []  # Without crawl: prefix
+
+        for name in cli_crawlers:
+            section_name = f"crawl:{name}"
+            if section_name in crawl_sections:
+                log.explain(f"Crawler section named {section_name!r} exists")
+                crawlers_to_run.append(section_name)
+            else:
+                log.explain(f"There's no crawler section named {section_name!r}")
+                unknown_names.append(name)
+
+        if unknown_names:
+            if len(unknown_names) == 1:
+                [name] = unknown_names
+                raise PferdLoadError(f"There is no crawler named {name!r}")
+            else:
+                names_str = ", ".join(repr(name) for name in unknown_names)
+                raise PferdLoadError(f"There are no crawlers named {names_str}")
+
+        return crawlers_to_run
 
     def _load_authenticators(self) -> None:
         for name, section in self._config.authenticator_sections():
@@ -40,15 +73,12 @@ class Pferd:
             authenticator = authenticator_constructor(name, section, self._config)
             self._authenticators[name] = authenticator
 
-    def _load_crawlers(self) -> List[str]:
-        names = []
-
+    def _load_crawlers(self) -> None:
         # Cookie sharing
         kit_ilias_web_paths: Dict[Authenticator, List[Path]] = {}
 
         for name, section in self._config.crawler_sections():
             log.print(f"[bold bright_cyan]Loading[/] {escape(name)}")
-            names.append(name)
 
             crawl_type = section.get("type")
             crawler_constructor = CRAWLERS.get(crawl_type)
@@ -62,55 +92,20 @@ class Pferd:
                 if isinstance(crawler, KitIliasWebCrawler):
                     crawler.share_cookies(kit_ilias_web_paths)
 
-        return names
-
-    def _find_crawlers_to_run(self, loaded_crawlers: List[str]) -> List[str]:
-        log.explain_topic("Deciding which crawlers to run")
-
-        if self._crawlers_to_run is None:
-            log.explain("No crawlers specified on CLI")
-            log.explain("Running all loaded crawlers")
-            return loaded_crawlers
-
-        log.explain("Crawlers specified on CLI")
-
-        names: List[str] = []  # With 'crawl:' prefix
-        unknown_names = []  # Without 'crawl:' prefix
-
-        for name in self._crawlers_to_run:
-            section_name = f"crawl:{name}"
-            if section_name in self._crawlers:
-                log.explain(f"Crawler section named {section_name!r} exists")
-                names.append(section_name)
-            else:
-                log.explain(f"There's no crawler section named {section_name!r}")
-                unknown_names.append(name)
-
-        if unknown_names:
-            if len(unknown_names) == 1:
-                [name] = unknown_names
-                raise PferdLoadError(f"There is no crawler named {name!r}")
-            else:
-                names_str = ", ".join(repr(name) for name in unknown_names)
-                raise PferdLoadError(f"There are no crawlers named {names_str}")
-
-        return names
-
     async def run(self) -> None:
         """
-        May throw PferdLoadError or ConfigOptionError.
+        May throw ConfigOptionError.
         """
 
         # These two functions must run inside the same event loop as the
         # crawlers, so that any new objects (like Conditions or Futures) can
         # obtain the correct event loop.
         self._load_authenticators()
-        loaded_crawlers = self._load_crawlers()
-        names = self._find_crawlers_to_run(loaded_crawlers)
+        self._load_crawlers()
 
         log.print("")
 
-        for name in names:
+        for name in self._crawlers_to_run:
             crawler = self._crawlers[name]
 
             log.print(f"[bold bright_cyan]Running[/] {escape(name)}")
@@ -122,7 +117,8 @@ class Pferd:
             except Exception:
                 log.unexpected_exception()
 
-        for name in names:
+    def print_report(self) -> None:
+        for name in self._crawlers_to_run:
             crawler = self._crawlers[name]
 
             log.report("")

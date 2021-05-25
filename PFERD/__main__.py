@@ -107,15 +107,22 @@ def main() -> None:
 
     try:
         pferd = Pferd(config, args.crawler)
-        asyncio.run(pferd.run())
-    except (PferdLoadError, ConfigOptionError) as e:
+    except PferdLoadError as e:
         log.unlock()
         log.error(str(e))
         exit(1)
+
+    error = False
+    try:
+        asyncio.run(pferd.run())
+    except ConfigOptionError as e:
+        log.unlock()
+        log.error(str(e))
+        error = True
     except RuleParseError as e:
         log.unlock()
         e.pretty_print()
-        exit(1)
+        error = True
     except KeyboardInterrupt:
         log.unlock()
         log.explain_topic("Interrupted, exiting immediately")
@@ -123,9 +130,14 @@ def main() -> None:
         log.explain("Temporary files are not cleaned up")
         # TODO Clean up tmp files
         # And when those files *do* actually get cleaned up properly,
-        # reconsider what exit code to use here.
-        exit(1)
+        # reconsider if this should be an error
+        error = True
     except Exception:
         log.unlock()
         log.unexpected_exception()
+        error = True
+
+    pferd.print_report()
+
+    if error:
         exit(1)
