@@ -118,7 +118,10 @@ def main() -> None:
         sys.exit(1)
 
     try:
-        asyncio.run(pferd.run())
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(pferd.run())
+        loop.run_until_complete(asyncio.sleep(1))
+        loop.close()
     except ConfigOptionError as e:
         log.unlock()
         log.error(str(e))
