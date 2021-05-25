@@ -1,6 +1,7 @@
 import argparse
 import asyncio
 import configparser
+import sys
 from pathlib import Path
 
 from .cli import PARSER, load_default_section
@@ -33,7 +34,7 @@ def load_config(args: argparse.Namespace) -> Config:
     except ConfigLoadError as e:
         log.error(str(e))
         log.error_contd(e.reason)
-        exit(1)
+        sys.exit(1)
 
 
 def configure_logging_from_args(args: argparse.Namespace) -> None:
@@ -68,7 +69,7 @@ def configure_logging_from_config(args: argparse.Namespace, config: Config) -> N
             log.output_report = config.default_section.report()
     except ConfigOptionError as e:
         log.error(str(e))
-        exit(1)
+        sys.exit(1)
 
 
 def dump_config(args: argparse.Namespace, config: Config) -> None:
@@ -76,7 +77,7 @@ def dump_config(args: argparse.Namespace, config: Config) -> None:
 
     if args.dump_config and args.dump_config_to is not None:
         log.error("--dump-config and --dump-config-to can't be specified at the same time")
-        exit(1)
+        sys.exit(1)
 
     try:
         if args.dump_config:
@@ -88,7 +89,7 @@ def dump_config(args: argparse.Namespace, config: Config) -> None:
     except ConfigDumpError as e:
         log.error(str(e))
         log.error_contd(e.reason)
-        exit(1)
+        sys.exit(1)
 
 
 def main() -> None:
@@ -107,25 +108,25 @@ def main() -> None:
 
     if args.dump_config or args.dump_config_to is not None:
         dump_config(args, config)
-        exit()
+        sys.exit()
 
     try:
         pferd = Pferd(config, args.crawler)
     except PferdLoadError as e:
         log.unlock()
         log.error(str(e))
-        exit(1)
+        sys.exit(1)
 
     try:
         asyncio.run(pferd.run())
     except ConfigOptionError as e:
         log.unlock()
         log.error(str(e))
-        exit(1)
+        sys.exit(1)
     except RuleParseError as e:
         log.unlock()
         e.pretty_print()
-        exit(1)
+        sys.exit(1)
     except KeyboardInterrupt:
         log.unlock()
         log.explain_topic("Interrupted, exiting immediately")
@@ -135,9 +136,9 @@ def main() -> None:
         # TODO Clean up tmp files
         # And when those files *do* actually get cleaned up properly,
         # reconsider if this should really exit with 1
-        exit(1)
+        sys.exit(1)
     except Exception:
         log.unlock()
         log.unexpected_exception()
         pferd.print_report()
-        exit(1)
+        sys.exit(1)
