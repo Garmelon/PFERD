@@ -3,7 +3,7 @@ from typing import Callable, Dict
 
 from ..config import Config
 from .authenticator import Authenticator, AuthSection
-from .keyring_authenticator import KeyringAuthenticator, KeyringAuthSection
+from .keyring import KeyringAuthenticator, KeyringAuthSection
 from .simple import SimpleAuthenticator, SimpleAuthSection
 from .tfa import TfaAuthenticator
 
