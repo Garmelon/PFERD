@@ -77,10 +77,10 @@ CRAWLER_PARSER_GROUP = CRAWLER_PARSER.add_argument_group(
     description="arguments common to all crawlers",
 )
 CRAWLER_PARSER_GROUP.add_argument(
-    "--redownload",
+    "--redownload", "-r",
     type=show_value_error(Redownload.from_string),
     metavar="OPTION",
-    help="when to redownload a file that's already present locally"
+    help="when to download a file that's already present locally"
 )
 CRAWLER_PARSER_GROUP.add_argument(
     "--on-conflict",
@@ -89,29 +89,34 @@ CRAWLER_PARSER_GROUP.add_argument(
     help="what to do when local and remote files or directories differ"
 )
 CRAWLER_PARSER_GROUP.add_argument(
-    "--transform", "-t",
+    "--transform", "-T",
     action="append",
     type=str,
     metavar="RULE",
     help="add a single transformation rule. Can be specified multiple times"
 )
 CRAWLER_PARSER_GROUP.add_argument(
-    "--max-concurrent-tasks",
+    "--tasks", "-n",
     type=int,
     metavar="N",
     help="maximum number of concurrent tasks (crawling, downloading)"
 )
 CRAWLER_PARSER_GROUP.add_argument(
-    "--max-concurrent-downloads",
+    "--downloads", "-N",
     type=int,
     metavar="N",
     help="maximum number of tasks that may download data at the same time"
 )
 CRAWLER_PARSER_GROUP.add_argument(
-    "--delay-between-tasks",
+    "--task-delay", "-d",
     type=float,
     metavar="SECONDS",
     help="time the crawler should wait between subsequent tasks"
+)
+CRAWLER_PARSER_GROUP.add_argument(
+    "--windows-paths",
+    action=BooleanOptionalAction,
+    help="whether to repair invalid paths on windows"
 )
 
 
@@ -125,12 +130,14 @@ def load_crawler(
         section["on_conflict"] = args.on_conflict.value
     if args.transform is not None:
         section["transform"] = "\n" + "\n".join(args.transform)
-    if args.max_concurrent_tasks is not None:
-        section["max_concurrent_tasks"] = str(args.max_concurrent_tasks)
-    if args.max_concurrent_downloads is not None:
-        section["max_concurrent_downloads"] = str(args.max_concurrent_downloads)
-    if args.delay_between_tasks is not None:
-        section["delay_between_tasks"] = str(args.delay_between_tasks)
+    if args.tasks is not None:
+        section["tasks"] = str(args.tasks)
+    if args.downloads is not None:
+        section["downloads"] = str(args.downloads)
+    if args.task_delay is not None:
+        section["task_delay"] = str(args.task_delay)
+    if args.windows_paths is not None:
+        section["windows_paths"] = "yes" if args.windows_paths else "no"
 
 
 PARSER = argparse.ArgumentParser()
@@ -200,6 +207,10 @@ def load_default_section(
         section["working_dir"] = str(args.working_dir)
     if args.explain is not None:
         section["explain"] = "yes" if args.explain else "no"
+    if args.status is not None:
+        section["status"] = "yes" if args.status else "no"
+    if args.report is not None:
+        section["report"] = "yes" if args.report else "no"
     if args.share_cookies is not None:
         section["share_cookies"] = "yes" if args.share_cookies else "no"
 

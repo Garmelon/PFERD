@@ -1,10 +1,11 @@
 # Config file format
 
 A config file consists of sections. A section begins with a `[section]` header,
-which is followed by a list of `key = value` or `key: value` pairs. Comments
-must be on their own line and start with `#` or `;`. Multiline values must be
-indented beyond their key. For more details and some examples on the format, see
-the [configparser documentation][1] ([basic interpolation][2] is enabled).
+which is followed by a list of `key = value` pairs. Comments must be on their
+own line and start with `#`. Multiline values must be indented beyond their key.
+Boolean values can be `yes` or `no`. For more details and some examples on the
+format, see the [configparser documentation][1] ([basic interpolation][2] is
+enabled).
 
 [1]: <https://docs.python.org/3/library/configparser.html#supported-ini-file-structure> "Supported INI File Structure"
 [2]: <https://docs.python.org/3/library/configparser.html#configparser.BasicInterpolation> "BasicInterpolation"
@@ -15,21 +16,19 @@ This section contains global configuration values. It can also be used to set
 default values for the other sections.
 
 - `working_dir`: The directory PFERD operates in. Set to an absolute path to
-  make PFERD operate the same regardless of where it is executed. All other
+  make PFERD operate the same regardless of where it is executed from. All other
   paths in the config file are interpreted relative to this path. If this path
   is relative, it is interpreted relative to the script's working dir. `~` is
   expanded to the current user's home directory. (Default: `.`)
 - `explain`: Whether PFERD should log and explain its actions and decisions in
   detail. (Default: `no`)
-- `status`: Whether PFERD should print status updates while crawling. (Default:
-   `yes`)
+- `status`: Whether PFERD should print status updates (like `Crawled ...`,
+  `Added ...`) while running a crawler. (Default: `yes`)
 - `report`: Whether PFERD should print a report of added, changed and deleted
    local files for all crawlers before exiting. (Default: `yes`)
-- `share_cookies`: Whether crawlers should share cookies where applicable. By
-  default, crawlers are isolated and don't interact with each other. This
-  includes their cookies. However, in situations where multiple crawlers crawl
-  the same website using the same account, sharing cookies between crawlers can
-  make sense. (Default: `yes`)
+- `share_cookies`: Whether crawlers should share cookies where applicable. For
+  example, some crawlers share cookies if they crawl the same website using the
+  same account. (Default: `yes`)
 
 ## The `crawl:*` sections
 
@@ -42,17 +41,17 @@ courses or lecture websites.
 
 Each crawl section represents an instance of a specific type of crawler. The
 `type` option is used to specify the crawler type. The crawler's name is usually
-used as the name for the output directory. New crawlers can be created simply by
-adding a new crawl section to the config file.
+used as the output directory. New crawlers can be created simply by adding a new
+crawl section to the config file.
 
 Depending on a crawler's type, it may have different options. For more details,
-see the type's documentation below. The following options are common to all
-crawlers:
+see the type's [documentation](#crawler-types) below. The following options are
+common to all crawlers:
 
-- `type`: The types are specified in [this section](#crawler-types).
+- `type`: The available types are specified in [this section](#crawler-types).
 - `output_dir`: The directory the crawler synchronizes files to. A crawler will
   never place any files outside of this directory. (Default: the crawler's name)
-- `redownload`: When to download again a file that is already present locally.
+- `redownload`: When to download a file that is already present locally.
   (Default: `never-smart`)
     - `never`: If a file is present locally, it is not downloaded again.
     - `never-smart`: Like `never`, but PFERD tries to detect if an already
@@ -62,8 +61,8 @@ crawlers:
     - `always-smart`: Like `always`, but PFERD tries to avoid unnecessary
       downloads via some (unreliable) heuristics.
 - `on_conflict`: What to do when the local and remote versions of a file or
-  directory differ. Includes the cases where a file is replaced by a directory
-  or a directory by a file. (Default: `prompt`)
+  directory differ, including when a file is replaced by a directory or a
+  directory by a file. (Default: `prompt`)
     - `prompt`: Always ask the user before overwriting or deleting local files
       and directories.
     - `local-first`: Always keep the local file or directory. Equivalent to
@@ -75,14 +74,13 @@ crawlers:
       remote file is different.
 - `transform`: Rules for renaming and excluding certain files and directories.
   For more details, see [this section](#transformation-rules). (Default: empty)
-- `max_concurrent_tasks`: The maximum number of concurrent tasks (such as
-  crawling or downloading). (Default: 1)
-- `max_concurrent_downloads`: How many of those tasks can be download tasks at
-  the same time. Must not be greater than `max_concurrent_tasks`. When not set,
-  this is the same as `max_concurrent_tasks`. (Optional)
-- `delay_between_tasks`: Time (in seconds) that the crawler should wait between
+- `tasks`: The maximum number of concurrent tasks (such as crawling or
+  downloading). (Default: `1`)
+- `downloads`: How many of those tasks can be download tasks at the same time.
+  Must not be greater than `tasks`. (Default: Same as `tasks`)
+- `task_delay`: Time (in seconds) that the crawler should wait between
   subsequent tasks. Can be used as a sort of rate limit to avoid unnecessary
-  load for the crawl target. (Default: 0.0)
+  load for the crawl target. (Default: `0.0`)
 - `windows_paths`: Whether PFERD should find alternative names for paths that
   are invalid on Windows. (Default: `yes` on Windows, `no` otherwise)
 
@@ -101,6 +99,8 @@ password = bar
 [crawl:something]
 type = some-complex-crawler
 auth = auth:example
+on_conflict = no-delete
+tasks = 3
 ```
 
 ## The `auth:*` sections
@@ -109,12 +109,12 @@ Sections whose names start with `auth:` are used to configure authenticators. An
 authenticator provides a username and a password to one or more crawlers.
 
 Authenticators work similar to crawlers: A section represents an authenticator
-instance, whose name is the rest of the section name. The type is specified by
+instance whose name is the rest of the section name. The type is specified by
 the `type` option.
 
 Depending on an authenticator's type, it may have different options. For more
-details, see the type's documentation below. The only option common to all
-authenticators is `type`:
+details, see the type's [documentation](#authenticator-types) below. The only
+option common to all authenticators is `type`:
 
 - `type`: The types are specified in [this section](#authenticator-types).
 
@@ -127,28 +127,47 @@ testing different setups. The various delay options are meant to make the
 crawler simulate a slower, network-based crawler.
 
 - `target`: Path to the local directory to crawl. (Required)
-- `crawl_delay`: Maximum artificial delay (in seconds) to simulate for crawl
-  requests. (Default: 0.0)
-- `download_delay`: Maximum artificial delay (in seconds) to simulate for
-  download requests. (Default: 0.0)
+- `crawl_delay`: Artificial delay (in seconds) to simulate for crawl requests.
+  (Default: `0.0`)
+- `download_delay`: Artificial delay (in seconds) to simulate for download
+  requests. (Default: `0.0`)
 - `download_speed`: Download speed (in bytes per second) to simulate. (Optional)
 
-### The `kit-ilias` crawler
+### The `kit-ilias-web` crawler
 
-This crawler crawls the KIT ILIAS instance. It performs remote calls to a poor SCC-Server, so you should be nice and use reasonable delays and concurrent requests.
-- `target`: The ILIAS element to crawl. Can be:
-  - `desktop` if you want to crawl your personal desktop
-  - `<course id>` if you want to crawl the course with the given id
-  - `<url>` if you want to crawl a given element by URL (preferably the permanent URL linked at the bottom of an ILIAS page)
-- `tfa_auth`: Like `auth` but only used for two-factor authentication
-- `link_file_redirect_delay`: PFERD will create local HTML for external links. 
-   If this property is set to a non-negative value it configures the amount of seconds after which the local HTML
-   file will redirect you to the link target.
-- `link_file_plain_text`: If this is set to true, PFERD will generate plain-text files containing only the link
-   target for external links. If this is false or not specified, PFERD will generate a neat, pretty and functional 
-   HTML page instead.
-- `videos`: If this is set to false, PFERD will not crawl or download any videos.
-- `http_timeout`: The timeout for http requests
+This crawler crawls the KIT ILIAS instance.
+
+ILIAS is not great at handling too many concurrent requests. To avoid
+unnecessary load, please limit `tasks` to `1`.
+
+There is a spike in ILIAS usage at the beginning of lectures, so please don't
+run PFERD during those times.
+
+If you're automatically running PFERD periodically (e. g. via cron or a systemd
+timer), please randomize the start time or at least don't use the full hour. For
+systemd timers, this can be accomplished using the `RandomizedDelaySec` option.
+Also, please schedule the script to run in periods of low activity. Running the
+script once per day should be fine.
+
+- `target`: The ILIAS element to crawl. (Required)
+    - `desktop`: Crawl your personal desktop
+    - `<course id>`: Crawl the course with the given id
+    - `<url>`: Crawl a given element by URL (preferably the permanent URL linked
+      at the bottom of its ILIAS page)
+- `auth`: Name of auth section to use for login. (Required)
+- `tfa_auth`: Name of auth section to use for two-factor authentication. Only
+  uses the auth section's password. (Default: Anonymous `tfa` authenticator)
+- `links`: How to represent external links. (Default: `fancy`)
+    - `ignore`: Don't download links.
+    - `plaintext`: A text file containing only the URL.
+    - `fancy`: A HTML file looking like the ILIAS link element.
+    - `internet-shortcut`: An internet shortcut file (`.url` file).
+- `link_redirect_delay`: Time (in seconds) until `fancy` link files will
+  redirect to the actual URL. Set to a negative value to disable the automatic
+  redirect. (Default: `-1`)
+- `videos`: Whether to download videos. (Default: `no`)
+- `http_timeout`: The timeout (in seconds) for all HTTP requests. (Default:
+  `20.0`)
 
 ## Authenticator types
 
@@ -161,20 +180,23 @@ via the terminal.
 - `username`: The username. (Optional)
 - `password`: The password. (Optional)
 
+### The `keyring` authenticator
+
+This authenticator uses the system keyring to store passwords. The username can
+be set directly in the config file. If the username is not specified, the user
+is prompted via the terminal. If the keyring contains no entry or the entry is
+incorrect, the user is prompted for a password via the terminal and the password
+is stored in the keyring.
+
+- `username`: The username. (Optional)
+- `keyring_name`: The service name PFERD uses for storing credentials. (Default:
+  `PFERD`)
+
 ### The `tfa` authenticator
 
 This authenticator prompts the user on the console for a two-factor
 authentication token. The token is provided as password and it is not cached.
 This authenticator does not support usernames.
-
-### The `keyring` authenticator
-
-This authenticator uses the system keyring to store passwords. It expects a 
-username in the config and will prompt *once* for the password. After that it
-receives the password from the system keyring.
-
-- `username`: The username. (Required)
-- `keyring_name`: The service name PFERD uses for storing credentials. (Optional)
 
 ## Transformation rules
 

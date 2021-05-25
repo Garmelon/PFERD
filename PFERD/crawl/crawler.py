@@ -169,32 +169,32 @@ class CrawlerSection(Section):
     def transform(self) -> str:
         return self.s.get("transform", "")
 
-    def max_concurrent_tasks(self) -> int:
-        value = self.s.getint("max_concurrent_tasks", fallback=1)
+    def tasks(self) -> int:
+        value = self.s.getint("tasks", fallback=1)
         if value <= 0:
-            self.invalid_value("max_concurrent_tasks", value,
-                               "Must be greater than 0")
+            self.invalid_value("tasks", value, "Must be greater than 0")
         return value
 
-    def max_concurrent_downloads(self) -> int:
-        tasks = self.max_concurrent_tasks()
-        value = self.s.getint("max_concurrent_downloads", fallback=None)
+    def downloads(self) -> int:
+        tasks = self.tasks()
+        value = self.s.getint("downloads", fallback=None)
         if value is None:
             return tasks
         if value <= 0:
-            self.invalid_value("max_concurrent_downloads", value,
-                               "Must be greater than 0")
+            self.invalid_value("downloads", value, "Must be greater than 0")
         if value > tasks:
-            self.invalid_value("max_concurrent_downloads", value,
-                               "Must not be greater than max_concurrent_tasks")
+            self.invalid_value("downloads", value, "Must not be greater than tasks")
         return value
 
-    def delay_between_tasks(self) -> float:
-        value = self.s.getfloat("delay_between_tasks", fallback=0.0)
+    def task_delay(self) -> float:
+        value = self.s.getfloat("task_delay", fallback=0.0)
         if value < 0:
-            self.invalid_value("delay_between_tasks", value,
-                               "Must not be negative")
+            self.invalid_value("task_delay", value, "Must not be negative")
         return value
+
+    def windows_paths(self) -> bool:
+        on_windows = os.name == "nt"
+        return self.s.getboolean("windows_paths", fallback=on_windows)
 
     def auth(self, authenticators: Dict[str, Authenticator]) -> Authenticator:
         value = self.s.get("auth")
@@ -204,10 +204,6 @@ class CrawlerSection(Section):
         if auth is None:
             self.invalid_value("auth", value, "No such auth section exists")
         return auth
-
-    def windows_paths(self) -> bool:
-        on_windows = os.name == "nt"
-        return self.s.getboolean("windows_paths", fallback=on_windows)
 
 
 class Crawler(ABC):
@@ -230,9 +226,9 @@ class Crawler(ABC):
         self.error_free = True
 
         self._limiter = Limiter(
-            task_limit=section.max_concurrent_tasks(),
-            download_limit=section.max_concurrent_downloads(),
-            task_delay=section.delay_between_tasks(),
+            task_limit=section.tasks(),
+            download_limit=section.downloads(),
+            task_delay=section.task_delay(),
         )
 
         self._deduplicator = Deduplicator(section.windows_paths())

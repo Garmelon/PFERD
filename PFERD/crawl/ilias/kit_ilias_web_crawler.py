@@ -40,17 +40,13 @@ class KitIliasWebCrawlerSection(HttpCrawlerSection):
         self.invalid_value("target", target, "Should be <course id | desktop | kit ilias URL>")
 
     def tfa_auth(self, authenticators: Dict[str, Authenticator]) -> Optional[Authenticator]:
-        value = self.s.get("tfa_auth")
-        if not value:
+        value: Optional[str] = self.s.get("tfa_auth")
+        if value is None:
             return None
-
-        auth = authenticators.get(f"auth:{value}")
+        auth = authenticators.get(value)
         if auth is None:
-            self.invalid_value("auth", value, "No such auth section exists")
+            self.invalid_value("tfa_auth", value, "No such auth section exists")
         return auth
-
-    def link_file_redirect_delay(self) -> int:
-        return self.s.getint("link_file_redirect_delay", fallback=-1)
 
     def links(self) -> Links:
         type_str: Optional[str] = self.s.get("links")
@@ -62,6 +58,9 @@ class KitIliasWebCrawlerSection(HttpCrawlerSection):
             return Links.from_string(type_str)
         except ValueError as e:
             self.invalid_value("links", type_str, str(e).capitalize())
+
+    def link_redirect_delay(self) -> int:
+        return self.s.getint("link_redirect_delay", fallback=-1)
 
     def videos(self) -> bool:
         return self.s.getboolean("videos", fallback=False)
@@ -173,7 +172,7 @@ class KitIliasWebCrawler(HttpCrawler):
         self._base_url = "https://ilias.studium.kit.edu"
 
         self._target = section.target()
-        self._link_file_redirect_delay = section.link_file_redirect_delay()
+        self._link_file_redirect_delay = section.link_redirect_delay()
         self._links = section.links()
         self._videos = section.videos()
 

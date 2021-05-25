@@ -11,14 +11,14 @@ SUBPARSER = SUBPARSERS.add_parser(
 )
 
 GROUP = SUBPARSER.add_argument_group(
-    title="KIT ILIAS web-crawler arguments",
+    title="kit-ilias-web crawler arguments",
     description="arguments for the 'kit-ilias-web' crawler",
 )
 GROUP.add_argument(
     "target",
     type=str,
     metavar="TARGET",
-    help="course id, 'desktop', or ILIAS https-URL to crawl"
+    help="course id, 'desktop', or ILIAS URL to crawl"
 )
 GROUP.add_argument(
     "output",
@@ -27,14 +27,9 @@ GROUP.add_argument(
     help="output directory"
 )
 GROUP.add_argument(
-    "--videos",
-    action=BooleanOptionalAction,
-    help="crawl and download videos"
-)
-GROUP.add_argument(
-    "--username",
+    "--username", "-u",
     type=str,
-    metavar="USER_NAME",
+    metavar="USERNAME",
     help="user name for authentication"
 )
 GROUP.add_argument(
@@ -46,19 +41,24 @@ GROUP.add_argument(
     "--links",
     type=show_value_error(Links.from_string),
     metavar="OPTION",
-    help="how to treat external links"
+    help="how to represent external links"
 )
 GROUP.add_argument(
-    "--link-file-redirect-delay",
+    "--link-redirect-delay",
     type=int,
     metavar="SECONDS",
-    help="delay before external link files redirect you to their target (-1 to disable)"
+    help="time before 'fancy' links redirect to to their target (-1 to disable)"
 )
 GROUP.add_argument(
-    "--http-timeout",
+    "--videos",
+    action=BooleanOptionalAction,
+    help="crawl and download videos"
+)
+GROUP.add_argument(
+    "--http-timeout", "-t",
     type=float,
     metavar="SECONDS",
-    help="the timeout to use for HTTP requests"
+    help="timeout for all HTTP requests"
 )
 
 
@@ -66,33 +66,30 @@ def load(
         args: argparse.Namespace,
         parser: configparser.ConfigParser,
 ) -> None:
-    parser["crawl:kit-ilias-web"] = {}
-    section = parser["crawl:kit-ilias-web"]
+    parser["crawl:ilias"] = {}
+    section = parser["crawl:ilias"]
     load_crawler(args, section)
 
     section["type"] = "kit-ilias-web"
     section["target"] = str(args.target)
     section["output_dir"] = str(args.output)
-    section["auth"] = "auth:kit-ilias-web"
-    if args.link_file_redirect_delay is not None:
-        section["link_file_redirect_delay"] = str(args.link_file_redirect_delay)
+    section["auth"] = "auth:ilias"
     if args.links is not None:
         section["links"] = str(args.links.value)
+    if args.link_redirect_delay is not None:
+        section["link_redirect_delay"] = str(args.link_redirect_delay)
     if args.videos is not None:
-        section["videos"] = str(False)
+        section["videos"] = "yes" if args.videos else "no"
     if args.http_timeout is not None:
         section["http_timeout"] = str(args.http_timeout)
 
-    parser["auth:kit-ilias-web"] = {}
-    auth_section = parser["auth:kit-ilias-web"]
-
+    parser["auth:ilias"] = {}
+    auth_section = parser["auth:ilias"]
+    auth_section["type"] = "simple"
+    if args.username is not None:
+        auth_section["username"] = args.username
     if args.keyring:
         auth_section["type"] = "keyring"
-    else:
-        auth_section["type"] = "simple"
-
-    if args.username is not None:
-        auth_section["username"] = str(args.username)
 
 
 SUBPARSER.set_defaults(command=load)
