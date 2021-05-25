@@ -539,7 +539,7 @@ class KitShibbolethLogin:
             "_eventId_proceed": "",
             "j_tokenNumber": tfa_token
         }
-        return _post(session, url, data)
+        return await _post(session, url, data)
 
     @staticmethod
     def _login_successful(soup: BeautifulSoup) -> bool:
