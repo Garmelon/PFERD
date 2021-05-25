@@ -1,6 +1,5 @@
 from typing import Optional, Tuple
 
-from ..config import Config
 from ..logging import log
 from ..utils import agetpass, ainput
 from .authenticator import Authenticator, AuthError, AuthSection
@@ -19,9 +18,8 @@ class SimpleAuthenticator(Authenticator):
             self,
             name: str,
             section: SimpleAuthSection,
-            config: Config,
     ) -> None:
-        super().__init__(name, section, config)
+        super().__init__(name)
 
         self._username = section.username()
         self._password = section.password()

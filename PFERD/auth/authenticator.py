@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Tuple
 
-from ..config import Config, Section
+from ..config import Section
 
 
 class AuthLoadError(Exception):
@@ -19,9 +19,7 @@ class AuthSection(Section):
 class Authenticator(ABC):
     def __init__(
             self,
-            name: str,
-            section: AuthSection,
-            config: Config,
+            name: str
     ) -> None:
         """
         Initialize an authenticator from its name and its section in the config

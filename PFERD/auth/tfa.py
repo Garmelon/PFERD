@@ -1,19 +1,16 @@
 from typing import Tuple
 
-from ..config import Config
 from ..logging import log
 from ..utils import ainput
-from .authenticator import Authenticator, AuthError, AuthSection
+from .authenticator import Authenticator, AuthError
 
 
 class TfaAuthenticator(Authenticator):
     def __init__(
             self,
             name: str,
-            section: AuthSection,
-            config: Config,
     ) -> None:
-        super().__init__(name, section, config)
+        super().__init__(name)
 
     async def username(self) -> str:
         raise AuthError("TFA authenticator does not support usernames")

@@ -15,9 +15,9 @@ AuthConstructor = Callable[[
 
 AUTHENTICATORS: Dict[str, AuthConstructor] = {
     "simple": lambda n, s, c:
-        SimpleAuthenticator(n, SimpleAuthSection(s), c),
+        SimpleAuthenticator(n, SimpleAuthSection(s)),
     "tfa": lambda n, s, c:
-        TfaAuthenticator(n, AuthSection(s), c),
+        TfaAuthenticator(n),
     "keyring": lambda n, s, c:
-        KeyringAuthenticator(n, KeyringAuthSection(s), c)
+        KeyringAuthenticator(n, KeyringAuthSection(s))
 }

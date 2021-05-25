@@ -2,7 +2,6 @@ from typing import Optional, Tuple
 
 import keyring
 
-from ..config import Config
 from ..logging import log
 from ..utils import agetpass, ainput
 from ..version import NAME
@@ -23,9 +22,8 @@ class KeyringAuthenticator(Authenticator):
             self,
             name: str,
             section: KeyringAuthSection,
-            config: Config,
     ) -> None:
-        super().__init__(name, section, config)
+        super().__init__(name)
 
         self._username = section.username()
         self._password: Optional[str] = None
