@@ -15,7 +15,7 @@ from ...utils import fmt_path, soupify, url_set_query_param
 from ..crawler import CrawlError, CrawlWarning, anoncritical
 from ..http_crawler import HttpCrawler, HttpCrawlerSection
 from .file_templates import Links
-from .kit_ilias_html import IliasElementType, IliasPage, IliasPageElement, deduplicate_element_names
+from .kit_ilias_html import IliasElementType, IliasPage, IliasPageElement
 
 TargetType = Union[str, int]
 
@@ -226,7 +226,6 @@ class KitIliasWebCrawler(HttpCrawler):
 
         # Fill up our task list with the found elements
         await gather_elements()
-        elements = deduplicate_element_names(elements)
         tasks = [self._handle_ilias_element(PurePath("."), element) for element in elements]
 
         # And execute them
@@ -253,8 +252,7 @@ class KitIliasWebCrawler(HttpCrawler):
 
         # Fill up our task list with the found elements
         await gather_elements()
-        elements = deduplicate_element_names(elements)
-        tasks = [self._handle_ilias_element(path, element) for element in elements]
+        tasks = [self._handle_ilias_element(cl.path, element) for element in elements]
 
         # And execute them
         await self.gather(tasks)
