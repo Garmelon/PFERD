@@ -1,5 +1,8 @@
-link_template_plain = "{{link}}"
-link_template_rich = """
+from enum import Enum
+from typing import Optional
+
+_link_template_plain = "{{link}}"
+_link_template_fancy = """
 <!DOCTYPE html>
 <html lang="en">
     <head>
@@ -84,4 +87,35 @@ link_template_rich = """
         </div>
     </body>
 </html>
-"""  # noqa: E501 line too long
+""".strip()  # noqa: E501 line too long
+
+_link_template_internet_shortcut = """
+[InternetShortcut]
+URL={{link}}
+""".strip()
+
+
+class Links(Enum):
+    IGNORE = "ignore"
+    PLAIN = "plain"
+    FANCY = "fancy"
+    INTERNET_SHORTCUT = "internet-shortcut"
+
+    def template(self) -> Optional[str]:
+        if self == self.FANCY:
+            return _link_template_fancy
+        elif self == self.PLAIN:
+            return _link_template_plain
+        elif self == self.INTERNET_SHORTCUT:
+            return _link_template_internet_shortcut
+        elif self == self.IGNORE:
+            return None
+        raise ValueError("Missing switch case")
+
+    @staticmethod
+    def from_string(string: str) -> "Links":
+        try:
+            return Links(string)
+        except ValueError:
+            raise ValueError("must be one of 'ignore', 'plain',"
+                             " 'html', 'internet-shortcut'")

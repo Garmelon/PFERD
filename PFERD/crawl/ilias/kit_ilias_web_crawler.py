@@ -14,7 +14,7 @@ from ...output_dir import FileSink, Redownload
 from ...utils import fmt_path, soupify, url_set_query_param
 from ..crawler import CrawlError, CrawlWarning, anoncritical
 from ..http_crawler import HttpCrawler, HttpCrawlerSection
-from .file_templates import link_template_plain, link_template_rich
+from .file_templates import Links
 from .kit_ilias_html import IliasElementType, IliasPage, IliasPageElement, deduplicate_element_names
 
 TargetType = Union[str, int]
@@ -52,8 +52,16 @@ class KitIliasWebCrawlerSection(HttpCrawlerSection):
     def link_file_redirect_delay(self) -> int:
         return self.s.getint("link_file_redirect_delay", fallback=-1)
 
-    def link_file_use_plaintext(self) -> bool:
-        return self.s.getboolean("link_file_plaintext", fallback=False)
+    def links(self) -> Links:
+        type_str: Optional[str] = self.s.get("links")
+
+        if type_str is None:
+            return Links.FANCY
+
+        try:
+            return Links.from_string(type_str)
+        except ValueError as e:
+            self.invalid_value("links", type_str, str(e).capitalize())
 
     def videos(self) -> bool:
         return self.s.getboolean("videos", fallback=False)
@@ -166,7 +174,7 @@ class KitIliasWebCrawler(HttpCrawler):
 
         self._target = section.target()
         self._link_file_redirect_delay = section.link_file_redirect_delay()
-        self._link_file_use_plaintext = section.link_file_use_plaintext()
+        self._links = section.links()
         self._videos = section.videos()
 
     async def _run(self) -> None:
@@ -292,6 +300,17 @@ class KitIliasWebCrawler(HttpCrawler):
             raise CrawlWarning(f"Unknown element type: {element.type!r}")
 
     async def _download_link(self, element: IliasPageElement, element_path: PurePath) -> None:
+        log.explain_topic(f"Decision: Crawl Link {fmt_path(element_path)}")
+        log.explain(f"Links type is {self._links}")
+
+        link_template_maybe = self._links.template()
+        if not link_template_maybe:
+            log.explain("Answer: No")
+            return
+        else:
+            log.explain("Answer: Yes")
+        link_template = link_template_maybe
+
         maybe_dl = await self.download(element_path, mtime=element.mtime)
         if not maybe_dl:
             return
@@ -303,7 +322,7 @@ class KitIliasWebCrawler(HttpCrawler):
                 export_url = element.url.replace("cmd=calldirectlink", "cmd=exportHTML")
                 real_url = await self._resolve_link_target(export_url)
 
-                content = link_template_plain if self._link_file_use_plaintext else link_template_rich
+                content = link_template
                 content = content.replace("{{link}}", real_url)
                 content = content.replace("{{name}}", element.name)
                 content = content.replace("{{description}}", str(element.description))
