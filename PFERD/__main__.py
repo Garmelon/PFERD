@@ -46,7 +46,7 @@ def configure_logging_from_args(args: argparse.Namespace) -> None:
 
     # We want to prevent any unnecessary output if we're printing the config to
     # stdout, otherwise it would not be a valid config file.
-    if args.dump_config == "-":
+    if args.dump_config_to == "-":
         log.output_explain = False
         log.output_status = False
         log.output_report = False
@@ -56,7 +56,7 @@ def configure_logging_from_config(args: argparse.Namespace, config: Config) -> N
     # In configure_logging_from_args(), all normal logging is already disabled
     # whenever we dump the config. We don't want to override that decision with
     # values from the config file.
-    if args.dump_config == "-":
+    if args.dump_config_to == "-":
         return
 
     try:
@@ -74,13 +74,17 @@ def configure_logging_from_config(args: argparse.Namespace, config: Config) -> N
 def dump_config(args: argparse.Namespace, config: Config) -> None:
     log.explain_topic("Dumping config")
 
+    if args.dump_config and args.dump_config_to is not None:
+        log.error("--dump-config and --dump-config-to can't be specified at the same time")
+        exit(1)
+
     try:
-        if args.dump_config is True:
+        if args.dump_config:
             config.dump()
-        elif args.dump_config == "-":
+        elif args.dump_config_to == "-":
             config.dump_to_stdout()
         else:
-            config.dump(Path(args.dump_config))
+            config.dump(Path(args.dump_config_to))
     except ConfigDumpError as e:
         log.error(str(e))
         log.error_contd(e.reason)
@@ -101,7 +105,7 @@ def main() -> None:
     # all places that were not already covered by CLI args.
     configure_logging_from_config(args, config)
 
-    if args.dump_config is not None:
+    if args.dump_config or args.dump_config_to is not None:
         dump_config(args, config)
         exit()
 

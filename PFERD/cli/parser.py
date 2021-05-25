@@ -155,11 +155,14 @@ PARSER.add_argument(
 )
 PARSER.add_argument(
     "--dump-config",
-    nargs="?",
-    const=True,
+    action="store_true",
+    help="dump current configuration to the default config path and exit"
+)
+PARSER.add_argument(
+    "--dump-config-to",
     metavar="PATH",
     help="dump current configuration to a file and exit."
-    " Uses default config file path if no path is specified"
+    " Use '-' as path to print to stdout instead"
 )
 PARSER.add_argument(
     "--crawler", "-C",
