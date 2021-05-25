@@ -304,12 +304,14 @@ class KitIliasWebCrawler(HttpCrawler):
         log.explain(f"Links type is {self._links}")
 
         link_template_maybe = self._links.template()
-        if not link_template_maybe:
+        link_extension = self._links.extension()
+        if not link_template_maybe or not link_extension:
             log.explain("Answer: No")
             return
         else:
             log.explain("Answer: Yes")
         link_template = link_template_maybe
+        element_path = element_path.with_name(element_path.name + link_extension)
 
         maybe_dl = await self.download(element_path, mtime=element.mtime)
         if not maybe_dl:

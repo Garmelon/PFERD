@@ -112,6 +112,17 @@ class Links(Enum):
             return None
         raise ValueError("Missing switch case")
 
+    def extension(self) -> Optional[str]:
+        if self == self.FANCY:
+            return ".html"
+        elif self == self.PLAIN:
+            return ".txt"
+        elif self == self.INTERNET_SHORTCUT:
+            return ".url"
+        elif self == self.IGNORE:
+            return None
+        raise ValueError("Missing switch case")
+
     @staticmethod
     def from_string(string: str) -> "Links":
         try:
