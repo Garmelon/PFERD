@@ -2,7 +2,8 @@ import argparse
 import configparser
 from pathlib import Path
 
-from .parser import CRAWLER_PARSER, SUBPARSERS, BooleanOptionalAction, load_crawler
+from ..crawl.ilias.file_templates import Links
+from .parser import CRAWLER_PARSER, SUBPARSERS, BooleanOptionalAction, load_crawler, show_value_error
 
 SUBPARSER = SUBPARSERS.add_parser(
     "kit-ilias-web",
@@ -42,15 +43,16 @@ GROUP.add_argument(
     help="use the system keyring to store and retrieve passwords"
 )
 GROUP.add_argument(
+    "--links",
+    type=show_value_error(Links.from_string),
+    metavar="OPTION",
+    help="how to treat external links"
+)
+GROUP.add_argument(
     "--link-file-redirect-delay",
     type=int,
     metavar="SECONDS",
     help="delay before external link files redirect you to their target (-1 to disable)"
-)
-GROUP.add_argument(
-    "--link-file-plaintext",
-    action=BooleanOptionalAction,
-    help="use plain text files for external links"
 )
 GROUP.add_argument(
     "--http-timeout",
@@ -74,8 +76,8 @@ def load(
     section["auth"] = "auth:kit-ilias-web"
     if args.link_file_redirect_delay is not None:
         section["link_file_redirect_delay"] = str(args.link_file_redirect_delay)
-    if args.link_file_plaintext is not None:
-        section["link_file_plaintext"] = str(args.link_file_plaintext)
+    if args.links is not None:
+        section["links"] = str(args.links.value)
     if args.videos is not None:
         section["videos"] = str(False)
     if args.http_timeout is not None:
