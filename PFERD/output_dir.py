@@ -148,7 +148,7 @@ class OutputDirectory:
             # If you want longer paths, you will have to add the "\\?\" prefix
             # in front of your path. See:
             # https://docs.microsoft.com/en-us/windows/win32/fileio/naming-a-file#maximum-path-length-limitation
-            self._root = Path("\\\\?\\" + str(root))
+            self._root = Path("\\\\?\\" + str(root.absolute()))
         else:
             self._root = root
 
