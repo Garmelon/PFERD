@@ -6,7 +6,7 @@ from ..config import Config
 from ..logging import log
 from ..utils import agetpass
 from ..version import NAME
-from .authenticator import Authenticator, AuthException, AuthSection
+from .authenticator import Authenticator, AuthError, AuthSection
 
 
 class KeyringAuthSection(AuthSection):
@@ -53,4 +53,4 @@ class KeyringAuthenticator(Authenticator):
         self.invalidate_password()
 
     def invalidate_password(self) -> None:
-        raise AuthException("Invalid password")
+        raise AuthError("Invalid password")

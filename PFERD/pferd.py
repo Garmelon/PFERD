@@ -3,7 +3,7 @@ from typing import Dict, List, Optional
 
 from rich.markup import escape
 
-from .auth import AUTHENTICATORS, Authenticator
+from .auth import AUTHENTICATORS, Authenticator, AuthError
 from .config import Config, ConfigOptionError
 from .crawl import CRAWLERS, Crawler, CrawlError, KitIliasWebCrawler
 from .logging import log
@@ -117,7 +117,7 @@ class Pferd:
 
             try:
                 await crawler.run()
-            except CrawlError as e:
+            except (CrawlError, AuthError) as e:
                 log.error(str(e))
             except Exception:
                 log.unexpected_exception()

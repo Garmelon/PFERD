@@ -3,7 +3,7 @@ from typing import Optional, Tuple
 from ..config import Config
 from ..logging import log
 from ..utils import agetpass, ainput
-from .authenticator import Authenticator, AuthException, AuthSection
+from .authenticator import Authenticator, AuthError, AuthSection
 
 
 class SimpleAuthSection(AuthSection):
@@ -48,7 +48,7 @@ class SimpleAuthenticator(Authenticator):
 
     def invalidate_credentials(self) -> None:
         if self._username_fixed and self._password_fixed:
-            raise AuthException("Configured credentials are invalid")
+            raise AuthError("Configured credentials are invalid")
 
         if not self._username_fixed:
             self._username = None
@@ -57,12 +57,12 @@ class SimpleAuthenticator(Authenticator):
 
     def invalidate_username(self) -> None:
         if self._username_fixed:
-            raise AuthException("Configured username is invalid")
+            raise AuthError("Configured username is invalid")
         else:
             self._username = None
 
     def invalidate_password(self) -> None:
         if self._password_fixed:
-            raise AuthException("Configured password is invalid")
+            raise AuthError("Configured password is invalid")
         else:
             self._password = None

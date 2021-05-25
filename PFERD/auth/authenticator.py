@@ -4,11 +4,11 @@ from typing import Tuple
 from ..config import Config, Section
 
 
-class AuthLoadException(Exception):
+class AuthLoadError(Exception):
     pass
 
 
-class AuthException(Exception):
+class AuthError(Exception):
     pass
 
 
@@ -30,7 +30,7 @@ class Authenticator(ABC):
         If you are writing your own constructor for your own authenticator,
         make sure to call this constructor first (via super().__init__).
 
-        May throw an AuthLoadException.
+        May throw an AuthLoadError.
         """
 
         self.name = name
@@ -56,7 +56,7 @@ class Authenticator(ABC):
         (e. g. prompting the user).
         """
 
-        raise AuthException("Invalid credentials")
+        raise AuthError("Invalid credentials")
 
     def invalidate_username(self) -> None:
         """
@@ -67,7 +67,7 @@ class Authenticator(ABC):
         (e. g. prompting the user).
         """
 
-        raise AuthException("Invalid username")
+        raise AuthError("Invalid username")
 
     def invalidate_password(self) -> None:
         """
@@ -78,4 +78,4 @@ class Authenticator(ABC):
         (e. g. prompting the user).
         """
 
-        raise AuthException("Invalid password")
+        raise AuthError("Invalid password")

@@ -3,7 +3,7 @@ from typing import Tuple
 from ..config import Config
 from ..logging import log
 from ..utils import ainput
-from .authenticator import Authenticator, AuthException, AuthSection
+from .authenticator import Authenticator, AuthError, AuthSection
 
 
 class TfaAuthenticator(Authenticator):
@@ -16,7 +16,7 @@ class TfaAuthenticator(Authenticator):
         super().__init__(name, section, config)
 
     async def username(self) -> str:
-        raise AuthException("TFA authenticator does not support usernames")
+        raise AuthError("TFA authenticator does not support usernames")
 
     async def password(self) -> str:
         async with log.exclusive_output():
@@ -24,10 +24,10 @@ class TfaAuthenticator(Authenticator):
             return code
 
     async def credentials(self) -> Tuple[str, str]:
-        raise AuthException("TFA authenticator does not support usernames")
+        raise AuthError("TFA authenticator does not support usernames")
 
     def invalidate_username(self) -> None:
-        raise AuthException("TFA authenticator does not support usernames")
+        raise AuthError("TFA authenticator does not support usernames")
 
     def invalidate_password(self) -> None:
         pass
