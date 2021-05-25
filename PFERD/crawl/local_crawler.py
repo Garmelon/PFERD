@@ -80,7 +80,7 @@ class LocalCrawler(Crawler):
             ))
 
             for child in path.iterdir():
-                pure_child = pure / child.name
+                pure_child = cl.path / child.name
                 tasks.append(self._crawl_path(child, pure_child))
 
         await self.gather(tasks)

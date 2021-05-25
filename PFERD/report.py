@@ -114,6 +114,9 @@ class Report:
             f.write("\n")  # json.dump doesn't do this
 
     def mark_reserved(self, path: PurePath) -> None:
+        if path in self.marked:
+            raise RuntimeError("Trying to reserve an already reserved file")
+
         self.reserved_files.add(path)
 
     def mark(self, path: PurePath) -> None:

@@ -142,8 +142,17 @@ class OutputDirectory:
             root: Path,
             redownload: Redownload,
             on_conflict: OnConflict,
+            windows_paths: bool,
     ):
-        self._root = root
+        if windows_paths:
+            # Windows limits the path length to 260 for some historical reason
+            # If you want longer paths, you will have to add the "\\?\" prefix
+            # in front of your path. See:
+            # https://docs.microsoft.com/en-us/windows/win32/fileio/naming-a-file#maximum-path-length-limitation
+            self._root = Path("\\\\?\\" + str(root))
+        else:
+            self._root = root
+
         self._redownload = redownload
         self._on_conflict = on_conflict
 
@@ -181,6 +190,7 @@ class OutputDirectory:
             raise OutputDirError(f"Forbidden segment '..' in path {fmt_path(path)}")
         if "." in path.parts:
             raise OutputDirError(f"Forbidden segment '.' in path {fmt_path(path)}")
+
         return self._root / path
 
     def _should_download(

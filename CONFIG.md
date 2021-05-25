@@ -83,6 +83,8 @@ crawlers:
 - `delay_between_tasks`: Time (in seconds) that the crawler should wait between
   subsequent tasks. Can be used as a sort of rate limit to avoid unnecessary
   load for the crawl target. (Default: 0.0)
+- `windows_paths`: Whether PFERD should find alternative names for paths that
+  are invalid on Windows. (Default: `yes` on Windows, `no` otherwise)
 
 Some crawlers may also require credentials for authentication. To configure how
 the crawler obtains its credentials, the `auth` option is used. It is set to the

@@ -1,4 +1,5 @@
 import asyncio
+import os
 from abc import ABC, abstractmethod
 from datetime import datetime
 from pathlib import Path, PurePath
@@ -8,6 +9,7 @@ from rich.markup import escape
 
 from ..auth import Authenticator
 from ..config import Config, Section
+from ..deduplicator import Deduplicator
 from ..limiter import Limiter
 from ..logging import ProgressBar, log
 from ..output_dir import FileSink, FileSinkToken, OnConflict, OutputDirectory, OutputDirError, Redownload
@@ -97,6 +99,10 @@ class CrawlToken(ReusableAsyncContextManager[ProgressBar]):
         self._limiter = limiter
         self._path = path
 
+    @property
+    def path(self) -> PurePath:
+        return self._path
+
     async def _on_aenter(self) -> ProgressBar:
         bar_desc = f"[bold bright_cyan]Crawling[/] {escape(fmt_path(self._path))}"
         after_desc = f"[bold cyan]Crawled[/] {escape(fmt_path(self._path))}"
@@ -115,6 +121,10 @@ class DownloadToken(ReusableAsyncContextManager[Tuple[ProgressBar, FileSink]]):
         self._limiter = limiter
         self._fs_token = fs_token
         self._path = path
+
+    @property
+    def path(self) -> PurePath:
+        return self._path
 
     async def _on_aenter(self) -> Tuple[ProgressBar, FileSink]:
         bar_desc = f"[bold bright_cyan]Downloading[/] {escape(fmt_path(self._path))}"
@@ -195,6 +205,10 @@ class CrawlerSection(Section):
             self.invalid_value("auth", value, "No such auth section exists")
         return auth
 
+    def windows_paths(self) -> bool:
+        on_windows = os.name == "nt"
+        return self.s.getboolean("windows_paths", fallback=on_windows)
+
 
 class Crawler(ABC):
     def __init__(
@@ -221,12 +235,14 @@ class Crawler(ABC):
             task_delay=section.delay_between_tasks(),
         )
 
+        self._deduplicator = Deduplicator(section.windows_paths())
         self._transformer = Transformer(section.transform())
 
         self._output_dir = OutputDirectory(
             config.default_section.working_dir() / section.output_dir(name),
             section.redownload(),
             section.on_conflict(),
+            section.windows_paths(),
         )
 
     @property
@@ -258,6 +274,7 @@ class Crawler(ABC):
 
     async def crawl(self, path: PurePath) -> Optional[CrawlToken]:
         log.explain_topic(f"Decision: Crawl {fmt_path(path)}")
+        path = self._deduplicator.mark(path)
 
         if self._transformer.transform(path) is None:
             log.explain("Answer: No")
@@ -274,6 +291,7 @@ class Crawler(ABC):
             on_conflict: Optional[OnConflict] = None,
     ) -> Optional[DownloadToken]:
         log.explain_topic(f"Decision: Download {fmt_path(path)}")
+        path = self._deduplicator.mark(path)
 
         transformed_path = self._transformer.transform(path)
         if transformed_path is None:
