@@ -531,13 +531,15 @@ class KitShibbolethLogin:
         # credentials rather than after asking.
         form = soup.find("form", {"method": "post"})
         action = form["action"]
+        csrf_token = form.find("input", {"name": "csrf_token"})["value"]
 
         # Equivalent: Enter token in
         # https://idp.scc.kit.edu/idp/profile/SAML2/Redirect/SSO
         url = "https://idp.scc.kit.edu" + action
         data = {
             "_eventId_proceed": "",
-            "j_tokenNumber": tfa_token
+            "j_tokenNumber": tfa_token,
+            "csrf_token": csrf_token
         }
         return await _post(session, url, data)
 
