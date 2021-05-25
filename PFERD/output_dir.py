@@ -197,13 +197,30 @@ class OutputDirectory:
             local_path: Path,
             heuristics: Heuristics,
             redownload: Redownload,
+            on_conflict: OnConflict,
     ) -> bool:
-        # If we don't have a *file* at the local path, we'll always redownload
-        # since we know that the remote is different from the local files. This
-        # includes the case where no local file exists.
-        if not local_path.is_file():
+        if not local_path.exists():
             log.explain("No corresponding file present locally")
-            # TODO Don't download if on_conflict is LOCAL_FIRST or NO_DELETE
+            return True
+
+        if on_conflict == OnConflict.LOCAL_FIRST:
+            # Whatever is here, it will never be overwritten, so we don't need
+            # to download the file.
+            log.explain("Conflict resolution is 'local-first' and path exists")
+            return False
+
+        if not local_path.is_file():
+            # We know that there is *something* here that's not a file.
+            log.explain("Non-file (probably a directory) present locally")
+
+            # If on_conflict is LOCAL_FIRST or NO_DELETE, we know that it would
+            # never be overwritten. It also doesn't have any relevant stats to
+            # update. This means that we don't have to download the file
+            # because we'd just always throw it away again.
+            if on_conflict in {OnConflict.LOCAL_FIRST, OnConflict.NO_DELETE}:
+                log.explain(f"Conflict resolution is {on_conflict.value!r}")
+                return False
+
             return True
 
         log.explain(f"Redownload policy is {redownload.value}")
@@ -363,7 +380,7 @@ class OutputDirectory:
 
         self._report.mark(path)
 
-        if not self._should_download(local_path, heuristics, redownload):
+        if not self._should_download(local_path, heuristics, redownload, on_conflict):
             return None
 
         # Detect and solve local-dir-remote-file conflict
