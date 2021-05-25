@@ -1,7 +1,8 @@
 import argparse
 import configparser
+from argparse import ArgumentTypeError
 from pathlib import Path
-from typing import Any, List, Optional, Sequence, Union
+from typing import Any, Callable, List, Optional, Sequence, Union
 
 from ..output_dir import OnConflict, Redownload
 from ..version import NAME, VERSION
@@ -57,6 +58,19 @@ class BooleanOptionalAction(argparse.Action):
         return "--[no-]" + self.name[2:]
 
 
+def show_value_error(inner: Callable[[str], Any]) -> Callable[[str], Any]:
+    """
+    Some validation functions (like the from_string in our enums) raise a ValueError.
+    Argparse only pretty-prints ArgumentTypeErrors though, so we need to wrap our ValueErrors.
+    """
+    def wrapper(input: str) -> Any:
+        try:
+            return inner(input)
+        except ValueError as e:
+            raise ArgumentTypeError(e)
+    return wrapper
+
+
 CRAWLER_PARSER = argparse.ArgumentParser(add_help=False)
 CRAWLER_PARSER_GROUP = CRAWLER_PARSER.add_argument_group(
     title="general crawler arguments",
@@ -64,13 +78,13 @@ CRAWLER_PARSER_GROUP = CRAWLER_PARSER.add_argument_group(
 )
 CRAWLER_PARSER_GROUP.add_argument(
     "--redownload",
-    type=Redownload.from_string,
+    type=show_value_error(Redownload.from_string),
     metavar="OPTION",
     help="when to redownload a file that's already present locally"
 )
 CRAWLER_PARSER_GROUP.add_argument(
     "--on-conflict",
-    type=OnConflict.from_string,
+    type=show_value_error(OnConflict.from_string),
     metavar="OPTION",
     help="what to do when local and remote files or directories differ"
 )
