@@ -156,8 +156,8 @@ class Line:
         return self._line
 
     @property
-    def line_nr(self) -> str:
-        return self._line
+    def line_nr(self) -> int:
+        return self._line_nr
 
     @property
     def index(self) -> int:
