@@ -92,7 +92,14 @@ class Pferd:
                 if isinstance(crawler, KitIliasWebCrawler):
                     crawler.share_cookies(kit_ilias_web_paths)
 
-    async def run(self) -> None:
+    def debug_transforms(self) -> None:
+        for name in self._crawlers_to_run:
+            crawler = self._crawlers[name]
+            log.print("")
+            log.print(f"[bold bright_cyan]Debugging transforms[/] for {escape(name)}")
+            crawler.debug_transforms()
+
+    async def run(self, debug_transforms: bool) -> None:
         """
         May throw ConfigOptionError.
         """
@@ -102,6 +109,12 @@ class Pferd:
         # obtain the correct event loop.
         self._load_authenticators()
         self._load_crawlers()
+
+        if debug_transforms:
+            log.output_explain = True
+            log.output_report = False
+            self.debug_transforms()
+            return
 
         log.print("")
 

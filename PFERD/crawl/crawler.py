@@ -3,7 +3,7 @@ import os
 from abc import ABC, abstractmethod
 from datetime import datetime
 from pathlib import Path, PurePath
-from typing import Any, Awaitable, Callable, Dict, List, Optional, Sequence, Tuple, TypeVar
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Sequence, Set, Tuple, TypeVar
 
 from rich.markup import escape
 
@@ -334,3 +334,21 @@ class Crawler(ABC):
         """
 
         pass
+
+    def debug_transforms(self) -> None:
+        self._output_dir.load_prev_report()
+
+        if not self.prev_report:
+            log.warn("Couldn't find or load old report")
+            return
+
+        seen: Set[PurePath] = set()
+        for known in self.prev_report.known_files:
+            looking_at = list(reversed(known.parents)) + [known]
+            for path in looking_at:
+                if path in seen:
+                    continue
+
+                log.explain_topic(f"Transforming {fmt_path(path)}")
+                self._transformer.transform(path)
+                seen.add(path)

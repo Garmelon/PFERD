@@ -165,6 +165,11 @@ PARSER.add_argument(
     " Use '-' as path to print to stdout instead"
 )
 PARSER.add_argument(
+    "--debug-transforms",
+    action="store_true",
+    help="apply transform rules to files of previous run"
+)
+PARSER.add_argument(
     "--crawler", "-C",
     action="append",
     type=str,

@@ -119,7 +119,7 @@ def main() -> None:
 
     try:
         loop = asyncio.get_event_loop()
-        loop.run_until_complete(pferd.run())
+        loop.run_until_complete(pferd.run(args.debug_transforms))
         loop.run_until_complete(asyncio.sleep(1))
         loop.close()
     except ConfigOptionError as e:
