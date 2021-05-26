@@ -145,3 +145,5 @@ def main() -> None:
         log.unexpected_exception()
         pferd.print_report()
         sys.exit(1)
+    else:
+        pferd.print_report()
