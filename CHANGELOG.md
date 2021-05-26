@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Crawl uploaded exercise solutions
 - Explain what PFERD is doing and why (`--explain`)
 - More control over output (`--status`, `--report`)
+- Debug transform rules with `--debug-transforms`
 - Print report after exiting via Ctrl+C
 - Store crawler reports in `.report` JSON file
 - Extensive config file documentation (`CONFIG.md`)

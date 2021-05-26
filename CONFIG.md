@@ -205,6 +205,9 @@ They are specified line-by-line in a crawler's `transform` option. When a
 crawler needs to apply a rule to a path, it goes through this list top-to-bottom
 and choose the first matching rule.
 
+To see this process in action, you can use the `--debug-transforms` or flag or
+the `--explain` flag.
+
 Each line has the format `SOURCE ARROW TARGET` where `TARGET` is optional.
 `SOURCE` is either a normal path without spaces (e. g. `foo/bar`), or a string
 literal delimited by `"` or `'` (e. g. `"foo\" bar/baz"`). Python's string
