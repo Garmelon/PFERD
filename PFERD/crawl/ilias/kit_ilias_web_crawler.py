@@ -360,7 +360,9 @@ class KitIliasWebCrawler(HttpCrawler):
                 page = IliasPage(await self._get_page(element.url), element.url, element)
                 real_element = page.get_child_elements()[0]
 
-                await self._stream_from_url(real_element.url, sink, bar)
+                log.explain(f"Streaming video from real url {real_element.url}")
+
+                await self._stream_from_url(real_element.url, sink, bar, is_video=True)
 
         await impl()
 
@@ -374,15 +376,19 @@ class KitIliasWebCrawler(HttpCrawler):
         async def impl() -> None:
             assert dl  # The function is only reached when dl is not None
             async with dl as (bar, sink):
-                await self._stream_from_url(element.url, sink, bar)
+                await self._stream_from_url(element.url, sink, bar, is_video=False)
 
         await impl()
 
-    async def _stream_from_url(self, url: str, sink: FileSink, bar: ProgressBar) -> None:
+    async def _stream_from_url(self, url: str, sink: FileSink, bar: ProgressBar, is_video: bool) -> None:
         async def try_stream() -> bool:
-            async with self.session.get(url, allow_redirects=False) as resp:
-                # Redirect means we weren't authenticated
-                if hdrs.LOCATION in resp.headers:
+            async with self.session.get(url, allow_redirects=is_video) as resp:
+                if not is_video:
+                    # Redirect means we weren't authenticated
+                    if hdrs.LOCATION in resp.headers:
+                        return False
+                # we wanted a video but got HTML
+                if is_video and "html" in resp.content_type:
                     return False
 
                 if resp.content_length:
