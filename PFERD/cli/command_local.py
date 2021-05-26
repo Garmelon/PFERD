@@ -2,6 +2,7 @@ import argparse
 import configparser
 from pathlib import Path
 
+from ..logging import log
 from .parser import CRAWLER_PARSER, SUBPARSERS, load_crawler
 
 SUBPARSER = SUBPARSERS.add_parser(
@@ -49,6 +50,8 @@ def load(
         args: argparse.Namespace,
         parser: configparser.ConfigParser,
 ) -> None:
+    log.explain("Creating config for command 'local'")
+
     parser["crawl:local"] = {}
     section = parser["crawl:local"]
     load_crawler(args, section)

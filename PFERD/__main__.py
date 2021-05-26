@@ -19,7 +19,7 @@ def load_config_parser(args: argparse.Namespace) -> configparser.ConfigParser:
         log.explain("No CLI command specified, loading config from file")
         Config.load_parser(parser, path=args.config)
     else:
-        log.explain(f"CLI command specified, creating config for {args.command!r}")
+        log.explain("CLI command specified, loading config from its arguments")
         if args.command:
             args.command(args, parser)
 

@@ -3,6 +3,7 @@ import configparser
 from pathlib import Path
 
 from ..crawl.ilias.file_templates import Links
+from ..logging import log
 from .parser import CRAWLER_PARSER, SUBPARSERS, BooleanOptionalAction, load_crawler, show_value_error
 
 SUBPARSER = SUBPARSERS.add_parser(
@@ -66,6 +67,8 @@ def load(
         args: argparse.Namespace,
         parser: configparser.ConfigParser,
 ) -> None:
+    log.explain("Creating config for command 'kit-ilias-web'")
+
     parser["crawl:ilias"] = {}
     section = parser["crawl:ilias"]
     load_crawler(args, section)
