@@ -62,21 +62,31 @@ class IliasPage:
         log.explain("Page is a normal folder, searching for elements")
         return self._find_normal_entries()
 
+    def get_next_stage_url(self) -> Optional[str]:
+        if self._is_ilias_opencast_embedding():
+            return self.get_child_elements()[0].url
+        return None
+
     def _is_video_player(self) -> bool:
         return "paella_config_file" in str(self._soup)
 
     def _is_video_listing(self) -> bool:
-        # ILIAS fluff around it
-        if self._soup.find(id="headerimage"):
-            element: Tag = self._soup.find(id="headerimage")
-            if "opencast" in element.attrs["src"].lower():
-                return True
+        if self._is_ilias_opencast_embedding():
+            return True
 
         # Raw listing without ILIAS fluff
         video_element_table: Tag = self._soup.find(
             name="table", id=re.compile(r"tbl_xoct_.+")
         )
         return video_element_table is not None
+
+    def _is_ilias_opencast_embedding(self) -> bool:
+        # ILIAS fluff around the real opencast html
+        if self._soup.find(id="headerimage"):
+            element: Tag = self._soup.find(id="headerimage")
+            if "opencast" in element.attrs["src"].lower():
+                return True
+        return False
 
     def _is_exercise_file(self) -> bool:
         # we know it from before
