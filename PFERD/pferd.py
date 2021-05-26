@@ -136,6 +136,9 @@ class Pferd:
             for path in sorted(crawler.report.deleted_files):
                 something_changed = True
                 log.report(f"  [bold bright_magenta]Deleted[/] {fmt_path(path)}")
+            for path in sorted(crawler.report.not_deleted_files):
+                something_changed = True
+                log.report(f"  [bold bright_magenta]Not deleted[/] {fmt_path(path)}")
 
             if not something_changed:
                 log.report("  Nothing changed")

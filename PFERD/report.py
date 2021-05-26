@@ -56,6 +56,7 @@ class Report:
         self.added_files: Set[PurePath] = set()
         self.changed_files: Set[PurePath] = set()
         self.deleted_files: Set[PurePath] = set()
+        self.not_deleted_files: Set[PurePath] = set()
 
     @staticmethod
     def _get_list_of_strs(data: Dict[str, Any], key: str) -> List[str]:
@@ -93,6 +94,8 @@ class Report:
             self.change_file(PurePath(elem))
         for elem in self._get_list_of_strs(data, "deleted"):
             self.delete_file(PurePath(elem))
+        for elem in self._get_list_of_strs(data, "not_deleted"):
+            self.not_delete_file(PurePath(elem))
 
         return self
 
@@ -107,6 +110,7 @@ class Report:
             "added": [str(path) for path in sorted(self.added_files)],
             "changed": [str(path) for path in sorted(self.changed_files)],
             "deleted": [str(path) for path in sorted(self.deleted_files)],
+            "not_deleted": [str(path) for path in sorted(self.not_deleted_files)],
         }
 
         with open(path, "w") as f:
@@ -163,3 +167,10 @@ class Report:
         """
 
         self.deleted_files.add(path)
+
+    def not_delete_file(self, path: PurePath) -> None:
+        """
+        Unlike mark(), this function accepts any paths.
+        """
+
+        self.not_deleted_files.add(path)

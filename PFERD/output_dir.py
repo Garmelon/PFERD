@@ -493,6 +493,9 @@ class OutputDirectory:
                 self._report.delete_file(pure)
             except OSError:
                 pass
+        else:
+            log.status(f"[bold bright_magenta]Not deleted[/] {escape(fmt_path(pure))}")
+            self._report.not_delete_file(pure)
 
     def load_prev_report(self) -> None:
         log.explain_topic(f"Loading previous report from {fmt_real_path(self._report_path)}")
