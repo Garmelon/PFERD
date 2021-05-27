@@ -243,11 +243,11 @@ class KitIliasWebCrawler(HttpCrawler):
             elements.clear()
             async with cl:
                 next_stage_url: Optional[str] = url
-                log.explain_topic(f"Parsing HTML page for {fmt_path(path)}")
 
                 while next_stage_url:
                     soup = await self._get_page(next_stage_url)
-                    log.explain(f"URL: {url}")
+                    log.explain_topic(f"Parsing HTML page for {fmt_path(path)}")
+                    log.explain(f"URL: {next_stage_url}")
                     page = IliasPage(soup, url, parent)
                     next_stage_url = page.get_next_stage_url()
 

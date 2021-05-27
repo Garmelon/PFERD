@@ -142,7 +142,7 @@ class IliasPage:
             url: str = self._abs_url_from_link(content_link)
             query_params = {"limit": "800", "cmd": "asyncGetTableGUI", "cmdMode": "asynch"}
             url = url_set_query_params(url, query_params)
-            log.explain("Found ILIAS redirection page, following it as a new entry")
+            log.explain("Found ILIAS video frame page, fetching actual content next")
             return [IliasPageElement(IliasElementType.VIDEO_FOLDER_MAYBE_PAGINATED, url, "")]
 
         is_paginated = self._soup.find(id=re.compile(r"tab_page_sel.+")) is not None
@@ -205,7 +205,7 @@ class IliasPage:
 
         video_url = self._abs_url_from_link(link)
 
-        log.explain(f"Found video {video_name!r} at {video_url!r}")
+        log.explain(f"Found video {video_name!r} at {video_url}")
         return IliasPageElement(IliasElementType.VIDEO_PLAYER, video_url, video_name, modification_time)
 
     def _find_exercise_entries(self) -> List[IliasPageElement]:
@@ -436,7 +436,7 @@ class IliasPage:
 
         _unexpected_html_warning()
         log.warn_contd(
-            f"Tried to figure out element type, but failed for {str(element_name)!r} / {link_element!r})"
+            f"Tried to figure out element type, but failed for {element_name!r} / {link_element!r})"
         )
         return None
 
