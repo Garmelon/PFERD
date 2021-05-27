@@ -343,7 +343,7 @@ class Crawler(ABC):
             return
 
         seen: Set[PurePath] = set()
-        for known in self.prev_report.known_files:
+        for known in sorted(self.prev_report.known_files):
             looking_at = list(reversed(known.parents)) + [known]
             for path in looking_at:
                 if path in seen:
