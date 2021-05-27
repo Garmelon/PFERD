@@ -213,7 +213,7 @@ Each line has the format `SOURCE ARROW TARGET` where `TARGET` is optional.
 literal delimited by `"` or `'` (e. g. `"foo\" bar/baz"`). Python's string
 escape syntax is supported. Trailing slashes are ignored. `TARGET` can be
 formatted like `SOURCE`, but it can also be a single exclamation mark without
-quotes (`!`). `ARROW` is one of `-->`, `-exact->`, `-name->`, `-re->` and
+quotes (`!`). `ARROW` is one of `-->`, `-name->`, `-exact->`, `-re->` and
 `-name-re->`
 
 If a rule's target is `!`, this means that when the rule matches on a path, the
@@ -230,11 +230,15 @@ well as all its contents.
 
 ### The `-name->` arrow
 
-The `-name->` arrow works similar to the `-->` arrow, but pretends it is in the
-same directory as the file or directory it is applied to. For example, the rule
-`bar -name-> baz` would convert `foo/bar` into `foo/baz` and `foo/bar/xyz` into
-`foo/baz/xyz`. The rule `foo --> !` would ignore all files and directories named
-`foo` as well as their contents.
+The `-name->` arrow lets you rename files and directories by their name,
+regardless of where they appear in the file tree. Because of this, its `SOURCE`
+must not contain multiple path segments, only a single name. This restriction
+does not apply to its `TARGET`. The `-name->` arrow is not applied recursively
+to its own output to prevent infinite loops.
+
+For example, the rule `foo -name-> bar/baz` would convert `a/foo` into
+`a/bar/baz` and `a/foo/b/c/foo` into `a/bar/baz/b/c/bar/baz`. The rule `foo
+-name-> !` would ignore all directories and files named `foo`.
 
 ### The `-exact->` arrow
 
@@ -243,14 +247,6 @@ that the rule `foo/bar -exact-> baz` would still convert `foo/bar` into `baz`,
 but `foo/bar/xyz` would be unaffected. Also, `foo -exact-> !` would only ignore
 `foo`, but not its contents (if it has any). The examples below show why this is
 useful.
-
-### The `-name-exact->` arrow
-
-The `-name-exact->` arrow works similar to the `-exact->` arrow, but pretends it
-is in the same directory as the file or directory it is applied to. For example,
-the rule `bar -name-exact-> baz` would convert `foo/bar` into `foo/baz` but
-`foo/bar/xyz` would be unaffected. The rule `foo --> !` would ignore only ignore
-files and directories named `foo`, but not their contents.
 
 ### The `-re->` arrow
 
@@ -275,8 +271,14 @@ example `{g2.lower()}` or `{g3.replace(' ', '_')}`.
 
 ### The `-name-re->` arrow
 
-The `-name-re>` arrow works similar to the `-re->` arrow, but pretends it is in
-the same directory as the file or directory it is applied to.
+The `-name-re>` arrow is like a combination of the `-name->` and `-re->` arrows.
+Instead of the `SOURCE` being the name of a directory or file, it's a regex that
+is matched against the names of directories and files. `TARGET` works like the
+`-re->` arrow's target.
+
+For example, the arrow `(.*)\.jpeg -name-re-> {g1}.jpg` will rename all `.jpeg`
+extensions into `.jpg`. The arrow `\..+ -name-re-> !` will ignore all files and
+directories starting with `.`.
 
 ### Example: Tutorials
 
