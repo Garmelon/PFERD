@@ -258,7 +258,9 @@ are available in `TARGET` for formatting.
 be referred to as `{g<n>}` (e. g. `{g3}`). `{g0}` refers to the original path.
 If capturing group *n*'s contents are a valid integer, the integer value is
 available as `{i<n>}` (e. g. `{i3}`). If capturing group *n*'s contents are a
-valid float, the float value is available as `{f<n>}` (e. g. `{f3}`).
+valid float, the float value is available as `{f<n>}` (e. g. `{f3}`). If a
+capturing group is not present (e. g. when matching the string `cd` with the
+regex `(ab)?cd`), the corresponding variables are not defined.
 
 Python's format string syntax has rich options for formatting its arguments. For
 example, to left-pad the capturing group 3 with the digit `0` to width 5, you

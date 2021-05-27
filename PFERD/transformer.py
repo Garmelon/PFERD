@@ -7,7 +7,7 @@ import ast
 import re
 from abc import ABC, abstractmethod
 from pathlib import PurePath
-from typing import Dict, Optional, Union
+from typing import Dict, Optional, Sequence, Union
 
 from .logging import log
 from .utils import fmt_path
@@ -122,8 +122,14 @@ class ReRule(Rule):
 
             vars: Dict[str, Union[str, int, float]] = {}
 
-            groups = [match[0]] + list(match.groups())
+            # For some reason, mypy thinks that "groups" has type List[str].
+            # But since elements of "match.groups()" can be None, mypy is
+            # wrong.
+            groups: Sequence[Optional[str]] = [match[0]] + list(match.groups())
             for i, group in enumerate(groups):
+                if group is None:
+                    continue
+
                 vars[f"g{i}"] = group
 
                 try:
@@ -352,7 +358,13 @@ class Transformer:
         for i, (line, rule) in enumerate(self._rules):
             log.explain(f"Testing rule {i+1}: {line}")
 
-            result = rule.transform(path)
+            try:
+                result = rule.transform(path)
+            except Exception as e:
+                log.warn(f"Error while testing rule {i+1}: {line}")
+                log.warn_contd(str(e))
+                continue
+
             if isinstance(result, PurePath):
                 log.explain(f"Match found, transformed path to {fmt_path(result)}")
                 return result
