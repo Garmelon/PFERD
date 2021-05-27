@@ -85,12 +85,29 @@ class NameRule(Rule):
         self._subrule = subrule
 
     def transform(self, path: PurePath) -> Union[PurePath, bool]:
-        name = PurePath(*path.parts[-1:])
-        result = self._subrule.transform(name)
-        if isinstance(result, PurePath):
-            return path.parent / result
-        else:
+        matched = False
+        result = PurePath()
+
+        for part in path.parts:
+            part_result = self._subrule.transform(PurePath(part))
+            if isinstance(part_result, PurePath):
+                matched = True
+                result /= part_result
+            elif part_result:
+                # If any subrule call ignores its path segment, the entire path
+                # should be ignored
+                return True
+            else:
+                # The subrule doesn't modify this segment, but maybe other
+                # segments
+                result /= part
+
+        if matched:
             return result
+        else:
+            # The subrule has modified no segments, so this name version of it
+            # doesn't match
+            return False
 
 
 class ReRule(Rule):
@@ -278,6 +295,7 @@ def parse_rule(line: Line) -> Rule:
     if isinstance(left, bool):
         line.index = leftindex
         raise RuleParseError(line, "Left side can't be '!'")
+    leftpath = PurePath(left)
 
     # Parse arrow
     parse_whitespace(line)
@@ -300,13 +318,14 @@ def parse_rule(line: Line) -> Rule:
 
     # Dispatch
     if arrowname == "":
-        return NormalRule(PurePath(left), rightpath)
+        return NormalRule(leftpath, rightpath)
     elif arrowname == "name":
-        return NameRule(NormalRule(PurePath(left), rightpath))
+        if len(leftpath.parts) > 1:
+            line.index = leftindex
+            raise RuleParseError(line, "SOURCE must be a single name, not multiple segments")
+        return NameRule(ExactRule(leftpath, rightpath))
     elif arrowname == "exact":
-        return ExactRule(PurePath(left), rightpath)
-    elif arrowname == "name-exact":
-        return NameRule(ExactRule(PurePath(left), rightpath))
+        return ExactRule(leftpath, rightpath)
     elif arrowname == "re":
         return ReRule(left, right)
     elif arrowname == "name-re":
