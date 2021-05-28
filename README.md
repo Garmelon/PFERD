@@ -65,7 +65,7 @@ command.
 
 Another good way to see what PFERD is doing is the `--explain` option. When
 enabled, PFERD explains in detail what it is doing and why. This can help with
-debugging your own config, for example.
+debugging your own config.
 
 If you don't want to run all crawlers from your config file, you can specify the
 crawlers you want to run with `--crawler` or `-C`, like this:
