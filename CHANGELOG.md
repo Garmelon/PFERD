@@ -1,9 +1,24 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+All notable changes to this project will be documented in this file. The format
+is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+This project has its own custom versioning scheme. Version numbers consist of
+three parts (e. g. `3.1.5`).
+- The first number is increased on major rewrites or changes. What classifies as
+  a major change is up to the maintainers. This is pretty rare and a PFERD
+  version 4 should hopefully not be necessary.
+- The second number is increased on backwards-incompatible changes in behaviour.
+  This refers to any change that would make an existing setup behave differently
+  (e. g. renaming options or changing crawler behaviour). If this number is
+  increased, it may be necessary for you to adapt your own setup.
+- The third number is increased on backwards-compatible changes (e. g. adding
+  new options or commands, changing documentation, fixing bugs). Updates that
+  only increase this number should be safe and not require manual intervention.
+
+We will try to correctly classify changes as backwards-compatible or
+backwards-incompatible, but may occasionally make mistakes or stumble across
+ambiguous situations.
 
 ## Unreleased
 
