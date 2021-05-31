@@ -50,12 +50,22 @@ class Report:
     """
 
     def __init__(self) -> None:
+        # Paths found by the crawler, untransformed
+        self.found_paths: Set[PurePath] = set()
+
+        # Files reserved for metadata files (e. g. the report file or cookies)
+        # that can't be overwritten by user transforms and won't be cleaned up
+        # at the end.
         self.reserved_files: Set[PurePath] = set()
+
+        # Files found by the crawler, transformed. Only includes files that
+        # were downloaded (or a download was attempted)
         self.known_files: Set[PurePath] = set()
 
         self.added_files: Set[PurePath] = set()
         self.changed_files: Set[PurePath] = set()
         self.deleted_files: Set[PurePath] = set()
+        # Files that should have been deleted by the cleanup but weren't
         self.not_deleted_files: Set[PurePath] = set()
 
     @staticmethod
@@ -84,6 +94,8 @@ class Report:
             raise ReportLoadError("Incorrect format: Root is not an object")
 
         self = cls()
+        for elem in self._get_list_of_strs(data, "found"):
+            self.found(PurePath(elem))
         for elem in self._get_list_of_strs(data, "reserved"):
             self.mark_reserved(PurePath(elem))
         for elem in self._get_list_of_strs(data, "known"):
@@ -105,6 +117,7 @@ class Report:
         """
 
         data = {
+            "found": [str(path) for path in sorted(self.found_paths)],
             "reserved": [str(path) for path in sorted(self.reserved_files)],
             "known": [str(path) for path in sorted(self.known_files)],
             "added": [str(path) for path in sorted(self.added_files)],
@@ -116,6 +129,9 @@ class Report:
         with open(path, "w") as f:
             json.dump(data, f, indent=2, sort_keys=True)
             f.write("\n")  # json.dump doesn't do this
+
+    def found(self, path: PurePath) -> None:
+        self.found_paths.add(path)
 
     def mark_reserved(self, path: PurePath) -> None:
         if path in self.marked:

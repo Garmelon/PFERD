@@ -264,6 +264,7 @@ class Crawler(ABC):
     async def crawl(self, path: PurePath) -> Optional[CrawlToken]:
         log.explain_topic(f"Decision: Crawl {fmt_path(path)}")
         path = self._deduplicator.mark(path)
+        self._output_dir.report.found(path)
 
         if self._transformer.transform(path) is None:
             log.explain("Answer: No")
@@ -282,6 +283,7 @@ class Crawler(ABC):
     ) -> Optional[DownloadToken]:
         log.explain_topic(f"Decision: Download {fmt_path(path)}")
         path = self._deduplicator.mark(path)
+        self._output_dir.report.found(path)
 
         transformed_path = self._transformer.transform(path)
         if transformed_path is None:
@@ -339,7 +341,7 @@ class Crawler(ABC):
             return
 
         seen: Set[PurePath] = set()
-        for known in sorted(self.prev_report.known_files):
+        for known in sorted(self.prev_report.found_paths):
             looking_at = list(reversed(known.parents)) + [known]
             for path in looking_at:
                 if path in seen:
