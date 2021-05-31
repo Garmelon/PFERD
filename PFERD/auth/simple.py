@@ -14,11 +14,7 @@ class SimpleAuthSection(AuthSection):
 
 
 class SimpleAuthenticator(Authenticator):
-    def __init__(
-            self,
-            name: str,
-            section: SimpleAuthSection,
-    ) -> None:
+    def __init__(self, name: str, section: SimpleAuthSection) -> None:
         super().__init__(name)
 
         self._username = section.username()

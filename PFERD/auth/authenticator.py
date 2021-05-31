@@ -17,10 +17,7 @@ class AuthSection(Section):
 
 
 class Authenticator(ABC):
-    def __init__(
-            self,
-            name: str
-    ) -> None:
+    def __init__(self, name: str) -> None:
         """
         Initialize an authenticator from its name and its section in the config
         file.
