@@ -8,6 +8,7 @@ from typing import AsyncIterator, ContextManager, Iterator, List, Optional
 from rich.console import Console, RenderGroup
 from rich.live import Live
 from rich.markup import escape
+from rich.panel import Panel
 from rich.progress import (BarColumn, DownloadColumn, Progress, TaskID, TextColumn, TimeRemainingColumn,
                            TransferSpeedColumn)
 from rich.table import Column
@@ -170,10 +171,13 @@ class Log:
             self.error_contd("")
             self.error_contd(traceback.format_exc())
 
-        self.error_contd("""
+        # Our print function doesn't take types other than strings, but the
+        # underlying rich.print function does. This call is a special case
+        # anyways, and we're calling it internally, so this should be fine.
+        self.print(Panel.fit("""
 Please copy your program output and send it to the PFERD maintainers, either
 directly or as a GitHub issue: https://github.com/Garmelon/PFERD/issues/new
-        """.strip())
+        """.strip()))  # type: ignore
 
     def explain_topic(self, text: str) -> None:
         """
