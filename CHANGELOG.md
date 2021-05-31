@@ -22,6 +22,9 @@ ambiguous situations.
 
 ## Unreleased
 
+### Added
+- `credential-file` authenticator
+
 ### Fixed
 - Date parsing now also works correctly in non-group exercises
 

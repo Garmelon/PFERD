@@ -3,6 +3,7 @@ from typing import Callable, Dict
 
 from ..config import Config
 from .authenticator import Authenticator, AuthError, AuthSection  # noqa: F401
+from .credential_file import CredentialFileAuthenticator, CredentialFileAuthSection
 from .keyring import KeyringAuthenticator, KeyringAuthSection
 from .simple import SimpleAuthenticator, SimpleAuthSection
 from .tfa import TfaAuthenticator
@@ -14,10 +15,12 @@ AuthConstructor = Callable[[
 ], Authenticator]
 
 AUTHENTICATORS: Dict[str, AuthConstructor] = {
+    "credential-file": lambda n, s, c:
+        CredentialFileAuthenticator(n, CredentialFileAuthSection(s)),
     "simple": lambda n, s, c:
         SimpleAuthenticator(n, SimpleAuthSection(s)),
     "tfa": lambda n, s, c:
         TfaAuthenticator(n),
     "keyring": lambda n, s, c:
-        KeyringAuthenticator(n, KeyringAuthSection(s))
+        KeyringAuthenticator(n, KeyringAuthSection(s)),
 }

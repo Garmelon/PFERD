@@ -180,6 +180,19 @@ via the terminal.
 - `username`: The username. (Optional)
 - `password`: The password. (Optional)
 
+### The `credential-file` authenticator
+
+This authenticator reads a username and a password from a credential file. The
+credential file has exactly two lines (trailing newline optional). The first
+line starts with `username=` and contains the username, the second line starts
+with `password=` and contains the password. The username and password may
+contain any characters except a line break.
+
+```
+username=AzureDiamond
+password=hunter2
+```
+
 ### The `keyring` authenticator
 
 This authenticator uses the system keyring to store passwords. The username can
