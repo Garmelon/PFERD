@@ -1,7 +1,8 @@
 import asyncio
+import http.cookies
 import ssl
 from pathlib import Path, PurePath
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import aiohttp
 import certifi
@@ -105,6 +106,25 @@ class HttpCrawler(Crawler):
 
         self._shared_cookie_jar_paths.append(self._cookie_jar_path)
 
+    def _load_cookies_from_file(self, path: Path) -> None:
+        jar: Any = http.cookies.SimpleCookie()
+        with open(path) as f:
+            for i, line in enumerate(f):
+                # Names of headers are case insensitive
+                if line[:11].lower() == "set-cookie:":
+                    jar.load(line[11:])
+                else:
+                    log.explain(f"Line {i} doesn't start with 'Set-Cookie:', ignoring it")
+        self._cookie_jar.update_cookies(jar)
+
+    def _save_cookies_to_file(self, path: Path) -> None:
+        jar: Any = http.cookies.SimpleCookie()
+        for morsel in self._cookie_jar:
+            jar[morsel.key] = morsel
+        with open(path, "w") as f:
+            f.write(jar.output(sep="\n"))
+            f.write("\n")  # A trailing newline is just common courtesy
+
     def _load_cookies(self) -> None:
         log.explain_topic("Loading cookies")
 
@@ -134,7 +154,7 @@ class HttpCrawler(Crawler):
 
         log.explain(f"Loading cookies from {fmt_real_path(cookie_jar_path)}")
         try:
-            self._cookie_jar.load(cookie_jar_path)
+            self._load_cookies_from_file(cookie_jar_path)
         except Exception as e:
             log.explain("Failed to load cookies")
             log.explain(str(e))
@@ -144,7 +164,7 @@ class HttpCrawler(Crawler):
 
         try:
             log.explain(f"Saving cookies to {fmt_real_path(self._cookie_jar_path)}")
-            self._cookie_jar.save(self._cookie_jar_path)
+            self._save_cookies_to_file(self._cookie_jar_path)
         except Exception as e:
             log.warn(f"Failed to save cookies to {fmt_real_path(self._cookie_jar_path)}")
             log.warn(str(e))

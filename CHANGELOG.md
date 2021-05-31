@@ -27,6 +27,9 @@ ambiguous situations.
 - `--credential-file` option for `kit-ilias-web` command
 - Warning if using concurrent tasks with `kit-ilias-web`
 
+### Changed
+- Cookies are now stored in a text-based format
+
 ### Fixed
 - Date parsing now also works correctly in non-group exercises
 
