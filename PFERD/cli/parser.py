@@ -145,7 +145,7 @@ PARSER.set_defaults(command=None)
 PARSER.add_argument(
     "--version",
     action="version",
-    version=f"{NAME} {VERSION}",
+    version=f"{NAME} {VERSION} (https://github.com/Garmelon/PFERD)",
 )
 PARSER.add_argument(
     "--config", "-c",
