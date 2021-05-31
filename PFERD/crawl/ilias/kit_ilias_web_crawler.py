@@ -21,7 +21,6 @@ TargetType = Union[str, int]
 
 
 class KitIliasWebCrawlerSection(HttpCrawlerSection):
-
     def target(self) -> TargetType:
         target = self.s.get("target")
         if not target:
@@ -163,6 +162,12 @@ class KitIliasWebCrawler(HttpCrawler):
         # Setting a main authenticator for cookie sharing
         auth = section.auth(authenticators)
         super().__init__(name, section, config, shared_auth=auth)
+
+        if section.tasks() > 1:
+            log.warn("""
+Please avoid using too many parallel requests as these are the KIT ILIAS
+instance's greatest bottleneck.
+            """.strip())
 
         self._shibboleth_login = KitShibbolethLogin(
             auth,
