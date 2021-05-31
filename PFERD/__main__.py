@@ -1,6 +1,7 @@
 import argparse
 import asyncio
 import configparser
+import os
 import sys
 from pathlib import Path
 
@@ -118,10 +119,18 @@ def main() -> None:
         sys.exit(1)
 
     try:
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(pferd.run(args.debug_transforms))
-        loop.run_until_complete(asyncio.sleep(1))
-        loop.close()
+        if os.name == "nt":
+            # A "workaround" for the windows event loop somehow crashing after
+            # asyncio.run() completes. See:
+            # https://bugs.python.org/issue39232
+            # https://github.com/encode/httpx/issues/914#issuecomment-780023632
+            # TODO Fix this properly
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(pferd.run(args.debug_transforms))
+            loop.run_until_complete(asyncio.sleep(1))
+            loop.close()
+        else:
+            asyncio.run(pferd.run(args.debug_transforms))
     except ConfigOptionError as e:
         log.unlock()
         log.error(str(e))
