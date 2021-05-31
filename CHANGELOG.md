@@ -24,6 +24,7 @@ ambiguous situations.
 
 ### Added
 - `credential-file` authenticator
+- `--credential-file` option for `kit-ilias-web` command
 
 ### Fixed
 - Date parsing now also works correctly in non-group exercises

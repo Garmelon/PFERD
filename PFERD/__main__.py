@@ -5,7 +5,7 @@ import os
 import sys
 from pathlib import Path
 
-from .cli import PARSER, load_default_section
+from .cli import PARSER, ParserLoadError, load_default_section
 from .config import Config, ConfigDumpError, ConfigLoadError, ConfigOptionError
 from .logging import log
 from .pferd import Pferd, PferdLoadError
@@ -35,6 +35,9 @@ def load_config(args: argparse.Namespace) -> Config:
     except ConfigLoadError as e:
         log.error(str(e))
         log.error_contd(e.reason)
+        sys.exit(1)
+    except ParserLoadError as e:
+        log.error(str(e))
         sys.exit(1)
 
 

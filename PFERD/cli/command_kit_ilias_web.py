@@ -4,7 +4,8 @@ from pathlib import Path
 
 from ..crawl.ilias.file_templates import Links
 from ..logging import log
-from .parser import CRAWLER_PARSER, SUBPARSERS, BooleanOptionalAction, load_crawler, show_value_error
+from .parser import (CRAWLER_PARSER, SUBPARSERS, BooleanOptionalAction, ParserLoadError, load_crawler,
+                     show_value_error)
 
 SUBPARSER = SUBPARSERS.add_parser(
     "kit-ilias-web",
@@ -37,6 +38,12 @@ GROUP.add_argument(
     "--keyring",
     action=BooleanOptionalAction,
     help="use the system keyring to store and retrieve passwords"
+)
+GROUP.add_argument(
+    "--credential-file",
+    type=Path,
+    metavar="PATH",
+    help="read username and password from a credential file"
 )
 GROUP.add_argument(
     "--links",
@@ -88,11 +95,19 @@ def load(
 
     parser["auth:ilias"] = {}
     auth_section = parser["auth:ilias"]
-    auth_section["type"] = "simple"
+    if args.credential_file is not None:
+        if args.username is not None:
+            raise ParserLoadError("--credential-file and --username can't be used together")
+        if args.keyring:
+            raise ParserLoadError("--credential-file and --keyring can't be used together")
+        auth_section["type"] = "credential-file"
+        auth_section["path"] = str(args.credential_file)
+    elif args.keyring:
+        auth_section["type"] = "keyring"
+    else:
+        auth_section["type"] = "simple"
     if args.username is not None:
         auth_section["username"] = args.username
-    if args.keyring:
-        auth_section["type"] = "keyring"
 
 
 SUBPARSER.set_defaults(command=load)

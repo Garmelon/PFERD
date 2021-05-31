@@ -8,6 +8,10 @@ from ..output_dir import OnConflict, Redownload
 from ..version import NAME, VERSION
 
 
+class ParserLoadError(Exception):
+    pass
+
+
 # TODO Replace with argparse version when updating to 3.9?
 class BooleanOptionalAction(argparse.Action):
     def __init__(
