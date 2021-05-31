@@ -5,8 +5,6 @@ from datetime import datetime
 from pathlib import Path, PurePath
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Sequence, Set, Tuple, TypeVar
 
-from rich.markup import escape
-
 from ..auth import Authenticator
 from ..config import Config, Section
 from ..deduplicator import Deduplicator
@@ -104,12 +102,9 @@ class CrawlToken(ReusableAsyncContextManager[ProgressBar]):
         return self._path
 
     async def _on_aenter(self) -> ProgressBar:
-        bar_desc = f"[bold bright_cyan]Crawling[/] {escape(fmt_path(self._path))}"
-        after_desc = f"[bold cyan]Crawled[/] {escape(fmt_path(self._path))}"
-
-        self._stack.callback(lambda: log.status(after_desc))
+        self._stack.callback(lambda: log.status("[bold cyan]", "Crawled", fmt_path(self._path)))
         await self._stack.enter_async_context(self._limiter.limit_crawl())
-        bar = self._stack.enter_context(log.crawl_bar(bar_desc))
+        bar = self._stack.enter_context(log.crawl_bar("[bold bright_cyan]", "Crawling", fmt_path(self._path)))
 
         return bar
 
@@ -127,12 +122,11 @@ class DownloadToken(ReusableAsyncContextManager[Tuple[ProgressBar, FileSink]]):
         return self._path
 
     async def _on_aenter(self) -> Tuple[ProgressBar, FileSink]:
-        bar_desc = f"[bold bright_cyan]Downloading[/] {escape(fmt_path(self._path))}"
-        # The "Downloaded ..." message is printed in the output dir, not here
-
         await self._stack.enter_async_context(self._limiter.limit_download())
         sink = await self._stack.enter_async_context(self._fs_token)
-        bar = self._stack.enter_context(log.download_bar(bar_desc))
+        # The "Downloaded ..." message is printed in the output dir, not here
+        bar = self._stack.enter_context(log.download_bar("[bold bright_cyan]", "Downloading",
+                                                         fmt_path(self._path)))
 
         return bar, sink
 
@@ -273,6 +267,7 @@ class Crawler(ABC):
 
         if self._transformer.transform(path) is None:
             log.explain("Answer: No")
+            log.status("[bold bright_black]", "Ignored", fmt_path(path))
             return None
 
         log.explain("Answer: Yes")
@@ -291,6 +286,7 @@ class Crawler(ABC):
         transformed_path = self._transformer.transform(path)
         if transformed_path is None:
             log.explain("Answer: No")
+            log.status("[bold bright_black]", "Ignored", fmt_path(path))
             return None
 
         fs_token = await self._output_dir.download(path, transformed_path, mtime, redownload, on_conflict)

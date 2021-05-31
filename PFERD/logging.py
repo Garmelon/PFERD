@@ -28,6 +28,8 @@ class ProgressBar:
 
 
 class Log:
+    STATUS_WIDTH = 11
+
     def __init__(self) -> None:
         self.console = Console(highlight=False)
 
@@ -195,13 +197,15 @@ directly or as a GitHub issue: https://github.com/Garmelon/PFERD/issues/new
         if self.output_explain:
             self.print(f"  {escape(text)}")
 
-    def status(self, text: str) -> None:
+    def status(self, style: str, action: str, text: str) -> None:
         """
-        Print a status update while crawling. Allows markup.
+        Print a status update while crawling. Allows markup in the "style"
+        argument which will be applied to the "action" string.
         """
 
         if self.output_status:
-            self.print(text)
+            action = escape(f"{action:<{self.STATUS_WIDTH}}")
+            self.print(f"{style}{action}[/] {escape(text)}")
 
     def report(self, text: str) -> None:
         """
@@ -233,16 +237,34 @@ directly or as a GitHub issue: https://github.com/Garmelon/PFERD/issues/new
 
     def crawl_bar(
             self,
-            description: str,
+            style: str,
+            action: str,
+            text: str,
             total: Optional[float] = None,
     ) -> ContextManager[ProgressBar]:
+        """
+        Allows markup in the "style" argument which will be applied to the
+        "action" string.
+        """
+
+        action = escape(f"{action:<{self.STATUS_WIDTH}}")
+        description = f"{style}{action}[/] {text}"
         return self._bar(self._crawl_progress, description, total)
 
     def download_bar(
             self,
-            description: str,
+            style: str,
+            action: str,
+            text: str,
             total: Optional[float] = None,
     ) -> ContextManager[ProgressBar]:
+        """
+        Allows markup in the "style" argument which will be applied to the
+        "action" string.
+        """
+
+        action = escape(f"{action:<{self.STATUS_WIDTH}}")
+        description = f"{style}{action}[/] {text}"
         return self._bar(self._download_progress, description, total)
 
 

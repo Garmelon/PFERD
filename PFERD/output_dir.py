@@ -11,8 +11,6 @@ from enum import Enum
 from pathlib import Path, PurePath
 from typing import BinaryIO, Iterator, Optional, Tuple
 
-from rich.markup import escape
-
 from .logging import log
 from .report import Report, ReportLoadError
 from .utils import ReusableAsyncContextManager, fmt_path, fmt_real_path, prompt_yes_no
@@ -425,7 +423,7 @@ class OutputDirectory:
 
     async def _after_download(self, info: DownloadInfo) -> None:
         with self._ensure_deleted(info.tmp_path):
-            log.status(f"[bold cyan]Downloaded[/] {fmt_path(info.remote_path)}")
+            log.status("[bold cyan]", "Downloaded", fmt_path(info.remote_path))
             log.explain_topic(f"Processing downloaded file for {fmt_path(info.path)}")
 
             changed = False
@@ -456,10 +454,10 @@ class OutputDirectory:
             self._update_metadata(info)
 
             if changed:
-                log.status(f"[bold bright_yellow]Changed[/] {escape(fmt_path(info.path))}")
+                log.status("[bold bright_yellow]", "Changed", fmt_path(info.path))
                 self._report.change_file(info.path)
             else:
-                log.status(f"[bold bright_green]Added[/] {escape(fmt_path(info.path))}")
+                log.status("[bold bright_green]", "Added", fmt_path(info.path))
                 self._report.add_file(info.path)
 
     async def cleanup(self) -> None:
@@ -489,12 +487,12 @@ class OutputDirectory:
         if await self._conflict_delete_lf(self._on_conflict, pure):
             try:
                 path.unlink()
-                log.status(f"[bold bright_magenta]Deleted[/] {escape(fmt_path(pure))}")
+                log.status("[bold bright_magenta]", "Deleted", fmt_path(pure))
                 self._report.delete_file(pure)
             except OSError:
                 pass
         else:
-            log.status(f"[bold bright_magenta]Not deleted[/] {escape(fmt_path(pure))}")
+            log.status("[bold bright_magenta]", "Not deleted", fmt_path(pure))
             self._report.not_delete_file(pure)
 
     def load_prev_report(self) -> None:
