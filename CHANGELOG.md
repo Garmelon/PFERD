@@ -22,6 +22,8 @@ ambiguous situations.
 
 ## Unreleased
 
+## 3.0.0 - 2021-05-31
+
 ### Added
 - Proper config files
 - Concurrent crawling
