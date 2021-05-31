@@ -230,12 +230,16 @@ class IliasPage:
             parent_row: Tag = link.findParent("tr")
             children: List[Tag] = parent_row.findChildren("td")
 
-            # <checkbox> <name> <uploader> <date> <download>
-            #     0         1        2       3        4
             name = _sanitize_path_name(children[1].getText().strip())
-            date = demangle_date(children[3].getText().strip())
-
             log.explain(f"Found exercise detail entry {name!r}")
+
+            for child in reversed(children):
+                date = demangle_date(child.getText().strip(), fail_silently=True)
+                if date is not None:
+                    break
+            if date is None:
+                log.warn(f"Date parsing failed for exercise entry {name!r}")
+
             results.append(IliasPageElement(
                 IliasElementType.FILE,
                 self._abs_url_from_link(link),
@@ -522,7 +526,7 @@ german_months = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep',
 english_months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 
-def demangle_date(date_str: str) -> Optional[datetime]:
+def demangle_date(date_str: str, fail_silently: bool = False) -> Optional[datetime]:
     """
     Demangle a given date in one of the following formats:
     "Gestern, HH:MM"
@@ -554,7 +558,8 @@ def demangle_date(date_str: str) -> Optional[datetime]:
 
         return datetime(year, month, day, hour, minute)
     except Exception:
-        log.warn(f"Date parsing failed for {date_str!r}")
+        if not fail_silently:
+            log.warn(f"Date parsing failed for {date_str!r}")
         return None
 
 
