@@ -2,7 +2,7 @@ from configparser import SectionProxy
 from typing import Callable, Dict
 
 from ..config import Config
-from .authenticator import Authenticator, AuthError, AuthSection  # noqa: F401
+from .authenticator import Authenticator, AuthError, AuthLoadError, AuthSection  # noqa: F401
 from .credential_file import CredentialFileAuthenticator, CredentialFileAuthSection
 from .keyring import KeyringAuthenticator, KeyringAuthSection
 from .simple import SimpleAuthenticator, SimpleAuthSection

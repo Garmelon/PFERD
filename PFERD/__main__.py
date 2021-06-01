@@ -5,6 +5,7 @@ import os
 import sys
 from pathlib import Path
 
+from .auth import AuthLoadError
 from .cli import PARSER, ParserLoadError, load_default_section
 from .config import Config, ConfigDumpError, ConfigLoadError, ConfigOptionError
 from .logging import log
@@ -134,7 +135,7 @@ def main() -> None:
             loop.close()
         else:
             asyncio.run(pferd.run(args.debug_transforms))
-    except ConfigOptionError as e:
+    except (ConfigOptionError, AuthLoadError) as e:
         log.unlock()
         log.error(str(e))
         sys.exit(1)
