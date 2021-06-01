@@ -22,6 +22,8 @@ ambiguous situations.
 
 ## Unreleased
 
+## 3.0.1 - 2021-06-01
+
 ### Added
 - `credential-file` authenticator
 - `--credential-file` option for `kit-ilias-web` command
