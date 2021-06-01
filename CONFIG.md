@@ -182,8 +182,11 @@ via the terminal.
 
 ### The `credential-file` authenticator
 
-This authenticator reads a username and a password from a credential file. The
-credential file has exactly two lines (trailing newline optional). The first
+This authenticator reads a username and a password from a credential file.
+
+- `path`: Path to the credential file. (Required)
+
+The credential file has exactly two lines (trailing newline optional). The first
 line starts with `username=` and contains the username, the second line starts
 with `password=` and contains the password. The username and password may
 contain any characters except a line break.
