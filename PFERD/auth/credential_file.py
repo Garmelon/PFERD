@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Tuple
 
+from ..config import Config
 from ..utils import fmt_real_path
 from .authenticator import Authenticator, AuthLoadError, AuthSection
 
@@ -14,10 +15,10 @@ class CredentialFileAuthSection(AuthSection):
 
 
 class CredentialFileAuthenticator(Authenticator):
-    def __init__(self, name: str, section: CredentialFileAuthSection) -> None:
+    def __init__(self, name: str, section: CredentialFileAuthSection, config: Config) -> None:
         super().__init__(name)
 
-        path = section.path()
+        path = config.default_section.working_dir() / section.path()
         try:
             with open(path) as f:
                 lines = list(f)

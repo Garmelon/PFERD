@@ -69,6 +69,7 @@ class Section:
 
 class DefaultSection(Section):
     def working_dir(self) -> Path:
+        # TODO Change to working dir instead of manually prepending it to paths
         pathstr = self.s.get("working_dir", ".")
         return Path(pathstr).expanduser()
 

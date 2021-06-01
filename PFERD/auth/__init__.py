@@ -16,7 +16,7 @@ AuthConstructor = Callable[[
 
 AUTHENTICATORS: Dict[str, AuthConstructor] = {
     "credential-file": lambda n, s, c:
-        CredentialFileAuthenticator(n, CredentialFileAuthSection(s)),
+        CredentialFileAuthenticator(n, CredentialFileAuthSection(s), c),
     "keyring": lambda n, s, c:
         KeyringAuthenticator(n, KeyringAuthSection(s)),
     "simple": lambda n, s, c:
