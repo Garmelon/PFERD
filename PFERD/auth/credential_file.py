@@ -37,8 +37,8 @@ class CredentialFileAuthenticator(Authenticator):
         if not pline.startswith("password="):
             raise AuthLoadError("Second line must start with 'password='")
 
-        self._username = uline[:9]
-        self._password = pline[:9]
+        self._username = uline[9:]
+        self._password = pline[9:]
 
     async def credentials(self) -> Tuple[str, str]:
         return self._username, self._password
