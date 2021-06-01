@@ -147,7 +147,6 @@ def main() -> None:
         log.unlock()
         log.explain_topic("Interrupted, exiting immediately")
         log.explain("Open files and connections are left for the OS to clean up")
-        log.explain("Temporary files are not cleaned up")
         pferd.print_report()
         # TODO Clean up tmp files
         # And when those files *do* actually get cleaned up properly,
