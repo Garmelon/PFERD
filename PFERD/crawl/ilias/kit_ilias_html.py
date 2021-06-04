@@ -293,7 +293,13 @@ class IliasPage:
 
             # Add each listing as a new
             for listing in file_listings:
-                file_name = _sanitize_path_name(listing.getText().strip())
+                parent_container: Tag = listing.findParent(
+                    "div", attrs={"class": lambda x: x and "form-group" in x}
+                )
+                label_container: Tag = parent_container.find(
+                    attrs={"class": lambda x: x and "control-label" in x}
+                )
+                file_name = _sanitize_path_name(label_container.getText().strip())
                 url = self._abs_url_from_link(listing)
                 log.explain(f"Found exercise detail {file_name!r} at {url}")
                 results.append(IliasPageElement(

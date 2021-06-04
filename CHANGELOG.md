@@ -27,6 +27,8 @@ ambiguous situations.
 
 ### Changed
 - Use `/` instead of `\` as path separator for (regex) rules on Windows
+- Use the label to the left for exercises instead of the button name to
+  determine the folder name
 
 ## 3.0.1 - 2021-06-01
 
