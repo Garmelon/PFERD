@@ -49,6 +49,9 @@ see the type's [documentation](#crawler-types) below. The following options are
 common to all crawlers:
 
 - `type`: The available types are specified in [this section](#crawler-types).
+- `skip`: Whether the crawler should be skipped during normal execution. The
+  crawler can still be executed manually using the `--crawler` or `-C` flags.
+  (Default: `no`)
 - `output_dir`: The directory the crawler synchronizes files to. A crawler will
   never place any files outside of this directory. (Default: the crawler's name)
 - `redownload`: When to download a file that is already present locally.

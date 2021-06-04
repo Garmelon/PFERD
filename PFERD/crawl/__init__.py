@@ -3,7 +3,7 @@ from typing import Callable, Dict
 
 from ..auth import Authenticator
 from ..config import Config
-from .crawler import Crawler, CrawlError  # noqa: F401
+from .crawler import Crawler, CrawlError, CrawlerSection  # noqa: F401
 from .ilias import KitIliasWebCrawler, KitIliasWebCrawlerSection
 from .local_crawler import LocalCrawler, LocalCrawlerSection
 

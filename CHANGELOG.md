@@ -22,6 +22,9 @@ ambiguous situations.
 
 ## Unreleased
 
+### Added
+- `skip` option for crawlers
+
 ### Changed
 - Use `/` instead of `\` as path separator for (regex) rules on Windows
 

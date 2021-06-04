@@ -3,9 +3,9 @@ from typing import Dict, List, Optional
 
 from rich.markup import escape
 
-from .auth import AUTHENTICATORS, Authenticator, AuthError
+from .auth import AUTHENTICATORS, Authenticator, AuthError, AuthSection
 from .config import Config, ConfigOptionError
-from .crawl import CRAWLERS, Crawler, CrawlError, KitIliasWebCrawler
+from .crawl import CRAWLERS, Crawler, CrawlError, CrawlerSection, KitIliasWebCrawler
 from .logging import log
 from .utils import fmt_path
 
@@ -26,19 +26,22 @@ class Pferd:
         self._authenticators: Dict[str, Authenticator] = {}
         self._crawlers: Dict[str, Crawler] = {}
 
-    def _find_crawlers_to_run(self, config: Config, cli_crawlers: Optional[List[str]]) -> List[str]:
-        log.explain_topic("Deciding which crawlers to run")
-        crawl_sections = [name for name, _ in config.crawl_sections()]
+    def _find_config_crawlers(self, config: Config) -> List[str]:
+        crawl_sections = []
 
-        if cli_crawlers is None:
-            log.explain("No crawlers specified on CLI")
-            log.explain("Running all crawlers specified in config")
-            return crawl_sections
+        for name, section in config.crawl_sections():
+            if CrawlerSection(section).skip():
+                log.explain(f"Skipping {name!r}")
+            else:
+                crawl_sections.append(name)
 
+        return crawl_sections
+
+    def _find_cli_crawlers(self, config: Config, cli_crawlers: List[str]) -> List[str]:
         if len(cli_crawlers) != len(set(cli_crawlers)):
             raise PferdLoadError("Some crawlers were selected multiple times")
 
-        log.explain("Crawlers specified on CLI")
+        crawl_sections = [name for name, _ in config.crawl_sections()]
 
         crawlers_to_run = []  # With crawl: prefix
         unknown_names = []  # Without crawl: prefix
@@ -62,10 +65,22 @@ class Pferd:
 
         return crawlers_to_run
 
+    def _find_crawlers_to_run(self, config: Config, cli_crawlers: Optional[List[str]]) -> List[str]:
+        log.explain_topic("Deciding which crawlers to run")
+
+        if cli_crawlers is None:
+            log.explain("No crawlers specified on CLI")
+            log.explain("Running crawlers specified in config")
+            return self._find_config_crawlers(config)
+        else:
+            log.explain("Crawlers specified on CLI")
+            return self._find_cli_crawlers(config, cli_crawlers)
+
     def _load_authenticators(self) -> None:
         for name, section in self._config.auth_sections():
             log.print(f"[bold bright_cyan]Loading[/] {escape(name)}")
-            auth_type = section.get("type")
+
+            auth_type = AuthSection(section).type()
             authenticator_constructor = AUTHENTICATORS.get(auth_type)
             if authenticator_constructor is None:
                 raise ConfigOptionError(name, "type", f"Unknown authenticator type: {auth_type!r}")
@@ -80,7 +95,7 @@ class Pferd:
         for name, section in self._config.crawl_sections():
             log.print(f"[bold bright_cyan]Loading[/] {escape(name)}")
 
-            crawl_type = section.get("type")
+            crawl_type = CrawlerSection(section).type()
             crawler_constructor = CRAWLERS.get(crawl_type)
             if crawler_constructor is None:
                 raise ConfigOptionError(name, "type", f"Unknown crawler type: {crawl_type!r}")

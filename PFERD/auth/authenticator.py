@@ -13,7 +13,11 @@ class AuthError(Exception):
 
 
 class AuthSection(Section):
-    pass
+    def type(self) -> str:
+        value = self.s.get("type")
+        if value is None:
+            self.missing_value("type")
+        return value
 
 
 class Authenticator(ABC):

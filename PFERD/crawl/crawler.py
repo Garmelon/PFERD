@@ -132,6 +132,15 @@ class DownloadToken(ReusableAsyncContextManager[Tuple[ProgressBar, FileSink]]):
 
 
 class CrawlerSection(Section):
+    def type(self) -> str:
+        value = self.s.get("type")
+        if value is None:
+            self.missing_value("type")
+        return value
+
+    def skip(self) -> bool:
+        return self.s.getboolean("skip", fallback=False)
+
     def output_dir(self, name: str) -> Path:
         # TODO Use removeprefix() after switching to 3.9
         if name.startswith("crawl:"):
