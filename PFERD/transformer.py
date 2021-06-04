@@ -10,7 +10,7 @@ from pathlib import PurePath
 from typing import Dict, Optional, Sequence, Union
 
 from .logging import log
-from .utils import fmt_path
+from .utils import fmt_path, str_path
 
 
 class Rule(ABC):
@@ -116,7 +116,7 @@ class ReRule(Rule):
         self._right = right
 
     def transform(self, path: PurePath) -> Union[PurePath, bool]:
-        if match := re.fullmatch(self._left, str(path)):
+        if match := re.fullmatch(self._left, str_path(path)):
             if isinstance(self._right, bool):
                 return self._right or path
 

@@ -91,8 +91,14 @@ def url_set_query_params(url: str, params: Dict[str, str]) -> str:
     return result
 
 
+def str_path(path: PurePath) -> str:
+    if not path.parts:
+        return "."
+    return "/".join(path.parts)
+
+
 def fmt_path(path: PurePath) -> str:
-    return repr(str(path))
+    return repr(str_path(path))
 
 
 def fmt_real_path(path: Path) -> str:

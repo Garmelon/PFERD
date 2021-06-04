@@ -22,6 +22,9 @@ ambiguous situations.
 
 ## Unreleased
 
+### Changed
+- Use `/` instead of `\` as path separator for (regex) rules on Windows
+
 ## 3.0.1 - 2021-06-01
 
 ### Added
