@@ -24,8 +24,11 @@ ambiguous situations.
 
 ### Added
 - `skip` option for crawlers
+- Rules with `>>` instead of `>` as arrow head
+- `-exact-re->` arrow (behaves like `-re->` did previously)
 
 ### Changed
+- The `-re->` arrow can now rename directories (like `-->`)
 - Use `/` instead of `\` as path separator for (regex) rules on Windows
 - Use the label to the left for exercises instead of the button name to
   determine the folder name

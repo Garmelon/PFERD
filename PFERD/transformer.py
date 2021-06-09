@@ -1,151 +1,159 @@
-# I'm sorry that this code has become a bit dense and unreadable. While
-# reading, it is important to remember what True and False mean. I'd love to
-# have some proper sum-types for the inputs and outputs, they'd make this code
-# a lot easier to understand.
-
 import ast
 import re
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from enum import Enum
 from pathlib import PurePath
-from typing import Dict, Optional, Sequence, Union
+from typing import Callable, Dict, List, Optional, Sequence, TypeVar, Union
 
 from .logging import log
 from .utils import fmt_path, str_path
 
 
-class Rule(ABC):
-    @abstractmethod
-    def transform(self, path: PurePath) -> Union[PurePath, bool]:
-        """
-        Try to apply this rule to the path. Returns another path if the rule
-        was successfully applied, True if the rule matched but resulted in an
-        exclamation mark, and False if the rule didn't match at all.
-        """
+class ArrowHead(Enum):
+    NORMAL = 0
+    SEQUENCE = 1
 
+
+class Ignore:
+    pass
+
+
+class Empty:
+    pass
+
+
+RightSide = Union[str, Ignore, Empty]
+
+
+@dataclass
+class Transformed:
+    path: PurePath
+
+
+class Ignored:
+    pass
+
+
+TransformResult = Optional[Union[Transformed, Ignored]]
+
+
+@dataclass
+class Rule:
+    left: str
+    name: str
+    head: ArrowHead
+    right: RightSide
+
+    def right_result(self, path: PurePath) -> Union[str, Transformed, Ignored]:
+        if isinstance(self.right, str):
+            return self.right
+        elif isinstance(self.right, Ignore):
+            return Ignored()
+        elif isinstance(self.right, Empty):
+            return Transformed(path)
+        else:
+            raise RuntimeError(f"Right side has invalid type {type(self.right)}")
+
+
+class Transformation(ABC):
+    def __init__(self, rule: Rule):
+        self.rule = rule
+
+    @abstractmethod
+    def transform(self, path: PurePath) -> TransformResult:
         pass
 
 
-# These rules all use a Union[T, bool] for their right side. They are passed a
-# T if the arrow's right side was a normal string, True if it was an
-# exclamation mark and False if it was missing entirely.
-
-class NormalRule(Rule):
-    def __init__(self, left: PurePath, right: Union[PurePath, bool]):
-
-        self._left = left
-        self._right = right
-
-    def _match_prefix(self, path: PurePath) -> Optional[PurePath]:
-        left_parts = list(reversed(self._left.parts))
-        path_parts = list(reversed(path.parts))
-
-        if len(left_parts) > len(path_parts):
+class ExactTf(Transformation):
+    def transform(self, path: PurePath) -> TransformResult:
+        if path != PurePath(self.rule.left):
             return None
 
-        while left_parts and path_parts:
-            left_part = left_parts.pop()
-            path_part = path_parts.pop()
+        right = self.rule.right_result(path)
+        if not isinstance(right, str):
+            return right
 
-            if left_part != path_part:
-                return None
+        return Transformed(PurePath(right))
 
-        if left_parts:
+
+class ExactReTf(Transformation):
+    def transform(self, path: PurePath) -> TransformResult:
+        match = re.fullmatch(self.rule.left, str_path(path))
+        if not match:
             return None
 
-        path_parts.reverse()
-        return PurePath(*path_parts)
+        right = self.rule.right_result(path)
+        if not isinstance(right, str):
+            return right
 
-    def transform(self, path: PurePath) -> Union[PurePath, bool]:
-        if rest := self._match_prefix(path):
-            if isinstance(self._right, bool):
-                return self._right or path
+        # For some reason, mypy thinks that "groups" has type List[str]. But
+        # since elements of "match.groups()" can be None, mypy is wrong.
+        groups: Sequence[Optional[str]] = [match[0]] + list(match.groups())
+
+        locals_dir: Dict[str, Union[str, int, float]] = {}
+        for i, group in enumerate(groups):
+            if group is None:
+                continue
+
+            locals_dir[f"g{i}"] = group
+
+            try:
+                locals_dir[f"i{i}"] = int(group)
+            except ValueError:
+                pass
+
+            try:
+                locals_dir[f"f{i}"] = float(group)
+            except ValueError:
+                pass
+
+        result = eval(f"f{right!r}", {}, locals_dir)
+        return Transformed(PurePath(result))
+
+
+class RenamingParentsTf(Transformation):
+    def __init__(self, sub_tf: Transformation):
+        super().__init__(sub_tf.rule)
+        self.sub_tf = sub_tf
+
+    def transform(self, path: PurePath) -> TransformResult:
+        for i in range(len(path.parts), -1, -1):
+            parent = PurePath(*path.parts[:i])
+            child = PurePath(*path.parts[i:])
+
+            transformed = self.sub_tf.transform(parent)
+            if not transformed:
+                continue
+            elif isinstance(transformed, Transformed):
+                return Transformed(transformed.path / child)
+            elif isinstance(transformed, Ignored):
+                return transformed
             else:
-                return self._right / rest
+                raise RuntimeError(f"Invalid transform result of type {type(transformed)}: {transformed}")
 
-        return False
-
-
-class ExactRule(Rule):
-    def __init__(self, left: PurePath, right: Union[PurePath, bool]):
-        self._left = left
-        self._right = right
-
-    def transform(self, path: PurePath) -> Union[PurePath, bool]:
-        if path == self._left:
-            if isinstance(self._right, bool):
-                return self._right or path
-            else:
-                return self._right
-
-        return False
+        return None
 
 
-class NameRule(Rule):
-    def __init__(self, subrule: Rule):
-        self._subrule = subrule
+class RenamingPartsTf(Transformation):
+    def __init__(self, sub_tf: Transformation):
+        super().__init__(sub_tf.rule)
+        self.sub_tf = sub_tf
 
-    def transform(self, path: PurePath) -> Union[PurePath, bool]:
-        matched = False
+    def transform(self, path: PurePath) -> TransformResult:
         result = PurePath()
-
         for part in path.parts:
-            part_result = self._subrule.transform(PurePath(part))
-            if isinstance(part_result, PurePath):
-                matched = True
-                result /= part_result
-            elif part_result:
-                # If any subrule call ignores its path segment, the entire path
-                # should be ignored
-                return True
-            else:
-                # The subrule doesn't modify this segment, but maybe other
-                # segments
+            transformed = self.sub_tf.transform(PurePath(part))
+            if not transformed:
                 result /= part
+            elif isinstance(transformed, Transformed):
+                result /= transformed.path
+            elif isinstance(transformed, Ignored):
+                return transformed
+            else:
+                raise RuntimeError(f"Invalid transform result of type {type(transformed)}: {transformed}")
 
-        if matched:
-            return result
-        else:
-            # The subrule has modified no segments, so this name version of it
-            # doesn't match
-            return False
-
-
-class ReRule(Rule):
-    def __init__(self, left: str, right: Union[str, bool]):
-        self._left = left
-        self._right = right
-
-    def transform(self, path: PurePath) -> Union[PurePath, bool]:
-        if match := re.fullmatch(self._left, str_path(path)):
-            if isinstance(self._right, bool):
-                return self._right or path
-
-            vars: Dict[str, Union[str, int, float]] = {}
-
-            # For some reason, mypy thinks that "groups" has type List[str].
-            # But since elements of "match.groups()" can be None, mypy is
-            # wrong.
-            groups: Sequence[Optional[str]] = [match[0]] + list(match.groups())
-            for i, group in enumerate(groups):
-                if group is None:
-                    continue
-
-                vars[f"g{i}"] = group
-
-                try:
-                    vars[f"i{i}"] = int(group)
-                except ValueError:
-                    pass
-
-                try:
-                    vars[f"f{i}"] = float(group)
-                except ValueError:
-                    pass
-
-            result = eval(f"f{self._right!r}", vars)
-            return PurePath(result)
-
-        return False
+        return None
 
 
 class RuleParseError(Exception):
@@ -162,17 +170,14 @@ class RuleParseError(Exception):
         log.error_contd(f"{spaces}^--- {self.reason}")
 
 
+T = TypeVar("T")
+
+
 class Line:
     def __init__(self, line: str, line_nr: int):
         self._line = line
         self._line_nr = line_nr
         self._index = 0
-
-    def get(self) -> Optional[str]:
-        if self._index < len(self._line):
-            return self._line[self._index]
-
-        return None
 
     @property
     def line(self) -> str:
@@ -190,155 +195,192 @@ class Line:
     def index(self, index: int) -> None:
         self._index = index
 
-    def advance(self) -> None:
-        self._index += 1
+    @property
+    def rest(self) -> str:
+        return self.line[self.index:]
 
-    def expect(self, string: str) -> None:
-        for char in string:
-            if self.get() == char:
-                self.advance()
-            else:
-                raise RuleParseError(self, f"Expected {char!r}")
+    def peek(self, amount: int = 1) -> str:
+        return self.rest[:amount]
+
+    def take(self, amount: int = 1) -> str:
+        string = self.peek(amount)
+        self.index += len(string)
+        return string
+
+    def expect(self, string: str) -> str:
+        if self.peek(len(string)) == string:
+            return self.take(len(string))
+        else:
+            raise RuleParseError(self, f"Expected {string!r}")
+
+    def expect_with(self, string: str, value: T) -> T:
+        self.expect(string)
+        return value
+
+    def one_of(self, parsers: List[Callable[[], T]], description: str) -> T:
+        for parser in parsers:
+            index = self.index
+            try:
+                return parser()
+            except RuleParseError:
+                self.index = index
+
+        raise RuleParseError(self, description)
+
+
+# RULE = LEFT SPACE '-' NAME '-' HEAD (SPACE RIGHT)?
+# SPACE = ' '+
+# NAME = '' | 'exact' | 'name' | 're' | 'exact-re' | 'name-re'
+# HEAD = '>' | '>>'
+# LEFT = STR | QUOTED_STR
+# RIGHT = STR | QUOTED_STR | '!'
+
+
+def parse_zero_or_more_spaces(line: Line) -> None:
+    while line.peek() == " ":
+        line.take()
+
+
+def parse_one_or_more_spaces(line: Line) -> None:
+    line.expect(" ")
+    parse_zero_or_more_spaces(line)
+
+
+def parse_str(line: Line) -> str:
+    result = []
+    while c := line.peek():
+        if c == " ":
+            break
+        else:
+            line.take()
+            result.append(c)
+
+    if result:
+        return "".join(result)
+    else:
+        raise RuleParseError(line, "Expected non-space character")
 
 
 QUOTATION_MARKS = {'"', "'"}
 
 
-def parse_string_literal(line: Line) -> str:
+def parse_quoted_str(line: Line) -> str:
     escaped = False
 
     # Points to first character of string literal
     start_index = line.index
 
-    quotation_mark = line.get()
+    quotation_mark = line.peek()
     if quotation_mark not in QUOTATION_MARKS:
-        # This should never happen as long as this function is only called from
-        # parse_string.
-        raise RuleParseError(line, "Invalid quotation mark")
-    line.advance()
+        raise RuleParseError(line, "Expected quotation mark")
+    line.take()
 
-    while c := line.get():
+    while c := line.peek():
         if escaped:
             escaped = False
-            line.advance()
+            line.take()
         elif c == quotation_mark:
-            line.advance()
+            line.take()
             stop_index = line.index
             literal = line.line[start_index:stop_index]
-            return ast.literal_eval(literal)
+            try:
+                return ast.literal_eval(literal)
+            except SyntaxError as e:
+                line.index = start_index
+                raise RuleParseError(line, str(e)) from e
         elif c == "\\":
             escaped = True
-            line.advance()
+            line.take()
         else:
-            line.advance()
+            line.take()
 
     raise RuleParseError(line, "Expected end of string literal")
 
 
-def parse_until_space_or_eol(line: Line) -> str:
-    result = []
-    while c := line.get():
-        if c == " ":
-            break
-        result.append(c)
-        line.advance()
-
-    return "".join(result)
-
-
-def parse_string(line: Line) -> Union[str, bool]:
-    if line.get() in QUOTATION_MARKS:
-        return parse_string_literal(line)
+def parse_left(line: Line) -> str:
+    if line.peek() in QUOTATION_MARKS:
+        return parse_quoted_str(line)
     else:
-        string = parse_until_space_or_eol(line)
+        return parse_str(line)
+
+
+def parse_right(line: Line) -> Union[str, Ignore]:
+    c = line.peek()
+    if c in QUOTATION_MARKS:
+        return parse_quoted_str(line)
+    else:
+        string = parse_str(line)
         if string == "!":
-            return True
+            return Ignore()
         return string
 
 
-def parse_arrow(line: Line) -> str:
-    line.expect("-")
-
-    name = []
-    while True:
-        c = line.get()
-        if not c:
-            raise RuleParseError(line, "Expected rest of arrow")
-        elif c == "-":
-            line.advance()
-            c = line.get()
-            if not c:
-                raise RuleParseError(line, "Expected rest of arrow")
-            elif c == ">":
-                line.advance()
-                break  # End of arrow
-            else:
-                name.append("-")
-                continue
-        else:
-            name.append(c)
-
-        line.advance()
-
-    return "".join(name)
+def parse_arrow_name(line: Line) -> str:
+    return line.one_of([
+        lambda: line.expect("exact-re"),
+        lambda: line.expect("exact"),
+        lambda: line.expect("name-re"),
+        lambda: line.expect("name"),
+        lambda: line.expect("re"),
+        lambda: line.expect(""),
+    ], "Expected arrow name")
 
 
-def parse_whitespace(line: Line) -> None:
-    line.expect(" ")
-    while line.get() == " ":
-        line.advance()
+def parse_arrow_head(line: Line) -> ArrowHead:
+    return line.one_of([
+        lambda: line.expect_with(">>", ArrowHead.SEQUENCE),
+        lambda: line.expect_with(">", ArrowHead.NORMAL),
+    ], "Expected arrow head")
 
 
 def parse_eol(line: Line) -> None:
-    if line.get() is not None:
+    if line.peek():
         raise RuleParseError(line, "Expected end of line")
 
 
 def parse_rule(line: Line) -> Rule:
-    # Parse left side
-    leftindex = line.index
-    left = parse_string(line)
-    if isinstance(left, bool):
-        line.index = leftindex
-        raise RuleParseError(line, "Left side can't be '!'")
-    leftpath = PurePath(left)
+    parse_zero_or_more_spaces(line)
+    left = parse_left(line)
 
-    # Parse arrow
-    parse_whitespace(line)
-    arrowindex = line.index
-    arrowname = parse_arrow(line)
+    parse_one_or_more_spaces(line)
 
-    # Parse right side
-    if line.get():
-        parse_whitespace(line)
-        right = parse_string(line)
+    line.expect("-")
+    name = parse_arrow_name(line)
+    line.expect("-")
+    head = parse_arrow_head(line)
+
+    index = line.index
+    right: RightSide
+    try:
+        parse_zero_or_more_spaces(line)
+        parse_eol(line)
+        right = Empty()
+    except RuleParseError:
+        line.index = index
+        parse_one_or_more_spaces(line)
+        right = parse_right(line)
+        parse_eol(line)
+
+    return Rule(left, name, head, right)
+
+
+def parse_transformation(line: Line) -> Transformation:
+    rule = parse_rule(line)
+
+    if rule.name == "":
+        return RenamingParentsTf(ExactTf(rule))
+    elif rule.name == "exact":
+        return ExactTf(rule)
+    elif rule.name == "name":
+        return RenamingPartsTf(ExactTf(rule))
+    elif rule.name == "re":
+        return RenamingParentsTf(ExactReTf(rule))
+    elif rule.name == "exact-re":
+        return ExactReTf(rule)
+    elif rule.name == "name-re":
+        return RenamingPartsTf(ExactReTf(rule))
     else:
-        right = False
-    rightpath: Union[PurePath, bool]
-    if isinstance(right, bool):
-        rightpath = right
-    else:
-        rightpath = PurePath(right)
-
-    parse_eol(line)
-
-    # Dispatch
-    if arrowname == "":
-        return NormalRule(leftpath, rightpath)
-    elif arrowname == "name":
-        if len(leftpath.parts) > 1:
-            line.index = leftindex
-            raise RuleParseError(line, "SOURCE must be a single name, not multiple segments")
-        return NameRule(ExactRule(leftpath, rightpath))
-    elif arrowname == "exact":
-        return ExactRule(leftpath, rightpath)
-    elif arrowname == "re":
-        return ReRule(left, right)
-    elif arrowname == "name-re":
-        return NameRule(ReRule(left, right))
-    else:
-        line.index = arrowindex + 1  # For nicer error message
-        raise RuleParseError(line, f"Invalid arrow name {arrowname!r}")
+        raise RuntimeError(f"Invalid arrow name {rule.name!r}")
 
 
 class Transformer:
@@ -347,32 +389,40 @@ class Transformer:
         May throw a RuleParseException.
         """
 
-        self._rules = []
+        self._tfs = []
         for i, line in enumerate(rules.split("\n")):
             line = line.strip()
             if line:
-                rule = parse_rule(Line(line, i))
-                self._rules.append((line, rule))
+                tf = parse_transformation(Line(line, i))
+                self._tfs.append((line, tf))
 
     def transform(self, path: PurePath) -> Optional[PurePath]:
-        for i, (line, rule) in enumerate(self._rules):
+        for i, (line, tf) in enumerate(self._tfs):
             log.explain(f"Testing rule {i+1}: {line}")
 
             try:
-                result = rule.transform(path)
+                result = tf.transform(path)
             except Exception as e:
                 log.warn(f"Error while testing rule {i+1}: {line}")
                 log.warn_contd(str(e))
                 continue
 
-            if isinstance(result, PurePath):
-                log.explain(f"Match found, transformed path to {fmt_path(result)}")
-                return result
-            elif result:  # Exclamation mark
-                log.explain("Match found, path ignored")
-                return None
-            else:
+            if not result:
                 continue
 
-        log.explain("No rule matched, path is unchanged")
+            if isinstance(result, Ignored):
+                log.explain("Match found, path ignored")
+                return None
+
+            if tf.rule.head == ArrowHead.NORMAL:
+                log.explain(f"Match found, transformed path to {fmt_path(result.path)}")
+                path = result.path
+                break
+            elif tf.rule.head == ArrowHead.SEQUENCE:
+                log.explain(f"Match found, updated path to {fmt_path(result.path)}")
+                path = result.path
+            else:
+                raise RuntimeError(f"Invalid transform result of type {type(result)}: {result}")
+
+        log.explain(f"Final result: {fmt_path(path)}")
         return path
