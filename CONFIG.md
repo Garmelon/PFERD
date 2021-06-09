@@ -222,56 +222,87 @@ This authenticator does not support usernames.
 Transformation rules are rules for renaming and excluding files and directories.
 They are specified line-by-line in a crawler's `transform` option. When a
 crawler needs to apply a rule to a path, it goes through this list top-to-bottom
-and choose the first matching rule.
+and applies the first matching rule.
 
 To see this process in action, you can use the `--debug-transforms` or flag or
 the `--explain` flag.
 
-Each line has the format `SOURCE ARROW TARGET` where `TARGET` is optional.
-`SOURCE` is either a normal path without spaces (e. g. `foo/bar`), or a string
-literal delimited by `"` or `'` (e. g. `"foo\" bar/baz"`). Python's string
-escape syntax is supported. Trailing slashes are ignored. `TARGET` can be
-formatted like `SOURCE`, but it can also be a single exclamation mark without
-quotes (`!`). `ARROW` is one of `-->`, `-name->`, `-exact->`, `-re->` and
-`-name-re->`
+Each rule has the format `SOURCE ARROW TARGET` (e. g. `foo/bar --> foo/baz`).
+The arrow specifies how the source and target are interpreted. The different
+kinds of arrows are documented below.
 
-If a rule's target is `!`, this means that when the rule matches on a path, the
-corresponding file or directory is ignored. If a rule's target is missing, the
-path is matched but not modified.
+`SOURCE` and `TARGET` are either a bunch of characters without spaces (e. g.
+`foo/bar`) or string literals (e. g, `"foo/b a r"`). The former syntax has no
+concept of escaping characters, so the backslash is just another character. The
+string literals however support Python's escape syntax (e. g.
+`"foo\\bar\tbaz"`). This also means that in string literals, backslashes must be
+escaped.
+
+`TARGET` can additionally be a single exclamation mark `!` (*not* `"!"`). When a
+rule with a `!` as target matches a path, the corresponding file or directory is
+ignored by the crawler instead of renamed.
+
+`TARGET` can also be omitted entirely. When a rule without target matches a
+path, the path is returned unmodified. This is useful to prevent rules further
+down from matching instead.
+
+Each arrow's behaviour can be modified slightly by changing the arrow's head
+from `>` to `>>`. When a rule with a `>>` arrow head matches a path, it doesn't
+return immediately like a normal arrow. Instead, it replaces the current path
+with its output and continues on to the next rule. In effect, this means that
+multiple rules can be applied sequentially.
 
 ### The `-->` arrow
 
-The `-->` arrow is a basic renaming operation. If a path begins with `SOURCE`,
-that part of the path is replaced with `TARGET`. This means that the rule
-`foo/bar --> baz` would convert `foo/bar` into `baz`, but also `foo/bar/xyz`
-into `baz/xyz`. The rule `foo --> !` would ignore a directory named `foo` as
-well as all its contents.
+The `-->` arrow is a basic renaming operation for files and directories. If a
+path matches `SOURCE`, it is renamed to `TARGET`.
+
+Example: `foo/bar --> baz`
+- Doesn't match `foo`, `a/foo/bar` or `foo/baz`
+- Converts `foo/bar` into `baz`
+- Converts `foo/bar/wargl` into `bar/wargl`
+
+Example: `foo/bar --> !`
+- Doesn't match `foo`, `a/foo/bar` or `foo/baz`
+- Ignores `foo/bar` and any of its children
 
 ### The `-name->` arrow
 
 The `-name->` arrow lets you rename files and directories by their name,
 regardless of where they appear in the file tree. Because of this, its `SOURCE`
 must not contain multiple path segments, only a single name. This restriction
-does not apply to its `TARGET`. The `-name->` arrow is not applied recursively
-to its own output to prevent infinite loops.
+does not apply to its `TARGET`.
 
-For example, the rule `foo -name-> bar/baz` would convert `a/foo` into
-`a/bar/baz` and `a/foo/b/c/foo` into `a/bar/baz/b/c/bar/baz`. The rule `foo
--name-> !` would ignore all directories and files named `foo`.
+Example: `foo -name-> bar/baz`
+- Doesn't match `a/foobar/b` or `x/Foo/y/z`
+- Converts `hello/foo` into `hello/bar/baz`
+- Converts `foo/world` into `bar/baz/world`
+- Converts `a/foo/b/c/foo` into `a/bar/baz/b/c/bar/baz`
+
+Example: `foo -name-> !`
+- Doesn't match `a/foobar/b` or `x/Foo/y/z`
+- Ignores any path containing a segment `foo`
 
 ### The `-exact->` arrow
 
-The `-exact->` arrow requires the path to match `SOURCE` exactly. This means
-that the rule `foo/bar -exact-> baz` would still convert `foo/bar` into `baz`,
-but `foo/bar/xyz` would be unaffected. Also, `foo -exact-> !` would only ignore
-`foo`, but not its contents (if it has any). The examples below show why this is
-useful.
+The `-exact->` arrow requires the path to match `SOURCE` exactly. The examples
+below show why this is useful.
+
+Example: `foo/bar -exact-> baz`
+- Doesn't match `foo`, `a/foo/bar` or `foo/baz`
+- Converts `foo/bar` into `baz`
+- Doesn't match `foo/bar/wargl`
+
+Example: `foo/bar -exact-> !`
+- Doesn't match `foo`, `a/foo/bar` or `foo/baz`
+- Ignores only `foo/bar`, not its children
 
 ### The `-re->` arrow
 
-The `-re->` arrow uses regular expressions. `SOURCE` is a regular expression
-that must match the entire path. If this is the case, then the capturing groups
-are available in `TARGET` for formatting.
+The `-re->` arrow is like the `-->` arrow but with regular expressions. `SOURCE`
+is a regular expression and `TARGET` an f-string based template. If a path
+matches `SOURCE`, the output path is created using `TARGET` as template.
+`SOURCE` is automatically anchored.
 
 `TARGET` uses Python's [format string syntax][3]. The *n*-th capturing group can
 be referred to as `{g<n>}` (e. g. `{g3}`). `{g0}` refers to the original path.
@@ -288,18 +319,36 @@ can use `{i3:05}`.
 PFERD even allows you to write entire expressions inside the curly braces, for
 example `{g2.lower()}` or `{g3.replace(' ', '_')}`.
 
+Example: `f(oo+)/be?ar -re-> B{g1.upper()}H/fear`
+- Doesn't match `a/foo/bar`, `foo/abc/bar`, `afoo/bar` or `foo/bars`
+- Converts `foo/bar` into `BOOH/fear`
+- Converts `fooooo/bear` into `BOOOOOH/fear`
+- Converts `foo/bar/baz` into `BOOH/fear/baz`
+
 [3]: <https://docs.python.org/3/library/string.html#format-string-syntax> "Format String Syntax"
 
 ### The `-name-re->` arrow
 
 The `-name-re>` arrow is like a combination of the `-name->` and `-re->` arrows.
-Instead of the `SOURCE` being the name of a directory or file, it's a regex that
-is matched against the names of directories and files. `TARGET` works like the
-`-re->` arrow's target.
 
-For example, the arrow `(.*)\.jpeg -name-re-> {g1}.jpg` will rename all `.jpeg`
-extensions into `.jpg`. The arrow `\..+ -name-re-> !` will ignore all files and
-directories starting with `.`.
+Example: `(.*)\.jpeg -name-re-> {g1}.jpg`
+- Doesn't match `foo/bar.png`, `baz.JPEG` or `hello,jpeg`
+- Converts `foo/bar.jpeg` into `foo/bar.jpg`
+- Converts `foo.jpeg/bar/baz.jpeg` into `foo.jpg/bar/baz.jpg`
+
+Example: `\..+ -name-re-> !`
+- Doesn't match `.`, `test`, `a.b`
+- Ignores all files and directories starting with `.`.
+
+### The `-exact-re->` arrow
+
+The `-exact-re>` arrow is like a combination of the `-exact->` and `-re->` arrows.
+
+Example: `f(oo+)/be?ar -exactre-> B{g1.upper()}H/fear`
+- Doesn't match `a/foo/bar`, `foo/abc/bar`, `afoo/bar` or `foo/bars`
+- Converts `foo/bar` into `BOOH/fear`
+- Converts `fooooo/bear` into `BOOOOOH/fear`
+- Doesn't match `foo/bar/baz`
 
 ### Example: Tutorials
 
@@ -327,7 +376,7 @@ The second rule is required for many crawlers since they use the rules to decide
 which directories to crawl. If it was missing when the crawler looks at
 `tutorials/`, the third rule would match. This means the crawler would not crawl
 the `tutorials/` directory and thus not discover that `tutorials/tut02/`
-existed.
+exists.
 
 Since the second rule is only relevant for crawling, the `TARGET` is left out.
 
@@ -352,9 +401,9 @@ To do this, you can use the most powerful of arrows: The regex arrow.
 
 Note the escaped backslashes on the `SOURCE` side.
 
-### Example: Crawl a python project
+### Example: Crawl a Python project
 
-You are crawling a python project and want to ignore all hidden files (files
+You are crawling a Python project and want to ignore all hidden files (files
 whose name starts with a `.`), all `__pycache__` directories and all markdown
 files (for some weird reason).
 
@@ -374,8 +423,7 @@ README.md
 ...
 ```
 
-For this task, the name arrows can be used. They are variants of the normal
-arrows that only look at the file name instead of the entire path.
+For this task, the name arrows can be used.
 
 ```
 \..*        -name-re-> !
