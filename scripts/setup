@@ -12,6 +12,6 @@ pip install --upgrade setuptools
 # Installing PFERD itself
 pip install --editable .
 
-# Installing various tools
-pip install --upgrade mypy flake8 autopep8 isort
-pip install --upgrade pyinstaller
+# Installing tools and type hints
+pip install --upgrade mypy flake8 autopep8 isort pyinstaller
+pip install --upgrade types-chardet types-certifi
