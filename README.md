@@ -116,17 +116,18 @@ transform =
   Online-Tests --> !
   Vorlesungswerbung --> !
 
+  # Rename folders
+  Lehrbücher --> Vorlesung
+  # Note the ">>" arrow head which lets us apply further rules to files moved to "Übung"
+  Übungsunterlagen -->> Übung
+
   # Move exercises to own folder. Rename them to "Blatt-XX.pdf" to make them sort properly
-  "Übungsunterlagen/(\d+). Übungsblatt.pdf" -re-> Blätter/Blatt-{i1:02}.pdf
+  "Übung/(\d+). Übungsblatt.pdf" -re-> Blätter/Blatt-{i1:02}.pdf
   # Move solutions to own folder. Rename them to "Blatt-XX-Lösung.pdf" to make them sort properly
-  "Übungsunterlagen/(\d+). Übungsblatt.*Musterlösung.pdf" -re-> Blätter/Blatt-{i1:02}-Lösung.pdf
+  "Übung/(\d+). Übungsblatt.*Musterlösung.pdf" -re-> Blätter/Blatt-{i1:02}-Lösung.pdf
 
   # The course has nested folders with the same name - flatten them
-  "Übungsunterlagen/(.+?)/\\1/(.*)" -re-> Übung/{g1}/{g2}
-
-  # Rename remaining folders
-  Übungsunterlagen --> Übung
-  Lehrbücher --> Vorlesung
+  "Übung/(.+?)/\\1" -re-> Übung/{g1}
 
 [crawl:Bar]
 type = kit-ilias-web
