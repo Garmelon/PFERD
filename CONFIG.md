@@ -430,3 +430,14 @@ For this task, the name arrows can be used.
 __pycache__ -name->    !
 .*\.md      -name-re-> !
 ```
+
+### Example: Clean up names
+
+You want to convert all paths into lowercase and replace spaces with underscores
+before applying any rules. This can be achieved using the `>>` arrow heads.
+
+```
+(.*) -re->> "{g1.lower().replace(' ', '_')}"
+
+<other rules go here>
+```
