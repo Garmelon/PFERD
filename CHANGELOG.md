@@ -22,6 +22,8 @@ ambiguous situations.
 
 ## Unreleased
 
+## 3.1.0 - 2021-06-13
+
 If your config file doesn't do weird things with transforms, it should continue
 to work. If your `-re->` arrows behave weirdly, try replacing them with
 `-exact-re->` arrows. If you're on Windows, you might need to switch from `\`
