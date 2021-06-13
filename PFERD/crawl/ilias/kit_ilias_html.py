@@ -62,9 +62,11 @@ class IliasPage:
         log.explain("Page is a normal folder, searching for elements")
         return self._find_normal_entries()
 
-    def get_next_stage_url(self) -> Optional[str]:
+    def get_next_stage_element(self) -> Optional[IliasPageElement]:
         if self._is_ilias_opencast_embedding():
-            return self.get_child_elements()[0].url
+            return self.get_child_elements()[0]
+        if self._page_type == IliasElementType.VIDEO_FOLDER_MAYBE_PAGINATED:
+            return self._find_video_entries_paginated()[0]
         return None
 
     def _is_video_player(self) -> bool:

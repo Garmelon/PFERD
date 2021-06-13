@@ -248,13 +248,18 @@ instance's greatest bottleneck.
             elements.clear()
             async with cl:
                 next_stage_url: Optional[str] = url
+                current_parent = parent
 
                 while next_stage_url:
                     soup = await self._get_page(next_stage_url)
                     log.explain_topic(f"Parsing HTML page for {fmt_path(path)}")
                     log.explain(f"URL: {next_stage_url}")
-                    page = IliasPage(soup, next_stage_url, parent)
-                    next_stage_url = page.get_next_stage_url()
+                    page = IliasPage(soup, next_stage_url, current_parent)
+                    if next_element := page.get_next_stage_element():
+                        current_parent = next_element
+                        next_stage_url = next_element.url
+                    else:
+                        next_stage_url = None
 
                 elements.extend(page.get_child_elements())
 
