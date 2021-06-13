@@ -342,7 +342,8 @@ Example: `\..+ -name-re-> !`
 
 ### The `-exact-re->` arrow
 
-The `-exact-re>` arrow is like a combination of the `-exact->` and `-re->` arrows.
+The `-exact-re>` arrow is like a combination of the `-exact->` and `-re->`
+arrows.
 
 Example: `f(oo+)/be?ar -exactre-> B{g1.upper()}H/fear`
 - Doesn't match `a/foo/bar`, `foo/abc/bar`, `afoo/bar` or `foo/bars`
@@ -375,8 +376,7 @@ tutorials --> !
 The second rule is required for many crawlers since they use the rules to decide
 which directories to crawl. If it was missing when the crawler looks at
 `tutorials/`, the third rule would match. This means the crawler would not crawl
-the `tutorials/` directory and thus not discover that `tutorials/tut02/`
-exists.
+the `tutorials/` directory and thus not discover that `tutorials/tut02/` exists.
 
 Since the second rule is only relevant for crawling, the `TARGET` is left out.
 

@@ -28,9 +28,9 @@ The use of [venv](https://docs.python.org/3/library/venv.html) is recommended.
 
 ## Basic usage
 
-PFERD can be run directly from the command line with no config file.
-Run `pferd -h` to get an overview of available commands and options.
-Run `pferd <command> -h` to see which options a command has.
+PFERD can be run directly from the command line with no config file. Run `pferd
+-h` to get an overview of available commands and options. Run `pferd <command>
+-h` to see which options a command has.
 
 For example, you can download your personal desktop from the KIT ILIAS like
 this:

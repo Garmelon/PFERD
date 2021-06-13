@@ -22,6 +22,11 @@ ambiguous situations.
 
 ## Unreleased
 
+If your config file doesn't do weird things with transforms, it should continue
+to work. If your `-re->` arrows behave weirdly, try replacing them with
+`-exact-re->` arrows. If you're on Windows, you might need to switch from `\`
+path separators to `/` in your regex rules.
+
 ### Added
 - `skip` option for crawlers
 - Rules with `>>` instead of `>` as arrow head
