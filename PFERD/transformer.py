@@ -142,18 +142,23 @@ class RenamingPartsTf(Transformation):
 
     def transform(self, path: PurePath) -> TransformResult:
         result = PurePath()
+        any_part_matched = False
         for part in path.parts:
             transformed = self.sub_tf.transform(PurePath(part))
             if not transformed:
                 result /= part
             elif isinstance(transformed, Transformed):
                 result /= transformed.path
+                any_part_matched = True
             elif isinstance(transformed, Ignored):
                 return transformed
             else:
                 raise RuntimeError(f"Invalid transform result of type {type(transformed)}: {transformed}")
 
-        return None
+        if any_part_matched:
+            return Transformed(result)
+        else:
+            return None
 
 
 class RuleParseError(Exception):
