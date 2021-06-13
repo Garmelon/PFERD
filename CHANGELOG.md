@@ -38,6 +38,9 @@ path separators to `/` in your regex rules.
 - Use the label to the left for exercises instead of the button name to
   determine the folder name
 
+### Fixed
+- Video pagination handling in ILIAS crawler
+
 ## 3.0.1 - 2021-06-01
 
 ### Added

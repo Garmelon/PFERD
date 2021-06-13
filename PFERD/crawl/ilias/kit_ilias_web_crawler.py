@@ -253,7 +253,7 @@ instance's greatest bottleneck.
                     soup = await self._get_page(next_stage_url)
                     log.explain_topic(f"Parsing HTML page for {fmt_path(path)}")
                     log.explain(f"URL: {next_stage_url}")
-                    page = IliasPage(soup, url, parent)
+                    page = IliasPage(soup, next_stage_url, parent)
                     next_stage_url = page.get_next_stage_url()
 
                 elements.extend(page.get_child_elements())

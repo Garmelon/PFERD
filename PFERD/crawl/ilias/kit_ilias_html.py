@@ -480,7 +480,7 @@ class IliasPage:
             return None
 
         if "opencast" in str(img_tag["alt"]).lower():
-            return IliasElementType.VIDEO_FOLDER
+            return IliasElementType.VIDEO_FOLDER_MAYBE_PAGINATED
 
         if str(img_tag["src"]).endswith("icon_exc.svg"):
             return IliasElementType.EXERCISE
