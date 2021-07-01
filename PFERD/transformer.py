@@ -41,9 +41,11 @@ TransformResult = Optional[Union[Transformed, Ignored]]
 @dataclass
 class Rule:
     left: str
+    left_index: int
     name: str
     head: ArrowHead
     right: RightSide
+    right_index: int
 
     def right_result(self, path: PurePath) -> Union[str, Transformed, Ignored]:
         if isinstance(self.right, str):
@@ -345,6 +347,7 @@ def parse_eol(line: Line) -> None:
 
 def parse_rule(line: Line) -> Rule:
     parse_zero_or_more_spaces(line)
+    left_index = line.index
     left = parse_left(line)
 
     parse_one_or_more_spaces(line)
@@ -354,19 +357,19 @@ def parse_rule(line: Line) -> Rule:
     line.expect("-")
     head = parse_arrow_head(line)
 
-    index = line.index
+    right_index = line.index
     right: RightSide
     try:
         parse_zero_or_more_spaces(line)
         parse_eol(line)
         right = Empty()
     except RuleParseError:
-        line.index = index
+        line.index = right_index
         parse_one_or_more_spaces(line)
         right = parse_right(line)
         parse_eol(line)
 
-    return Rule(left, name, head, right)
+    return Rule(left, left_index, name, head, right, right_index)
 
 
 def parse_transformation(line: Line) -> Transformation:
@@ -377,6 +380,9 @@ def parse_transformation(line: Line) -> Transformation:
     elif rule.name == "exact":
         return ExactTf(rule)
     elif rule.name == "name":
+        if len(PurePath(rule.left).parts) > 1:
+            line.index = rule.left_index
+            raise RuleParseError(line, "Expected name, not multiple segments")
         return RenamingPartsTf(ExactTf(rule))
     elif rule.name == "re":
         return RenamingParentsTf(ExactReTf(rule))
