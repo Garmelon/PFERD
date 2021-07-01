@@ -182,6 +182,14 @@ PARSER.add_argument(
     " Can be specified multiple times to execute multiple crawlers"
 )
 PARSER.add_argument(
+    "--skip", "-S",
+    action="append",
+    type=str,
+    metavar="NAME",
+    help="don't execute this particular crawler."
+    " Can be specified multiple times to skip multiple crawlers"
+)
+PARSER.add_argument(
     "--working-dir",
     type=Path,
     metavar="PATH",

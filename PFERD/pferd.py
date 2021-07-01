@@ -15,13 +15,13 @@ class PferdLoadError(Exception):
 
 
 class Pferd:
-    def __init__(self, config: Config, cli_crawlers: Optional[List[str]]):
+    def __init__(self, config: Config, cli_crawlers: Optional[List[str]], cli_skips: Optional[List[str]]):
         """
         May throw PferdLoadError.
         """
 
         self._config = config
-        self._crawlers_to_run = self._find_crawlers_to_run(config, cli_crawlers)
+        self._crawlers_to_run = self._find_crawlers_to_run(config, cli_crawlers, cli_skips)
 
         self._authenticators: Dict[str, Authenticator] = {}
         self._crawlers: Dict[str, Crawler] = {}
@@ -65,16 +65,30 @@ class Pferd:
 
         return crawlers_to_run
 
-    def _find_crawlers_to_run(self, config: Config, cli_crawlers: Optional[List[str]]) -> List[str]:
+    def _find_crawlers_to_run(
+            self,
+            config: Config,
+            cli_crawlers: Optional[List[str]],
+            cli_skips: Optional[List[str]],
+    ) -> List[str]:
         log.explain_topic("Deciding which crawlers to run")
 
+        crawlers: List[str]
         if cli_crawlers is None:
             log.explain("No crawlers specified on CLI")
             log.explain("Running crawlers specified in config")
-            return self._find_config_crawlers(config)
+            crawlers = self._find_config_crawlers(config)
         else:
             log.explain("Crawlers specified on CLI")
-            return self._find_cli_crawlers(config, cli_crawlers)
+            crawlers = self._find_cli_crawlers(config, cli_crawlers)
+
+        skips = {f"crawl:{name}" for name in cli_skips} if cli_skips else set()
+        for crawler in crawlers:
+            if crawler in skips:
+                log.explain(f"Skipping crawler {crawler!r}")
+        crawlers = [crawler for crawler in crawlers if crawler not in skips]
+
+        return crawlers
 
     def _load_authenticators(self) -> None:
         for name, section in self._config.auth_sections():

@@ -116,7 +116,7 @@ def main() -> None:
         sys.exit()
 
     try:
-        pferd = Pferd(config, args.crawler)
+        pferd = Pferd(config, args.crawler, args.skip)
     except PferdLoadError as e:
         log.unlock()
         log.error(str(e))
