@@ -247,13 +247,12 @@ instance's greatest bottleneck.
         maybe_cl = await self.crawl(path)
         if not maybe_cl:
             return None
-        return self._crawl_ilias_page(url, parent, path, maybe_cl)
+        return self._crawl_ilias_page(url, parent, maybe_cl)
 
     async def _crawl_ilias_page(
         self,
         url: str,
         parent: IliasPageElement,
-        path: PurePath,
         cl: CrawlToken,
     ) -> None:
         elements: List[IliasPageElement] = []
@@ -267,7 +266,7 @@ instance's greatest bottleneck.
 
                 while next_stage_url:
                     soup = await self._get_page(next_stage_url)
-                    log.explain_topic(f"Parsing HTML page for {fmt_path(path)}")
+                    log.explain_topic(f"Parsing HTML page for {fmt_path(cl.path)}")
                     log.explain(f"URL: {next_stage_url}")
                     page = IliasPage(soup, next_stage_url, current_parent)
                     if next_element := page.get_next_stage_element():
