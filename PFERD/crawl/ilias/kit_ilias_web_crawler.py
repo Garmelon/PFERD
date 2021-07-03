@@ -12,7 +12,7 @@ from ...config import Config
 from ...logging import ProgressBar, log
 from ...output_dir import FileSink, Redownload
 from ...utils import fmt_path, soupify, url_set_query_param
-from ..crawler import CrawlError, CrawlWarning, anoncritical
+from ..crawler import CrawlError, CrawlToken, CrawlWarning, DownloadToken, anoncritical
 from ..http_crawler import HttpCrawler, HttpCrawlerSection
 from .file_templates import Links
 from .kit_ilias_html import IliasElementType, IliasPage, IliasPageElement
@@ -81,17 +81,16 @@ _VIDEO_ELEMENTS: Set[IliasElementType] = set([
     IliasElementType.VIDEO_FOLDER_MAYBE_PAGINATED,
 ])
 
-AWrapped = TypeVar("AWrapped", bound=Callable[..., Awaitable[None]])
+AWrapped = TypeVar("AWrapped", bound=Callable[..., Awaitable[Optional[Any]]])
 
 
 def _iorepeat(attempts: int, name: str) -> Callable[[AWrapped], AWrapped]:
     def decorator(f: AWrapped) -> AWrapped:
-        async def wrapper(*args: Any, **kwargs: Any) -> None:
+        async def wrapper(*args: Any, **kwargs: Any) -> Optional[Any]:
             last_exception: Optional[BaseException] = None
             for round in range(attempts):
                 try:
-                    await f(*args, **kwargs)
-                    return
+                    return await f(*args, **kwargs)
                 except aiohttp.ContentTypeError:  # invalid content type
                     raise CrawlWarning("ILIAS returned an invalid content type")
                 except aiohttp.TooManyRedirects:
@@ -230,17 +229,33 @@ instance's greatest bottleneck.
 
         # Fill up our task list with the found elements
         await gather_elements()
-        tasks = [self._handle_ilias_element(PurePath("."), element) for element in elements]
+
+        tasks: List[Awaitable[None]] = []
+        for element in elements:
+            if handle := await self._handle_ilias_element(PurePath("."), element):
+                tasks.append(asyncio.create_task(handle))
 
         # And execute them
         await self.gather(tasks)
 
-    async def _handle_ilias_page(self, url: str, parent: IliasPageElement, path: PurePath) -> None:
+    async def _handle_ilias_page(
+        self,
+        url: str,
+        parent: IliasPageElement,
+        path: PurePath,
+    ) -> Optional[Awaitable[None]]:
         maybe_cl = await self.crawl(path)
         if not maybe_cl:
-            return
-        cl = maybe_cl  # Not mypy's fault, but explained here: https://github.com/python/mypy/issues/2608
+            return None
+        return self._crawl_ilias_page(url, parent, path, maybe_cl)
 
+    async def _crawl_ilias_page(
+        self,
+        url: str,
+        parent: IliasPageElement,
+        path: PurePath,
+        cl: CrawlToken,
+    ) -> None:
         elements: List[IliasPageElement] = []
 
         @_iorepeat(3, "crawling folder")
@@ -265,7 +280,11 @@ instance's greatest bottleneck.
 
         # Fill up our task list with the found elements
         await gather_elements()
-        tasks = [self._handle_ilias_element(cl.path, element) for element in elements]
+
+        tasks: List[Awaitable[None]] = []
+        for element in elements:
+            if handle := await self._handle_ilias_element(cl.path, element):
+                tasks.append(asyncio.create_task(handle))
 
         # And execute them
         await self.gather(tasks)
@@ -274,7 +293,11 @@ instance's greatest bottleneck.
     # Shouldn't happen but we also really don't want to let I/O errors bubble up to anoncritical.
     # If that happens we will be terminated as anoncritical doesn't tream them as non-critical.
     @_wrap_io_in_warning("handling ilias element")
-    async def _handle_ilias_element(self, parent_path: PurePath, element: IliasPageElement) -> None:
+    async def _handle_ilias_element(
+        self,
+        parent_path: PurePath,
+        element: IliasPageElement,
+    ) -> Optional[Awaitable[None]]:
         element_path = PurePath(parent_path, element.name)
 
         if element.type in _VIDEO_ELEMENTS:
@@ -282,35 +305,41 @@ instance's greatest bottleneck.
             if not self._videos:
                 log.explain("Video crawling is disabled")
                 log.explain("Answer: no")
-                return
+                return None
             else:
                 log.explain("Video crawling is enabled")
                 log.explain("Answer: yes")
 
         if element.type == IliasElementType.FILE:
-            await self._download_file(element, element_path)
+            return await self._handle_file(element, element_path)
         elif element.type == IliasElementType.FORUM:
             log.explain_topic(f"Decision: Crawl {fmt_path(element_path)}")
             log.explain("Forums are not supported")
             log.explain("Answer: No")
+            return None
         elif element.type == IliasElementType.TEST:
             log.explain_topic(f"Decision: Crawl {fmt_path(element_path)}")
             log.explain("Tests contain no relevant files")
             log.explain("Answer: No")
+            return None
         elif element.type == IliasElementType.LINK:
-            await self._download_link(element, element_path)
+            return await self._handle_link(element, element_path)
         elif element.type == IliasElementType.VIDEO:
-            await self._download_file(element, element_path)
+            return await self._handle_file(element, element_path)
         elif element.type == IliasElementType.VIDEO_PLAYER:
-            await self._download_video(element, element_path)
+            return await self._handle_video(element, element_path)
         elif element.type in _DIRECTORY_PAGES:
-            await self._handle_ilias_page(element.url, element, element_path)
+            return await self._handle_ilias_page(element.url, element, element_path)
         else:
             # This will retry it a few times, failing everytime. It doesn't make any network
             # requests, so that's fine.
             raise CrawlWarning(f"Unknown element type: {element.type!r}")
 
-    async def _download_link(self, element: IliasPageElement, element_path: PurePath) -> None:
+    async def _handle_link(
+        self,
+        element: IliasPageElement,
+        element_path: PurePath,
+    ) -> Optional[Awaitable[None]]:
         log.explain_topic(f"Decision: Crawl Link {fmt_path(element_path)}")
         log.explain(f"Links type is {self._links}")
 
@@ -318,32 +347,30 @@ instance's greatest bottleneck.
         link_extension = self._links.extension()
         if not link_template_maybe or not link_extension:
             log.explain("Answer: No")
-            return
+            return None
         else:
             log.explain("Answer: Yes")
-        link_template = link_template_maybe
         element_path = element_path.with_name(element_path.name + link_extension)
 
         maybe_dl = await self.download(element_path, mtime=element.mtime)
         if not maybe_dl:
-            return
-        dl = maybe_dl  # Not mypy's fault, but explained here: https://github.com/python/mypy/issues/2608
+            return None
 
-        @_iorepeat(3, "resolving link")
-        async def impl() -> None:
-            async with dl as (bar, sink):
-                export_url = element.url.replace("cmd=calldirectlink", "cmd=exportHTML")
-                real_url = await self._resolve_link_target(export_url)
+        return self._download_link(element, link_template_maybe, maybe_dl)
 
-                content = link_template
-                content = content.replace("{{link}}", real_url)
-                content = content.replace("{{name}}", element.name)
-                content = content.replace("{{description}}", str(element.description))
-                content = content.replace("{{redirect_delay}}", str(self._link_file_redirect_delay))
-                sink.file.write(content.encode("utf-8"))
-                sink.done()
+    @_iorepeat(3, "resolving link")
+    async def _download_link(self, element: IliasPageElement, link_template: str, dl: DownloadToken) -> None:
+        async with dl as (bar, sink):
+            export_url = element.url.replace("cmd=calldirectlink", "cmd=exportHTML")
+            real_url = await self._resolve_link_target(export_url)
 
-        await impl()
+            content = link_template
+            content = content.replace("{{link}}", real_url)
+            content = content.replace("{{name}}", element.name)
+            content = content.replace("{{description}}", str(element.description))
+            content = content.replace("{{redirect_delay}}", str(self._link_file_redirect_delay))
+            sink.file.write(content.encode("utf-8"))
+            sink.done()
 
     async def _resolve_link_target(self, export_url: str) -> str:
         async with self.session.get(export_url, allow_redirects=False) as resp:
@@ -360,39 +387,43 @@ instance's greatest bottleneck.
 
         raise CrawlError("resolve_link_target failed even after authenticating")
 
-    async def _download_video(self, element: IliasPageElement, element_path: PurePath) -> None:
+    async def _handle_video(
+        self,
+        element: IliasPageElement,
+        element_path: PurePath,
+    ) -> Optional[Awaitable[None]]:
         # Videos will NOT be redownloaded - their content doesn't really change and they are chunky
         maybe_dl = await self.download(element_path, mtime=element.mtime, redownload=Redownload.NEVER)
         if not maybe_dl:
-            return
-        dl = maybe_dl  # Not mypy's fault, but explained here: https://github.com/python/mypy/issues/2608
+            return None
 
-        @_iorepeat(3, "downloading video")
-        async def impl() -> None:
-            assert dl  # The function is only reached when dl is not None
-            async with dl as (bar, sink):
-                page = IliasPage(await self._get_page(element.url), element.url, element)
-                real_element = page.get_child_elements()[0]
+        return self._download_video(element, maybe_dl)
 
-                log.explain(f"Streaming video from real url {real_element.url}")
+    @_iorepeat(3, "downloading video")
+    async def _download_video(self, element: IliasPageElement, dl: DownloadToken) -> None:
+        async with dl as (bar, sink):
+            page = IliasPage(await self._get_page(element.url), element.url, element)
+            real_element = page.get_child_elements()[0]
 
-                await self._stream_from_url(real_element.url, sink, bar, is_video=True)
+            log.explain(f"Streaming video from real url {real_element.url}")
 
-        await impl()
+            await self._stream_from_url(real_element.url, sink, bar, is_video=True)
 
-    async def _download_file(self, element: IliasPageElement, element_path: PurePath) -> None:
+    async def _handle_file(
+        self,
+        element: IliasPageElement,
+        element_path: PurePath,
+    ) -> Optional[Awaitable[None]]:
         maybe_dl = await self.download(element_path, mtime=element.mtime)
         if not maybe_dl:
-            return
-        dl = maybe_dl  # Not mypy's fault, but explained here: https://github.com/python/mypy/issues/2608
+            return None
+        return self._download_file(element, maybe_dl)
 
-        @_iorepeat(3, "downloading file")
-        async def impl() -> None:
-            assert dl  # The function is only reached when dl is not None
-            async with dl as (bar, sink):
-                await self._stream_from_url(element.url, sink, bar, is_video=False)
-
-        await impl()
+    @_iorepeat(3, "downloading file")
+    async def _download_file(self, element: IliasPageElement, dl: DownloadToken) -> None:
+        assert dl  # The function is only reached when dl is not None
+        async with dl as (bar, sink):
+            await self._stream_from_url(element.url, sink, bar, is_video=False)
 
     async def _stream_from_url(self, url: str, sink: FileSink, bar: ProgressBar, is_video: bool) -> None:
         async def try_stream() -> bool:

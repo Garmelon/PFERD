@@ -56,7 +56,7 @@ def noncritical(f: Wrapped) -> Wrapped:
     return wrapper  # type: ignore
 
 
-AWrapped = TypeVar("AWrapped", bound=Callable[..., Awaitable[None]])
+AWrapped = TypeVar("AWrapped", bound=Callable[..., Awaitable[Optional[Any]]])
 
 
 def anoncritical(f: AWrapped) -> AWrapped:
@@ -72,20 +72,22 @@ def anoncritical(f: AWrapped) -> AWrapped:
     Warning: Must only be applied to member functions of the Crawler class!
     """
 
-    async def wrapper(*args: Any, **kwargs: Any) -> None:
+    async def wrapper(*args: Any, **kwargs: Any) -> Optional[Any]:
         if not (args and isinstance(args[0], Crawler)):
             raise RuntimeError("@anoncritical must only applied to Crawler methods")
 
         crawler = args[0]
 
         try:
-            await f(*args, **kwargs)
+            return await f(*args, **kwargs)
         except (CrawlWarning, OutputDirError, MarkDuplicateError, MarkConflictError) as e:
             log.warn(str(e))
             crawler.error_free = False
         except:  # noqa: E722 do not use bare 'except'
             crawler.error_free = False
             raise
+
+        return None
 
     return wrapper  # type: ignore
 
