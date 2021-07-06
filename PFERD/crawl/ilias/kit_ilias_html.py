@@ -22,6 +22,7 @@ class IliasElementType(Enum):
     FOLDER = "folder"
     FORUM = "forum"
     LINK = "link"
+    BOOKING = "booking"
     MEETING = "meeting"
     VIDEO = "video"
     VIDEO_PLAYER = "video_player"
@@ -489,6 +490,9 @@ class IliasPage:
 
         if str(img_tag["src"]).endswith("icon_webr.svg"):
             return IliasElementType.LINK
+
+        if str(img_tag["src"]).endswith("icon_book.svg"):
+            return IliasElementType.BOOKING
 
         if str(img_tag["src"]).endswith("frm.svg"):
             return IliasElementType.FORUM

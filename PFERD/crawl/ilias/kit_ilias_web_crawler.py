@@ -323,6 +323,8 @@ instance's greatest bottleneck.
             return None
         elif element.type == IliasElementType.LINK:
             return await self._handle_link(element, element_path)
+        elif element.type == IliasElementType.BOOKING:
+            return await self._handle_booking(element, element_path)
         elif element.type == IliasElementType.VIDEO:
             return await self._handle_file(element, element_path)
         elif element.type == IliasElementType.VIDEO_PLAYER:
@@ -362,14 +364,56 @@ instance's greatest bottleneck.
         async with dl as (bar, sink):
             export_url = element.url.replace("cmd=calldirectlink", "cmd=exportHTML")
             real_url = await self._resolve_link_target(export_url)
+            self._write_link_content(link_template, real_url, element.name, element.description, sink)
 
-            content = link_template
-            content = content.replace("{{link}}", real_url)
-            content = content.replace("{{name}}", element.name)
-            content = content.replace("{{description}}", str(element.description))
-            content = content.replace("{{redirect_delay}}", str(self._link_file_redirect_delay))
-            sink.file.write(content.encode("utf-8"))
-            sink.done()
+    def _write_link_content(
+        self,
+        link_template: str,
+        url: str,
+        name: str,
+        description: Optional[str],
+        sink: FileSink,
+    ) -> None:
+        content = link_template
+        content = content.replace("{{link}}", url)
+        content = content.replace("{{name}}", name)
+        content = content.replace("{{description}}", str(description))
+        content = content.replace("{{redirect_delay}}", str(self._link_file_redirect_delay))
+        sink.file.write(content.encode("utf-8"))
+        sink.done()
+
+    async def _handle_booking(
+        self,
+        element: IliasPageElement,
+        element_path: PurePath,
+    ) -> Optional[Awaitable[None]]:
+        log.explain_topic(f"Decision: Crawl Booking Link {fmt_path(element_path)}")
+        log.explain(f"Links type is {self._links}")
+
+        link_template_maybe = self._links.template()
+        link_extension = self._links.extension()
+        if not link_template_maybe or not link_extension:
+            log.explain("Answer: No")
+            return None
+        else:
+            log.explain("Answer: Yes")
+        element_path = element_path.with_name(element_path.name + link_extension)
+
+        maybe_dl = await self.download(element_path, mtime=element.mtime)
+        if not maybe_dl:
+            return None
+
+        return self._download_booking(element, link_template_maybe, maybe_dl)
+
+    @_iorepeat(3, "resolving booking")
+    async def _download_booking(
+        self,
+        element: IliasPageElement,
+        link_template: str,
+        dl: DownloadToken,
+    ) -> None:
+        async with dl as (bar, sink):
+            self._write_link_content(link_template, element.url, element.name, element.description, sink)
 
     async def _resolve_link_target(self, export_url: str) -> str:
         async with self.session.get(export_url, allow_redirects=False) as resp:
