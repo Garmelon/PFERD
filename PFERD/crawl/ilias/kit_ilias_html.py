@@ -38,6 +38,17 @@ class IliasPageElement:
     mtime: Optional[datetime] = None
     description: Optional[str] = None
 
+    def id(self) -> str:
+        regexes = [r"eid=(?P<id>[0-9a-z\-]+)", r"file_(?P<id>\d+)", r"ref_id=(?P<id>\d+)"]
+
+        for regex in regexes:
+            if match := re.search(regex, self.url):
+                return match.groupdict()["id"]
+
+        # Fall back to URL
+        log.warn(f"Didn't find identity for {self.name} - {self.url}. Please report this.")
+        return self.url
+
 
 class IliasPage:
 

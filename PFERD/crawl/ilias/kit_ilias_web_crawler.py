@@ -230,6 +230,8 @@ instance's greatest bottleneck.
         # Fill up our task list with the found elements
         await gather_elements()
 
+        elements.sort(key=lambda e: e.id())
+
         tasks: List[Awaitable[None]] = []
         for element in elements:
             if handle := await self._handle_ilias_element(PurePath("."), element):
@@ -279,6 +281,8 @@ instance's greatest bottleneck.
 
         # Fill up our task list with the found elements
         await gather_elements()
+
+        elements.sort(key=lambda e: e.id())
 
         tasks: List[Awaitable[None]] = []
         for element in elements:
