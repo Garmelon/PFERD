@@ -22,6 +22,19 @@ ambiguous situations.
 
 ## Unreleased
 
+### Added
+- `--skip` command line option
+- Support for ILIAS booking objects
+
+### Changed
+- Using multiple path segments on left side of `-name->` now results in an
+  error. This was already forbidden by the documentation but silently accepted
+  by PFERD.
+- More consistent path printing in some `--explain` messages
+
+### Fixed
+- Nondeterministic name deduplication due to ILIAS reordering elements
+
 ## 3.1.0 - 2021-06-13
 
 If your config file doesn't do weird things with transforms, it should continue
