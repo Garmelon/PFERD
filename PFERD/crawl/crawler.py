@@ -320,6 +320,7 @@ class Crawler(ABC):
             log.explain("Warnings or errors occurred during this run")
             log.explain("Answer: No")
 
+    @anoncritical
     async def run(self) -> None:
         """
         Start the crawling process. Call this function if you want to use a

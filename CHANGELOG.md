@@ -34,6 +34,7 @@ ambiguous situations.
 
 ### Fixed
 - Nondeterministic name deduplication due to ILIAS reordering elements
+- More exceptions are handled properly
 
 ## 3.1.0 - 2021-06-13
 
