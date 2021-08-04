@@ -22,6 +22,8 @@ ambiguous situations.
 
 ## Unreleased
 
+## 3.2.0 - 2021-08-04
+
 ### Added
 - `--skip` command line option
 - Support for ILIAS booking objects
