@@ -26,6 +26,10 @@ $ pip install --upgrade git+https://github.com/Garmelon/PFERD@latest
 
 The use of [venv](https://docs.python.org/3/library/venv.html) is recommended.
 
+### Using a package manager
+
+[![Packaging status](https://repology.org/badge/vertical-allrepos/pferd.svg)](https://repology.org/project/pferd/versions)
+
 ## Basic usage
 
 PFERD can be run directly from the command line with no config file. Run `pferd
