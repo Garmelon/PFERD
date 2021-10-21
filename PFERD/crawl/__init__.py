@@ -5,6 +5,7 @@ from ..auth import Authenticator
 from ..config import Config
 from .crawler import Crawler, CrawlError, CrawlerSection  # noqa: F401
 from .ilias import KitIliasWebCrawler, KitIliasWebCrawlerSection
+from .kit_ipd_crawler import KitIpdCrawler, KitIpdCrawlerSection
 from .local_crawler import LocalCrawler, LocalCrawlerSection
 
 CrawlerConstructor = Callable[[
@@ -19,4 +20,6 @@ CRAWLERS: Dict[str, CrawlerConstructor] = {
         LocalCrawler(n, LocalCrawlerSection(s), c),
     "kit-ilias-web": lambda n, s, c, a:
         KitIliasWebCrawler(n, KitIliasWebCrawlerSection(s), c, a),
+    "kit-ipd": lambda n, s, c, a:
+        KitIpdCrawler(n, KitIpdCrawlerSection(s), c),
 }

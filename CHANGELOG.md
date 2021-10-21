@@ -27,6 +27,7 @@ ambiguous situations.
 ### Added
 - `--skip` command line option
 - Support for ILIAS booking objects
+- A KIT IPD crawler
 
 ### Changed
 - Using multiple path segments on left side of `-name->` now results in an

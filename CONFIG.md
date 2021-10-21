@@ -136,6 +136,13 @@ crawler simulate a slower, network-based crawler.
   requests. (Default: `0.0`)
 - `download_speed`: Download speed (in bytes per second) to simulate. (Optional)
 
+### The `kit-ipd` crawler
+
+This crawler crals a KIT ipd page by url. The root page can be crawled from
+outside the KIT network so you will be informed about any new/deleted files,
+but downloading files requires you to be within. Adding a show delay between
+requests is likely a good idea.
+
 ### The `kit-ilias-web` crawler
 
 This crawler crawls the KIT ILIAS instance.
