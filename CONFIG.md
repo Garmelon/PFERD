@@ -36,7 +36,7 @@ Sections whose names start with `crawl:` are used to configure crawlers. The
 rest of the section name specifies the name of the crawler.
 
 A crawler synchronizes a remote resource to a local directory. There are
-different types of crawlers for different kinds of resources, e. g. ILIAS
+different types of crawlers for different kinds of resources, e.g. ILIAS
 courses or lecture websites.
 
 Each crawl section represents an instance of a specific type of crawler. The
@@ -53,7 +53,7 @@ common to all crawlers:
   crawler can still be executed manually using the `--crawler` or `-C` flags.
   (Default: `no`)
 - `output_dir`: The directory the crawler synchronizes files to. A crawler will
-  never place any files outside of this directory. (Default: the crawler's name)
+  never place any files outside this directory. (Default: the crawler's name)
 - `redownload`: When to download a file that is already present locally.
   (Default: `never-smart`)
     - `never`: If a file is present locally, it is not downloaded again.
@@ -138,7 +138,7 @@ crawler simulate a slower, network-based crawler.
 
 ### The `kit-ipd` crawler
 
-This crawler crals a KIT ipd page by url. The root page can be crawled from
+This crawler crawls a KIT ipd page by url. The root page can be crawled from
 outside the KIT network so you will be informed about any new/deleted files,
 but downloading files requires you to be within. Adding a show delay between
 requests is likely a good idea.
@@ -312,11 +312,11 @@ matches `SOURCE`, the output path is created using `TARGET` as template.
 `SOURCE` is automatically anchored.
 
 `TARGET` uses Python's [format string syntax][3]. The *n*-th capturing group can
-be referred to as `{g<n>}` (e. g. `{g3}`). `{g0}` refers to the original path.
+be referred to as `{g<n>}` (e.g. `{g3}`). `{g0}` refers to the original path.
 If capturing group *n*'s contents are a valid integer, the integer value is
-available as `{i<n>}` (e. g. `{i3}`). If capturing group *n*'s contents are a
-valid float, the float value is available as `{f<n>}` (e. g. `{f3}`). If a
-capturing group is not present (e. g. when matching the string `cd` with the
+available as `{i<n>}` (e.g. `{i3}`). If capturing group *n*'s contents are a
+valid float, the float value is available as `{f<n>}` (e.g. `{f3}`). If a
+capturing group is not present (e.g. when matching the string `cd` with the
 regex `(ab)?cd`), the corresponding variables are not defined.
 
 Python's format string syntax has rich options for formatting its arguments. For
