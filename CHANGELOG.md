@@ -25,6 +25,9 @@ ambiguous situations.
 ### Added
 - A KIT IPD crawler
 
+### Removed
+- [Interpolation](https://docs.python.org/3/library/configparser.html#interpolation-of-values) in config file
+
 ## 3.2.0 - 2021-08-04
 
 ### Added
