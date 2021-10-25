@@ -88,17 +88,18 @@ class KitIpdCrawler(HttpCrawler):
         folder_tags: Set[Tag] = set()
 
         for element in elements:
-            enclosing_data: Tag = element.findParent(name="td")
-            label: Tag = enclosing_data.findPreviousSibling(name="td")
+            enclosing_table: Tag = element.findParent(name="table")
+            label: Tag = enclosing_table.findPreviousSibling(name="h3")
             folder_tags.add(label)
 
+        print(folder_tags)
         return folder_tags
 
     def _extract_folder(self, folder_tag: Tag) -> KitIpdFolder:
         name = folder_tag.getText().strip()
         files: List[KitIpdFile] = []
 
-        container: Tag = folder_tag.findNextSibling(name="td")
+        container: Tag = folder_tag.findNextSibling(name="table")
         for link in self._find_file_links(container):
             files.append(self._extract_file(link))
 
@@ -109,10 +110,9 @@ class KitIpdCrawler(HttpCrawler):
         return KitIpdFolder(name, files)
 
     def _extract_file(self, link: Tag) -> KitIpdFile:
-        name = link.getText().strip()
         url = self._abs_url_from_link(link)
-        _, extension = os.path.splitext(url)
-        return KitIpdFile(name + extension, url)
+        name = os.path.basename(url)
+        return KitIpdFile(name, url)
 
     def _find_file_links(self, tag: Union[Tag, BeautifulSoup]) -> List[Tag]:
         return tag.findAll(name="a", attrs={"href": lambda x: x and "intern" in x})
