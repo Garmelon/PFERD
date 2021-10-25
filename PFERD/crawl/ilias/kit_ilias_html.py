@@ -368,6 +368,8 @@ class IliasPage:
             log.explain(f"Found {element_name!r}")
             result.append(IliasPageElement(element_type, abs_url, element_name, description=description))
 
+        result += self._find_cards()
+
         return result
 
     def _find_upwards_folder_hierarchy(self, tag: Tag) -> List[str]:
@@ -449,6 +451,90 @@ class IliasPage:
 
         log.explain(f"Found file {full_path!r}")
         return IliasPageElement(IliasElementType.FILE, url, full_path, modification_date)
+
+    def _find_cards(self) -> List[IliasPageElement]:
+        result: List[IliasPageElement] = []
+
+        card_titles: List[Tag] = self._soup.select(".card-title a")
+
+        for title in card_titles:
+            url = self._abs_url_from_link(title)
+            name = _sanitize_path_name(title.getText().strip())
+            type = self._find_type_from_card(title)
+
+            if not type:
+                _unexpected_html_warning()
+                log.warn_contd(f"Could not extract type for {title}")
+                continue
+
+            result.append(IliasPageElement(type, url, name))
+
+        card_button_tiles: List[Tag] = self._soup.select(".card-title button")
+
+        for button in card_button_tiles:
+            regex = re.compile(button["id"] + r".*window.open\(['\"](.+?)['\"]")
+            res = regex.search(str(self._soup))
+            if not res:
+                _unexpected_html_warning()
+                log.warn_contd(f"Could not find click handler target for {button}")
+                continue
+            url = self._abs_url_from_relative(res.group(1))
+            name = _sanitize_path_name(button.getText().strip())
+            type = self._find_type_from_card(button)
+            caption_parent = button.findParent(
+                "div",
+                attrs={"class": lambda x: x and "caption" in x},
+            )
+            description = caption_parent.find_next_sibling("div").getText().strip()
+
+            if not type:
+                _unexpected_html_warning()
+                log.warn_contd(f"Could not extract type for {button}")
+                continue
+
+            result.append(IliasPageElement(type, url, name, description=description))
+
+        return result
+
+    def _find_type_from_card(self, card_title: Tag) -> Optional[IliasElementType]:
+        def is_card_root(element: Tag) -> bool:
+            return "il-card" in element["class"] and "thumbnail" in element["class"]
+
+        card_root: Optional[Tag] = None
+
+        # We look for the card root
+        for parent in card_title.parents:
+            if is_card_root(parent):
+                card_root = parent
+                break
+
+        if card_root is None:
+            _unexpected_html_warning()
+            log.warn_contd(f"Tried to figure out element type, but did not find an icon for {card_title}")
+            return None
+
+        icon: Tag = card_root.select_one(".il-card-repository-head .icon")
+
+        if "opencast" in icon["class"]:
+            return IliasElementType.VIDEO_FOLDER_MAYBE_PAGINATED
+        if "exc" in icon["class"]:
+            return IliasElementType.EXERCISE
+        if "webr" in icon["class"]:
+            return IliasElementType.LINK
+        if "book" in icon["class"]:
+            return IliasElementType.BOOKING
+        if "frm" in icon["class"]:
+            return IliasElementType.FORUM
+        if "sess" in icon["class"]:
+            return IliasElementType.MEETING
+        if "tst" in icon["class"]:
+            return IliasElementType.TEST
+        if "fold" in icon["class"]:
+            return IliasElementType.FOLDER
+
+        _unexpected_html_warning()
+        log.warn_contd(f"Could not extract type from {icon} for card title {card_title}")
+        return None
 
     @staticmethod
     def _find_type_from_link(
@@ -550,7 +636,13 @@ class IliasPage:
         """
         Create an absolute url from an <a> tag.
         """
-        return urljoin(self._page_url, link_tag.get("href"))
+        return self._abs_url_from_relative(link_tag.get("href"))
+
+    def _abs_url_from_relative(self, relative_url: str) -> str:
+        """
+        Create an absolute url from a relative URL.
+        """
+        return urljoin(self._page_url, relative_url)
 
 
 def _unexpected_html_warning() -> None:
