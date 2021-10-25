@@ -5,10 +5,10 @@ which is followed by a list of `key = value` pairs. Comments must be on their
 own line and start with `#`. Multiline values must be indented beyond their key.
 Boolean values can be `yes` or `no`. For more details and some examples on the
 format, see the [configparser documentation][1] ([basic interpolation][2] is
-enabled).
+disabled).
 
 [1]: <https://docs.python.org/3/library/configparser.html#supported-ini-file-structure> "Supported INI File Structure"
-[2]: <https://docs.python.org/3/library/configparser.html#configparser.BasicInterpolation> "BasicInterpolation"
+[2]: <https://docs.python.org/3/library/configparser.html#interpolation-of-values> "BasicInterpolation"
 
 ## The `DEFAULT` section
 
