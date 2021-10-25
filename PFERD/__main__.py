@@ -15,7 +15,7 @@ from .transformer import RuleParseError
 
 def load_config_parser(args: argparse.Namespace) -> configparser.ConfigParser:
     log.explain_topic("Loading config")
-    parser = configparser.ConfigParser()
+    parser = configparser.ConfigParser(interpolation=None)
 
     if args.command is None:
         log.explain("No CLI command specified, loading config from file")

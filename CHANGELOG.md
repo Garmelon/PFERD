@@ -25,6 +25,9 @@ ambiguous situations.
 ### Added
 - A KIT IPD crawler
 
+### Removed
+- Interpolation of ConfigParser
+
 ## 3.2.0 - 2021-08-04
 
 ### Added
