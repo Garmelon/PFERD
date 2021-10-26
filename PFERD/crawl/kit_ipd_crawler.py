@@ -93,7 +93,8 @@ class KitIpdCrawler(HttpCrawler):
             if (enclosing_table) is None:
                 continue
             label: Tag = enclosing_table.findPreviousSibling(name=re.compile('^h[1-6]$'))
-            folder_tags.add(label)
+            if label is not None:
+                folder_tags.add(label)
 
         print(folder_tags)
         return folder_tags
