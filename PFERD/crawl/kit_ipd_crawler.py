@@ -1,4 +1,5 @@
 import os
+import re
 from dataclasses import dataclass
 from pathlib import PurePath
 from typing import List, Set, Union
@@ -89,7 +90,9 @@ class KitIpdCrawler(HttpCrawler):
 
         for element in elements:
             enclosing_table: Tag = element.findParent(name="table")
-            label: Tag = enclosing_table.findPreviousSibling(name="h3")
+            if (enclosing_table) is None:
+                continue
+            label: Tag = enclosing_table.findPreviousSibling(name=re.compile('^h[1-6]$'))
             folder_tags.add(label)
 
         print(folder_tags)
@@ -115,7 +118,7 @@ class KitIpdCrawler(HttpCrawler):
         return KitIpdFile(name, url)
 
     def _find_file_links(self, tag: Union[Tag, BeautifulSoup]) -> List[Tag]:
-        return tag.findAll(name="a", attrs={"href": lambda x: x and "intern" in x})
+        return tag.findAll(name="a", attrs={"href": lambda x: x and ".pdf" in x})
 
     def _abs_url_from_link(self, link_tag: Tag) -> str:
         return urljoin(self._url, link_tag.get("href"))
