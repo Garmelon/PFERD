@@ -98,7 +98,6 @@ class KitIpdCrawler(HttpCrawler):
             if label is not None:
                 folder_tags.add(label)
 
-        print(folder_tags)
         return folder_tags
 
     def _extract_folder(self, folder_tag: Tag) -> KitIpdFolder:
