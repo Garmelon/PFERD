@@ -49,6 +49,8 @@ class KitIpdCrawler(HttpCrawler):
     ):
         super().__init__(name, section, config)
         self._url = section.target()
+        self._config = filter(lambda t: t[0] == name, config.crawl_sections()).__next__()[1]
+        self._file_regex = self._fetch_file_regex()
 
     async def _run(self) -> None:
         maybe_cl = await self.crawl(PurePath("."))
@@ -119,8 +121,12 @@ class KitIpdCrawler(HttpCrawler):
         return KitIpdFile(name, url)
 
     def _find_file_links(self, tag: Union[Tag, BeautifulSoup]) -> List[Tag]:
-        return tag.findAll(name="a", attrs={"href": lambda x: x and ".pdf" in x})
+        return tag.findAll(name="a", attrs={"href": self._file_regex})
 
+    def _fetch_file_regex(self) -> re.Pattern:
+        if "link_regex" in self._config:
+            return re.compile(self._config["link_regex"])
+        return re.compile(".*\/[^\/]*\.(?:(?:pdf)|(?:zip)|(?:c)|(?:java))")
     def _abs_url_from_link(self, link_tag: Tag) -> str:
         return urljoin(self._url, link_tag.get("href"))
 
