@@ -133,9 +133,21 @@ class IliasPage:
 
         # parse it
         json_object = json.loads(json_str)
-        # and fetch the video url!
-        video_url = json_object["streams"][0]["sources"]["mp4"][0]["src"]
-        return [IliasPageElement(IliasElementType.VIDEO, video_url, self._source_name)]
+        streams = [stream for stream in json_object["streams"] if stream["type"] == "video"]
+
+        # and just fetch the lone video url!
+        if len(streams) == 1:
+            video_url = streams[0]["sources"]["mp4"][0]["src"]
+            return [IliasPageElement(IliasElementType.VIDEO, video_url, self._source_name)]
+
+        log.explain(f"Found multiple videos for stream at {self._source_name}")
+        items = []
+        for stream in sorted(streams, key=lambda stream: stream["content"]):
+            full_name = f"{self._source_name.replace('.mp4', '')} ({stream['content']}).mp4"
+            video_url = stream["sources"]["mp4"][0]["src"]
+            items.append(IliasPageElement(IliasElementType.VIDEO, video_url, full_name))
+
+        return items
 
     def _find_video_entries(self) -> List[IliasPageElement]:
         # ILIAS has three stages for video pages

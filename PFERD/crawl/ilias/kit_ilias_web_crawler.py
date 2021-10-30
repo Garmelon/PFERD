@@ -1,7 +1,7 @@
 import asyncio
 import re
 from pathlib import PurePath
-from typing import Any, Awaitable, Callable, Dict, List, Optional, Set, TypeVar, Union
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Set, TypeVar, Union, cast
 
 import aiohttp
 from aiohttp import hdrs
@@ -439,22 +439,90 @@ instance's greatest bottleneck.
         element: IliasPageElement,
         element_path: PurePath,
     ) -> Optional[Awaitable[None]]:
-        # Videos will NOT be redownloaded - their content doesn't really change and they are chunky
-        maybe_dl = await self.download(element_path, mtime=element.mtime, redownload=Redownload.NEVER)
-        if not maybe_dl:
+        # Copy old mapping as it is likely still relevant
+        if self.prev_report:
+            self.report.add_custom_value(
+                str(element_path),
+                self.prev_report.get_custom_value(str(element_path))
+            )
+
+        # A video might contain other videos, so let's "crawl" the video first
+        # to ensure rate limits apply. This must be a download as *this token*
+        # is re-used if the video consists of a single stream. In that case the
+        # file name is used and *not* the stream name the ilias html parser reported
+        # to ensure backwards compatibility.
+        maybe_dl = await self.download(element_path, redownload=Redownload.ALWAYS)
+
+        # If we do not want to crawl it (user filter) or we have every file
+        # from the cached mapping already, we can ignore this and bail
+        if not maybe_dl or self._all_videos_locally_present(element_path):
+            # Mark all existing cideos as known so they do not get deleted
+            # during dleanup. We "downloaded" them, just without actually making
+            # a network request as we assumed they did not change.
+            for video in self._previous_contained_videos(element_path):
+                await self.download(video)
+
             return None
 
-        return self._download_video(element, maybe_dl)
+        return self._download_video(element_path, element, maybe_dl)
+
+    def _previous_contained_videos(self, video_path: PurePath) -> List[PurePath]:
+        if not self.prev_report:
+            return []
+        custom_value = self.prev_report.get_custom_value(str(video_path))
+        if not custom_value:
+            return []
+        names = cast(List[str], custom_value)
+        folder = video_path.parent
+        return [PurePath(folder, name) for name in names]
+
+    def _all_videos_locally_present(self, video_path: PurePath) -> bool:
+        if contained_videos := self._previous_contained_videos(video_path):
+            log.explain_topic(f"Checking local cache for video {video_path.name}")
+            all_found_locally = True
+            for video in contained_videos:
+                all_found_locally = all_found_locally and self._output_dir.resolve(video).exists()
+            if all_found_locally:
+                log.explain("Found all videos locally, skipping enumeration request")
+                return True
+            log.explain("Missing at least one video, continuing with requests!")
+        return False
 
     @_iorepeat(3, "downloading video")
-    async def _download_video(self, element: IliasPageElement, dl: DownloadToken) -> None:
+    async def _download_video(
+        self,
+        original_path: PurePath,
+        element: IliasPageElement,
+        dl: DownloadToken
+    ) -> None:
+        stream_elements: List[IliasPageElement] = []
         async with dl as (bar, sink):
             page = IliasPage(await self._get_page(element.url), element.url, element)
-            real_element = page.get_child_elements()[0]
+            stream_elements = page.get_child_elements()
 
-            log.explain(f"Streaming video from real url {real_element.url}")
+            if len(stream_elements) > 1:
+                log.explain(f"Found multiple video streams for {element.name}")
+            else:
+                log.explain(f"Using single video mode for {element.name}")
+                stream_element = stream_elements[0]
+                await self._stream_from_url(stream_element.url, sink, bar, is_video=True)
+                self.report.add_custom_value(str(original_path), [original_path.name])
+                return
 
-            await self._stream_from_url(real_element.url, sink, bar, is_video=True)
+        contained_video_paths: List[str] = []
+
+        for stream_element in stream_elements:
+            contained_video_paths.append(stream_element.name)
+            video_path = original_path.parent / stream_element.name
+
+            maybe_dl = await self.download(video_path, mtime=element.mtime, redownload=Redownload.NEVER)
+            if not maybe_dl:
+                continue
+            async with maybe_dl as (bar, sink):
+                log.explain(f"Streaming video from real url {stream_element.url}")
+                await self._stream_from_url(stream_element.url, sink, bar, is_video=True)
+
+        self.report.add_custom_value(str(original_path), contained_video_paths)
 
     async def _handle_file(
         self,
