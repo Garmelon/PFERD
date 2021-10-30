@@ -24,6 +24,8 @@ ambiguous situations.
 
 ### Added
 - A KIT IPD crawler
+- Support for ILIAS cards
+- Support for multi-stream videos
 
 ### Removed
 - [Interpolation](https://docs.python.org/3/library/configparser.html#interpolation-of-values) in config file
