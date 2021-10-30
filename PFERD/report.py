@@ -1,6 +1,6 @@
 import json
 from pathlib import Path, PurePath
-from typing import Any, Dict, List, Set
+from typing import Any, Dict, List, Optional, Set
 
 
 class ReportLoadError(Exception):
@@ -67,6 +67,7 @@ class Report:
         self.deleted_files: Set[PurePath] = set()
         # Files that should have been deleted by the cleanup but weren't
         self.not_deleted_files: Set[PurePath] = set()
+        self.custom: Dict[str, Any] = dict()
 
     @staticmethod
     def _get_list_of_strs(data: Dict[str, Any], key: str) -> List[str]:
@@ -78,6 +79,15 @@ class Report:
         for elem in result:
             if not isinstance(elem, str):
                 raise ReportLoadError(f"Incorrect format: {key!r} must contain only strings")
+
+        return result
+
+    @staticmethod
+    def _get_str_dictionary(data: Dict[str, Any], key: str) -> Dict[str, Any]:
+        result: Dict[str, Any] = data.get(key, {})
+
+        if not isinstance(result, dict):
+            raise ReportLoadError(f"Incorrect format: {key!r} is not a dictionary")
 
         return result
 
@@ -108,6 +118,7 @@ class Report:
             self.delete_file(PurePath(elem))
         for elem in self._get_list_of_strs(data, "not_deleted"):
             self.not_delete_file(PurePath(elem))
+        self.custom = self._get_str_dictionary(data, "custom")
 
         return self
 
@@ -124,6 +135,7 @@ class Report:
             "changed": [str(path) for path in sorted(self.changed_files)],
             "deleted": [str(path) for path in sorted(self.deleted_files)],
             "not_deleted": [str(path) for path in sorted(self.not_deleted_files)],
+            "custom": self.custom
         }
 
         with open(path, "w") as f:
@@ -190,3 +202,15 @@ class Report:
         """
 
         self.not_deleted_files.add(path)
+
+    def add_custom_value(self, key: str, value: Any) -> None:
+        """
+        Adds a custom value under the passed key, overwriting any existing
+        """
+        self.custom[key] = value
+
+    def get_custom_value(self, key: str) -> Optional[Any]:
+        """
+        Retrieves a custom value for the given key.
+        """
+        return self.custom.get(key)
