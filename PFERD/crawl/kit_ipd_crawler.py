@@ -28,7 +28,7 @@ class KitIpdCrawlerSection(HttpCrawlerSection):
         return target
 
     def link_regex(self) -> Pattern[AnyStr]:
-        regex = self.s.get("link_regex", default=".*/[^/]*\.(?:pdf|zip|c|java)")
+        regex = self.s.get("link_regex", ".*/[^/]*\.(?:pdf|zip|c|java)")
         return re.compile(regex)
 
 
