@@ -125,7 +125,7 @@ class KitIpdCrawler(HttpCrawler):
     def _fetch_file_regex(self) -> re.Pattern:
         if "link_regex" in self._config:
             return re.compile(self._config["link_regex"])
-        return re.compile(".*\/[^\/]*\.(?:(?:pdf)|(?:zip)|(?:c)|(?:java))")
+        return re.compile(".*\/[^\/]*\.(?:pdf|zip|c|java)")
     def _abs_url_from_link(self, link_tag: Tag) -> str:
         return urljoin(self._url, link_tag.get("href"))
 
