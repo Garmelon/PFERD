@@ -5,6 +5,7 @@ from ..config import Config
 from .authenticator import Authenticator, AuthError, AuthLoadError, AuthSection  # noqa: F401
 from .credential_file import CredentialFileAuthenticator, CredentialFileAuthSection
 from .keyring import KeyringAuthenticator, KeyringAuthSection
+from .passauth import PassAuthenticator, PassAuthSection
 from .simple import SimpleAuthenticator, SimpleAuthSection
 from .tfa import TfaAuthenticator
 
@@ -21,6 +22,8 @@ AUTHENTICATORS: Dict[str, AuthConstructor] = {
         KeyringAuthenticator(n, KeyringAuthSection(s)),
     "simple": lambda n, s, c:
         SimpleAuthenticator(n, SimpleAuthSection(s)),
+    "pass": lambda n, s, c:
+        PassAuthenticator(n, PassAuthSection(s), c),
     "tfa": lambda n, s, c:
         TfaAuthenticator(n),
 }
