@@ -1,7 +1,9 @@
 import os
+import re
 from dataclasses import dataclass
 from pathlib import PurePath
-from typing import List, Set, Union
+from re import Pattern
+from typing import List, Set, Union, AnyStr, Optional
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup, Tag
@@ -24,6 +26,10 @@ class KitIpdCrawlerSection(HttpCrawlerSection):
             self.invalid_value("target", target, "Should be a URL")
 
         return target
+
+    def link_regex(self) -> Pattern[AnyStr]:
+        regex = self.s.get("link_regex", "^.*/[^/]*\.(?:pdf|zip|c|java)$")
+        return re.compile(regex)
 
 
 @dataclass
@@ -48,6 +54,7 @@ class KitIpdCrawler(HttpCrawler):
     ):
         super().__init__(name, section, config)
         self._url = section.target()
+        self._file_regex = section.link_regex()
 
     async def _run(self) -> None:
         maybe_cl = await self.crawl(PurePath("."))
@@ -88,19 +95,28 @@ class KitIpdCrawler(HttpCrawler):
         folder_tags: Set[Tag] = set()
 
         for element in elements:
-            enclosing_data: Tag = element.findParent(name="td")
-            label: Tag = enclosing_data.findPreviousSibling(name="td")
-            folder_tags.add(label)
+            folder_label = self._fetch_folder_label(element)
+            if folder_label is None:
+                folder_tags.add(page)
+            else:
+                folder_tags.add(folder_label)
 
         return folder_tags
 
     def _extract_folder(self, folder_tag: Tag) -> KitIpdFolder:
-        name = folder_tag.getText().strip()
         files: List[KitIpdFile] = []
+        # if files have found outside a regular table
+        if not folder_tag.name.startswith("h"):
+            name = "."
+            root_links = filter(lambda f: self._fetch_folder_label(f) is None, self._find_file_links(folder_tag))
+            for link in root_links:
+                files.append(self._extract_file(link))
 
-        container: Tag = folder_tag.findNextSibling(name="td")
-        for link in self._find_file_links(container):
-            files.append(self._extract_file(link))
+        else:
+            name = folder_tag.getText().strip()
+            container: Tag = folder_tag.findNextSibling(name="table")
+            for link in self._find_file_links(container):
+                files.append(self._extract_file(link))
 
         log.explain_topic(f"Found folder {name!r}")
         for file in files:
@@ -108,14 +124,24 @@ class KitIpdCrawler(HttpCrawler):
 
         return KitIpdFolder(name, files)
 
+    @staticmethod
+    def _fetch_folder_label(file_link: Tag) -> Optional[Tag]:
+        enclosing_table: Tag = file_link.findParent(name="table")
+        if enclosing_table is None:
+            return None
+        label: Tag = enclosing_table.findPreviousSibling(name=re.compile("^h[1-6]$"))
+        if label is None:
+            return None
+        else:
+            return label
+
     def _extract_file(self, link: Tag) -> KitIpdFile:
-        name = link.getText().strip()
         url = self._abs_url_from_link(link)
-        _, extension = os.path.splitext(url)
-        return KitIpdFile(name + extension, url)
+        name = os.path.basename(url)
+        return KitIpdFile(name, url)
 
     def _find_file_links(self, tag: Union[Tag, BeautifulSoup]) -> List[Tag]:
-        return tag.findAll(name="a", attrs={"href": lambda x: x and "intern" in x})
+        return tag.findAll(name="a", attrs={"href": self._file_regex})
 
     def _abs_url_from_link(self, link_tag: Tag) -> str:
         return urljoin(self._url, link_tag.get("href"))
