@@ -35,7 +35,7 @@ def load(
     log.explain("Creating config for command 'kit-ipd'")
 
     parser["crawl:kit-ipd"] = {}
-    section = parser["crawl:ipd"]
+    section = parser["crawl:kit-ipd"]
     load_crawler(args, section)
 
     section["type"] = "kit-ipd"
