@@ -3,7 +3,7 @@ import re
 from dataclasses import dataclass
 from pathlib import PurePath
 from re import Pattern
-from typing import List, Set, Union, AnyStr
+from typing import List, Set, Union, AnyStr, Optional
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup, Tag
@@ -95,28 +95,45 @@ class KitIpdCrawler(HttpCrawler):
         folder_tags: Set[Tag] = set()
 
         for element in elements:
-            enclosing_table: Tag = element.findParent(name="table")
-            if (enclosing_table) is None:
-                continue
-            label: Tag = enclosing_table.findPreviousSibling(name=re.compile('^h[1-6]$'))
-            if label is not None:
-                folder_tags.add(label)
+            folder_label = self._fetch_folder_label(element)
+            if folder_label is None:
+                folder_tags.add(page)
+            else:
+                folder_tags.add(folder_label)
 
         return folder_tags
 
     def _extract_folder(self, folder_tag: Tag) -> KitIpdFolder:
-        name = folder_tag.getText().strip()
         files: List[KitIpdFile] = []
+        # if files have found outside a regular table
+        if not folder_tag.name.startswith("h"):
+            name = "."
+            root_links = filter(lambda f: self._fetch_folder_label(f) is None, self._find_file_links(folder_tag))
+            for link in root_links:
+                files.append(self._extract_file(link))
 
-        container: Tag = folder_tag.findNextSibling(name="table")
-        for link in self._find_file_links(container):
-            files.append(self._extract_file(link))
+        else:
+            name = folder_tag.getText().strip()
+            container: Tag = folder_tag.findNextSibling(name="table")
+            for link in self._find_file_links(container):
+                files.append(self._extract_file(link))
 
         log.explain_topic(f"Found folder {name!r}")
         for file in files:
             log.explain(f"Found file {file.name!r}")
 
         return KitIpdFolder(name, files)
+
+    @staticmethod
+    def _fetch_folder_label(file_link: Tag) -> Optional[Tag]:
+        enclosing_table: Tag = file_link.findParent(name="table")
+        if enclosing_table is None:
+            return None
+        label: Tag = enclosing_table.findPreviousSibling(name=re.compile("^h[1-6]$"))
+        if label is None:
+            return None
+        else:
+            return label
 
     def _extract_file(self, link: Tag) -> KitIpdFile:
         url = self._abs_url_from_link(link)
