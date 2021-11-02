@@ -15,6 +15,12 @@ GROUP = SUBPARSER.add_argument_group(
     description="arguments for the 'kit-ipd' crawler",
 )
 GROUP.add_argument(
+    "--link-regex",
+    type=str,
+    metavar="REGEX",
+    help="href-matching regex to identify downloadable files"
+)
+GROUP.add_argument(
     "target",
     type=str,
     metavar="TARGET",
@@ -41,6 +47,8 @@ def load(
     section["type"] = "kit-ipd"
     section["target"] = str(args.target)
     section["output_dir"] = str(args.output)
+    if args.link_regex:
+        section["link_regex"] = str(args.link_regex)
 
 
 SUBPARSER.set_defaults(command=load)

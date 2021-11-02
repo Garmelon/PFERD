@@ -138,10 +138,15 @@ crawler simulate a slower, network-based crawler.
 
 ### The `kit-ipd` crawler
 
-This crawler crawls a KIT ipd page by url. The root page can be crawled from
+This crawler crawls a KIT-IPD page by url. The root page can be crawled from
 outside the KIT network so you will be informed about any new/deleted files,
 but downloading files requires you to be within. Adding a show delay between
 requests is likely a good idea.
+
+- `target`: URL to a KIT-IPD page
+- `link_regex`: A regex that is matched against the `href` part of links. If it
+  matches, the given link is downloaded as a file. This is used to extract
+  files from KIT-IPD pages. (Default: `^.*/[^/]*\.(?:pdf|zip|c|java)$`)
 
 ### The `kit-ilias-web` crawler
 
