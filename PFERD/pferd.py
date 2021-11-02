@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
 
 from rich.markup import escape
 
@@ -43,16 +43,22 @@ class Pferd:
 
         crawl_sections = [name for name, _ in config.crawl_sections()]
 
-        crawlers_to_run = []  # With crawl: prefix
+        crawlers_to_run = set()  # With crawl: prefix
         unknown_names = []  # Without crawl: prefix
 
         for name in cli_crawlers:
             section_name = f"crawl:{name}"
             if section_name in crawl_sections:
                 log.explain(f"Crawler section named {section_name!r} exists")
-                crawlers_to_run.append(section_name)
-            else:
-                log.explain(f"There's no crawler section named {section_name!r}")
+                crawlers_to_run.add(section_name)
+            alias_names = self._find_crawlers_by_alias(name, config)
+            if alias_names:
+                crawlers_to_run.update(alias_names)
+                log.explain_topic(f"Crawler alias {name!r} found corresponding crawler sections:")
+                for alias_name in alias_names:
+                    log.explain(f"Crawler section named {alias_name!r} with alias {name!r} exists")
+            if not section_name in crawl_sections and not alias_names:
+                log.explain(f"There's neither a crawler section named {section_name!r} nor does a crawler with alias {name!r} exist.")
                 unknown_names.append(name)
 
         if unknown_names:
@@ -64,6 +70,14 @@ class Pferd:
                 raise PferdLoadError(f"There are no crawlers named {names_str}")
 
         return crawlers_to_run
+
+    def _find_crawlers_by_alias(self, alias: str, config: Config) -> Set[str]:
+        alias_names = set()
+        for (section_name, section) in config.crawl_sections():
+            section_alias = section.get("alias", [])
+            if alias in section_alias:
+                alias_names.add(section_name)
+        return alias_names
 
     def _find_crawlers_to_run(
             self,
