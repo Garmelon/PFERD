@@ -51,12 +51,14 @@ class Pferd:
             if section_name in crawl_sections:
                 log.explain(f"Crawler section named {section_name!r} exists")
                 crawlers_to_run.add(section_name)
+            # interprete name as alias of a crawler
             alias_names = self._find_crawlers_by_alias(name, config)
             if alias_names:
                 crawlers_to_run.update(alias_names)
                 log.explain_topic(f"Crawler alias {name!r} found corresponding crawler sections:")
                 for alias_name in alias_names:
                     log.explain(f"Crawler section named {alias_name!r} with alias {name!r} exists")
+
             if not section_name in crawl_sections and not alias_names:
                 log.explain(f"There's neither a crawler section named {section_name!r} nor does a crawler with alias {name!r} exist.")
                 unknown_names.append(name)
@@ -74,8 +76,8 @@ class Pferd:
     def _find_crawlers_by_alias(self, alias: str, config: Config) -> Set[str]:
         alias_names = set()
         for (section_name, section) in config.crawl_sections():
-            section_alias = section.get("alias", [])
-            if alias in section_alias:
+            section_aliases = section.get("aliases", [])
+            if alias in section_aliases:
                 alias_names.add(section_name)
         return alias_names
 
