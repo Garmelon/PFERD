@@ -514,7 +514,12 @@ instance's greatest bottleneck.
             else:
                 log.explain(f"Using single video mode for {element.name}")
                 stream_element = stream_elements[0]
-                await self._stream_from_url(stream_element.url, sink, bar, is_video=True)
+
+                # We do not have a local cache yet
+                if self._output_dir.resolve(original_path).exists():
+                    log.explain(f"Video for {element.name} existed locally")
+                else:
+                    await self._stream_from_url(stream_element.url, sink, bar, is_video=True)
                 self.report.add_custom_value(str(original_path), [original_path.name])
                 return
 
