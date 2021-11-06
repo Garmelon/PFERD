@@ -84,7 +84,7 @@ _VIDEO_ELEMENTS: Set[IliasElementType] = set([
 AWrapped = TypeVar("AWrapped", bound=Callable[..., Awaitable[Optional[Any]]])
 
 
-def _iorepeat(attempts: int, name: str) -> Callable[[AWrapped], AWrapped]:
+def _iorepeat(attempts: int, name: str, failure_is_error: bool = False) -> Callable[[AWrapped], AWrapped]:
     def decorator(f: AWrapped) -> AWrapped:
         async def wrapper(*args: Any, **kwargs: Any) -> Optional[Any]:
             last_exception: Optional[BaseException] = None
@@ -105,7 +105,10 @@ def _iorepeat(attempts: int, name: str) -> Callable[[AWrapped], AWrapped]:
 
             if last_exception:
                 message = f"Error in I/O Operation: {last_exception}"
-                raise CrawlWarning(message) from last_exception
+                if failure_is_error:
+                    raise CrawlError(message) from last_exception
+                else:
+                    raise CrawlWarning(message) from last_exception
             raise CrawlError("Impossible return in ilias _iorepeat")
 
         return wrapper  # type: ignore
@@ -251,6 +254,7 @@ instance's greatest bottleneck.
             return None
         return self._crawl_ilias_page(url, parent, maybe_cl)
 
+    @anoncritical
     async def _crawl_ilias_page(
         self,
         url: str,
@@ -292,10 +296,12 @@ instance's greatest bottleneck.
         # And execute them
         await self.gather(tasks)
 
+    # These decorators only apply *to this method* and *NOT* to the returned
+    # awaitables!
+    # This method does not await the handlers but returns them instead.
+    # This ensures one level is handled at a time and name deduplication
+    # works correctly.
     @anoncritical
-    # Shouldn't happen but we also really don't want to let I/O errors bubble up to anoncritical.
-    # If that happens we will be terminated as anoncritical doesn't tream them as non-critical.
-    @_wrap_io_in_warning("handling ilias element")
     async def _handle_ilias_element(
         self,
         parent_path: PurePath,
@@ -363,6 +369,7 @@ instance's greatest bottleneck.
 
         return self._download_link(element, link_template_maybe, maybe_dl)
 
+    @anoncritical
     @_iorepeat(3, "resolving link")
     async def _download_link(self, element: IliasPageElement, link_template: str, dl: DownloadToken) -> None:
         async with dl as (bar, sink):
@@ -409,6 +416,7 @@ instance's greatest bottleneck.
 
         return self._download_booking(element, link_template_maybe, maybe_dl)
 
+    @anoncritical
     @_iorepeat(3, "resolving booking")
     async def _download_booking(
         self,
@@ -488,6 +496,7 @@ instance's greatest bottleneck.
             log.explain("Missing at least one video, continuing with requests!")
         return False
 
+    @anoncritical
     @_iorepeat(3, "downloading video")
     async def _download_video(
         self,
@@ -534,6 +543,7 @@ instance's greatest bottleneck.
             return None
         return self._download_file(element, maybe_dl)
 
+    @anoncritical
     @_iorepeat(3, "downloading file")
     async def _download_file(self, element: IliasPageElement, dl: DownloadToken) -> None:
         assert dl  # The function is only reached when dl is not None
@@ -589,7 +599,7 @@ instance's greatest bottleneck.
 
     # We repeat this as the login method in shibboleth doesn't handle I/O errors.
     # Shibboleth is quite reliable as well, the repeat is likely not critical here.
-    @_iorepeat(3, "Login")
+    @_iorepeat(3, "Login", failure_is_error=True)
     async def _authenticate(self) -> None:
         await self._shibboleth_login.login(self.session)
 
