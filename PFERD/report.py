@@ -67,7 +67,13 @@ class Report:
         self.deleted_files: Set[PurePath] = set()
         # Files that should have been deleted by the cleanup but weren't
         self.not_deleted_files: Set[PurePath] = set()
+
+        # Custom crawler-specific data
         self.custom: Dict[str, Any] = dict()
+
+        # Encountered errors and warnings
+        self.encountered_warnings: List[str] = []
+        self.encountered_errors: List[str] = []
 
     @staticmethod
     def _get_list_of_strs(data: Dict[str, Any], key: str) -> List[str]:
@@ -119,6 +125,8 @@ class Report:
         for elem in self._get_list_of_strs(data, "not_deleted"):
             self.not_delete_file(PurePath(elem))
         self.custom = self._get_str_dictionary(data, "custom")
+        self.encountered_errors = self._get_list_of_strs(data, "encountered_errors")
+        self.encountered_warnings = self._get_list_of_strs(data, "encountered_warnings")
 
         return self
 
@@ -135,7 +143,9 @@ class Report:
             "changed": [str(path) for path in sorted(self.changed_files)],
             "deleted": [str(path) for path in sorted(self.deleted_files)],
             "not_deleted": [str(path) for path in sorted(self.not_deleted_files)],
-            "custom": self.custom
+            "custom": self.custom,
+            "encountered_warnings": self.encountered_warnings,
+            "encountered_errors": self.encountered_errors,
         }
 
         with open(path, "w") as f:
@@ -214,3 +224,15 @@ class Report:
         Retrieves a custom value for the given key.
         """
         return self.custom.get(key)
+
+    def add_error(self, error: str) -> None:
+        """
+        Adds an error to this report's error list.
+        """
+        self.encountered_errors.append(error)
+
+    def add_warning(self, warning: str) -> None:
+        """
+        Adds a warning to this report's warning list.
+        """
+        self.encountered_warnings.append(warning)

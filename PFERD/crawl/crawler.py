@@ -47,10 +47,12 @@ def noncritical(f: Wrapped) -> Wrapped:
         try:
             f(*args, **kwargs)
         except (CrawlWarning, OutputDirError, MarkDuplicateError, MarkConflictError) as e:
+            crawler.report.add_warning(str(e))
             log.warn(str(e))
             crawler.error_free = False
-        except:  # noqa: E722 do not use bare 'except'
+        except Exception as e:
             crawler.error_free = False
+            crawler.report.add_error(str(e))
             raise
 
     return wrapper  # type: ignore
@@ -83,8 +85,10 @@ def anoncritical(f: AWrapped) -> AWrapped:
         except (CrawlWarning, OutputDirError, MarkDuplicateError, MarkConflictError) as e:
             log.warn(str(e))
             crawler.error_free = False
-        except:  # noqa: E722 do not use bare 'except'
+            crawler.report.add_warning(str(e))
+        except Exception as e:
             crawler.error_free = False
+            crawler.report.add_error(str(e))
             raise
 
         return None

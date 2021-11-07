@@ -182,5 +182,13 @@ class Pferd:
                 something_changed = True
                 log.report(f"  [bold bright_magenta]Not deleted[/] {fmt_path(path)}")
 
+            for warning in crawler.report.encountered_warnings:
+                something_changed = True
+                log.report(f"  [bold bright_red]Warning[/] {warning}")
+
+            for error in crawler.report.encountered_errors:
+                something_changed = True
+                log.report(f"  [bold bright_red]Error[/] {error}")
+
             if not something_changed:
                 log.report("  Nothing changed")
