@@ -133,7 +133,7 @@ class IliasPage:
 
         # parse it
         json_object = json.loads(json_str)
-        streams = [stream for stream in json_object["streams"] if stream["type"] == "video"]
+        streams = [stream for stream in json_object["streams"] if stream["content"] == "presentation"]
 
         # and just fetch the lone video url!
         if len(streams) == 1:
@@ -390,12 +390,14 @@ class IliasPage:
             # but some JS later transforms them into an accordion.
 
             # This is for these weird JS-y blocks
-            if "ilContainerItemsContainer" in parent.get("class"):
+            if "il_ContainerItemTitle" in parent.get("class"):
                 # I am currently under the impression that *only* those JS blocks have an
                 # ilNoDisplay class.
                 if "ilNoDisplay" not in parent.get("class"):
                     continue
                 prev: Tag = parent.findPreviousSibling("div")
+                if not prev.get("class"):
+                    continue
                 if "ilContainerBlockHeader" in prev.get("class"):
                     found_titles.append(prev.find("h3").getText().strip())
 

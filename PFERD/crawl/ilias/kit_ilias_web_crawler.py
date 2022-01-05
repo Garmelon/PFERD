@@ -610,9 +610,9 @@ instance's greatest bottleneck.
 
     @staticmethod
     def _is_logged_in(soup: BeautifulSoup) -> bool:
-        # Normal ILIAS pages
-        userlog = soup.find("li", {"id": "userlog"})
-        if userlog is not None:
+        # Normal ILIAS pages  --  not sure if this will work on every page...
+        userlog = soup.find("span", {"class": "glyphicon-login"})
+        if userlog is None:
             return True
         # Video listing embeds do not have complete ILIAS html. Try to match them by
         # their video listing table
