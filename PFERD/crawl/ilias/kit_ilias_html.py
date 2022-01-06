@@ -53,6 +53,7 @@ class IliasPageElement:
 class IliasPage:
 
     def __init__(self, soup: BeautifulSoup, _page_url: str, source_element: Optional[IliasPageElement]):
+        self._desktop_page = False
         self._soup = soup
         self._page_url = _page_url
         self._page_type = source_element.type if source_element else None
@@ -71,7 +72,9 @@ class IliasPage:
         if self._is_exercise_file():
             log.explain("Page is an exercise, searching for elements")
             return self._find_exercise_entries()
+
         log.explain("Page is a normal folder, searching for elements")
+        self._desktop_page = self._is_desktop_page()
         return self._find_normal_entries()
 
     def get_next_stage_element(self) -> Optional[IliasPageElement]:
@@ -114,6 +117,9 @@ class IliasPage:
                 return True
 
         return False
+
+    def _is_desktop_page(self) -> bool:
+        return self._soup.find(id="block_pditems_0") is not None
 
     def _player_to_video(self) -> List[IliasPageElement]:
         # Fetch the actual video page. This is a small wrapper page initializing a javscript
@@ -341,7 +347,7 @@ class IliasPage:
         result: List[IliasPageElement] = []
 
         # Fetch all links and throw them to the general interpreter
-        links: List[Tag] = self._soup.select("a.il_ContainerItemTitle")
+        links: List[Tag] = self._soup.select("div.il-item-title > a, a.il_ContainerItemTitle")
 
         for link in links:
             abs_url = self._abs_url_from_link(link)
@@ -357,6 +363,21 @@ class IliasPage:
 
             if not element_type:
                 continue
+
+            add_link_to_crawl = False
+
+            if self._desktop_page:
+                # Filter ILIAS-start page to only match elements in the "Favoriten"-container.
+                for parent in link.parents:
+                    if "id" in parent.attrs:
+                        if "block_pditems_0" in parent["id"]:
+                            add_link_to_crawl = True
+            else:
+                add_link_to_crawl = True
+
+            if not add_link_to_crawl:
+                continue
+
             if element_type == IliasElementType.MEETING:
                 normalized = _sanitize_path_name(self._normalize_meeting_name(element_name))
                 log.explain(f"Normalized meeting name from {element_name!r} to {normalized!r}")
@@ -421,7 +442,10 @@ class IliasPage:
             return None
         description_element: Tag = tile.find("div", {"class": lambda x: x and "il_Description" in x})
         if not description_element:
-            return None
+            # Fallback for new Dashboard
+            description_element = tile.find("div", {"class": lambda x: x and "il-item-description" in x})
+            if not description_element:
+                return None
         return description_element.getText().strip()
 
     def _file_to_element(self, name: str, url: str, link_element: Tag) -> IliasPageElement:
@@ -576,9 +600,10 @@ class IliasPage:
         # We look for the outer div of our inner link, to find information around it
         # (mostly the icon)
         for parent in link_element.parents:
-            if "ilContainerListItemOuter" in parent["class"]:
-                found_parent = parent
-                break
+            if "class" in parent.attrs:
+                if "ilContainerListItemOuter" in parent["class"] or "il-std-item-container" in parent["class"]:
+                    found_parent = parent
+                    break
 
         if found_parent is None:
             _unexpected_html_warning()
@@ -586,7 +611,7 @@ class IliasPage:
             return None
 
         # Find the small descriptive icon to figure out the type
-        img_tag: Optional[Tag] = found_parent.select_one("img.ilListItemIcon")
+        img_tag: Optional[Tag] = found_parent.select_one("img.ilListItemIcon, img.icon")
 
         if img_tag is None:
             _unexpected_html_warning()
