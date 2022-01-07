@@ -489,7 +489,10 @@ instance's greatest bottleneck.
             log.explain_topic(f"Checking local cache for video {video_path.name}")
             all_found_locally = True
             for video in contained_videos:
-                all_found_locally = all_found_locally and self._output_dir.resolve(video).exists()
+                transformed_path = self._transformer.transform(video)
+                if transformed_path:
+                    exists_locally = self._output_dir.resolve(transformed_path).exists()
+                    all_found_locally = all_found_locally and exists_locally
             if all_found_locally:
                 log.explain("Found all videos locally, skipping enumeration request")
                 return True
@@ -515,8 +518,12 @@ instance's greatest bottleneck.
                 log.explain(f"Using single video mode for {element.name}")
                 stream_element = stream_elements[0]
 
+                transformed_path = self._transformer.transform(original_path)
+                if not transformed_path:
+                    raise CrawlError(f"Download returned a path but transform did not for {original_path}")
+
                 # We do not have a local cache yet
-                if self._output_dir.resolve(original_path).exists():
+                if self._output_dir.resolve(transformed_path).exists():
                     log.explain(f"Video for {element.name} existed locally")
                 else:
                     await self._stream_from_url(stream_element.url, sink, bar, is_video=True)
@@ -526,8 +533,8 @@ instance's greatest bottleneck.
         contained_video_paths: List[str] = []
 
         for stream_element in stream_elements:
-            contained_video_paths.append(stream_element.name)
             video_path = original_path.parent / stream_element.name
+            contained_video_paths.append(str(video_path))
 
             maybe_dl = await self.download(video_path, mtime=element.mtime, redownload=Redownload.NEVER)
             if not maybe_dl:
