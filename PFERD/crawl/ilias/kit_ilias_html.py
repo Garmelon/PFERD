@@ -133,7 +133,7 @@ class IliasPage:
 
         # parse it
         json_object = json.loads(json_str)
-        streams = [stream for stream in json_object["streams"] if stream["type"] == "video"]
+        streams = [stream for stream in json_object["streams"]]
 
         # and just fetch the lone video url!
         if len(streams) == 1:
