@@ -176,6 +176,11 @@ class IliasPage:
                 continue
 
             log.explain(f"Found {name!r}")
+
+            if type == IliasElementType.FILE and "_download" not in url:
+                url = re.sub(r"(target=file_\d+)", r"\1_download", url)
+                log.explain("Rewired file URL to include download part")
+
             items.append(IliasPageElement(type, url, name))
 
         return items
