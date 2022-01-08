@@ -182,6 +182,7 @@ instance's greatest bottleneck.
         self._link_file_redirect_delay = section.link_redirect_delay()
         self._links = section.links()
         self._videos = section.videos()
+        self._visited_urls: Set[str] = set()
 
     async def _run(self) -> None:
         if isinstance(self._target, int):
@@ -309,6 +310,12 @@ instance's greatest bottleneck.
         parent_path: PurePath,
         element: IliasPageElement,
     ) -> Optional[Awaitable[None]]:
+        if element.url in self._visited_urls:
+            raise CrawlWarning(
+                f"Found second path to element {element.name!r} at {element.url!r}. Aborting subpath"
+            )
+        self._visited_urls.add(element.url)
+
         element_path = PurePath(parent_path, element.name)
 
         if element.type in _VIDEO_ELEMENTS:
