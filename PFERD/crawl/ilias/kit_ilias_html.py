@@ -428,7 +428,10 @@ class IliasPage:
                     continue
                 prev: Tag = parent.findPreviousSibling("div")
                 if "ilContainerBlockHeader" in prev.get("class"):
-                    found_titles.append(prev.find("h3").getText().strip())
+                    if prev.find("h3"):
+                        found_titles.append(prev.find("h3").getText().strip())
+                    else:
+                        found_titles.append(prev.find("h2").getText().strip())
 
             # And this for real accordions
             if "il_VAccordionContentDef" in parent.get("class"):
