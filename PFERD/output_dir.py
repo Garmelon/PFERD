@@ -231,7 +231,8 @@ class OutputDirectory:
         stat = local_path.stat()
 
         remote_newer = None
-        if mtime := heuristics.mtime:
+        if heuristics.mtime and heuristics.mtime.year > 1970:
+            mtime = heuristics.mtime
             remote_newer = mtime.timestamp() > stat.st_mtime
             if remote_newer:
                 log.explain("Remote file seems to be newer")
