@@ -77,8 +77,11 @@ class IliasPage:
             log.explain("Page is an exercise, searching for elements")
             return self._find_exercise_entries()
         if self._is_personal_desktop():
-            log.explain("Page is the personal desktop")
+            log.explain("Page is the personal desktop, searching for elements")
             return self._find_personal_desktop_entries()
+        if self._is_content_page():
+            log.explain("Page is a content page, searching for elements")
+            return self._find_copa_entries()
         log.explain("Page is a normal folder, searching for elements")
         return self._find_normal_entries()
 
@@ -125,6 +128,12 @@ class IliasPage:
 
     def _is_personal_desktop(self) -> bool:
         return self._soup.find("a", attrs={"href": lambda x: x and "block_type=pditems" in x})
+
+    def _is_content_page(self) -> bool:
+        link = self._soup.find(id="current_perma_link")
+        if not link:
+            return False
+        return "target=copa_" in link.get("value")
 
     def _player_to_video(self) -> List[IliasPageElement]:
         # Fetch the actual video page. This is a small wrapper page initializing a javscript
@@ -182,6 +191,23 @@ class IliasPage:
                 log.explain("Rewired file URL to include download part")
 
             items.append(IliasPageElement(type, url, name))
+
+        return items
+
+    def _find_copa_entries(self) -> List[IliasPageElement]:
+        items: List[IliasPageElement] = []
+        links: List[Tag] = self._soup.findAll(class_="ilc_flist_a_FileListItemLink")
+
+        for link in links:
+            url = self._abs_url_from_link(link)
+            name = _sanitize_path_name(link.getText().strip().replace("\t", ""))
+
+            if "file_id" not in url:
+                _unexpected_html_warning()
+                log.warn_contd(f"Found unknown content page item {name!r} with url {url!r}")
+                continue
+
+            items.append(IliasPageElement(IliasElementType.FILE, url, name))
 
         return items
 
