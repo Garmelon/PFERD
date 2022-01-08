@@ -461,7 +461,7 @@ instance's greatest bottleneck.
         # is re-used if the video consists of a single stream. In that case the
         # file name is used and *not* the stream name the ilias html parser reported
         # to ensure backwards compatibility.
-        maybe_dl = await self.download(element_path, redownload=Redownload.ALWAYS)
+        maybe_dl = await self.download(element_path, mtime=element.mtime, redownload=Redownload.ALWAYS)
 
         # If we do not want to crawl it (user filter) or we have every file
         # from the cached mapping already, we can ignore this and bail
