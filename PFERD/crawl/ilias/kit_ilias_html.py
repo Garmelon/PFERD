@@ -132,7 +132,7 @@ class IliasPage:
         # on the page, but defined in a JS object inside a script tag, passed to the player
         # library.
         # We do the impossible and RegEx the stream JSON object out of the page's HTML source
-        regex: re.Pattern[str] = re.compile(
+        regex = re.compile(
             r"({\"streams\"[\s\S]+?),\s*{\"paella_config_file", re.IGNORECASE
         )
         json_match = regex.search(str(self._soup))
