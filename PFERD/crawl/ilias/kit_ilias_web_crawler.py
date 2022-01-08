@@ -203,7 +203,9 @@ instance's greatest bottleneck.
         await self._crawl_url(root_url, expected_id=course_id)
 
     async def _crawl_desktop(self) -> None:
-        await self._crawl_url(self._base_url)
+        appendix = r"ILIAS\PersonalDesktop\PDMainBarProvider|mm_pd_sel_items"
+        appendix = appendix.encode("ASCII").hex()
+        await self._crawl_url(self._base_url + "/gs_content.php?item=" + appendix)
 
     async def _crawl_url(self, url: str, expected_id: Optional[int] = None) -> None:
         maybe_cl = await self.crawl(PurePath("."))
@@ -622,6 +624,11 @@ instance's greatest bottleneck.
         if mainbar is not None:
             login_button = mainbar.find("button", attrs={"data-action": lambda x: x and "login.php" in x})
             return not login_button
+
+        # Personal Desktop
+        if soup.find("a", attrs={"href": lambda x: x and "block_type=pditems" in x}):
+            return True
+
         # Video listing embeds do not have complete ILIAS html. Try to match them by
         # their video listing table
         video_table = soup.find(

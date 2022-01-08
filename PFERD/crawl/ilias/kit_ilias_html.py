@@ -39,7 +39,12 @@ class IliasPageElement:
     description: Optional[str] = None
 
     def id(self) -> str:
-        regexes = [r"eid=(?P<id>[0-9a-z\-]+)", r"file_(?P<id>\d+)", r"ref_id=(?P<id>\d+)"]
+        regexes = [
+            r"eid=(?P<id>[0-9a-z\-]+)",
+            r"file_(?P<id>\d+)",
+            r"ref_id=(?P<id>\d+)",
+            r"target=[a-z]+_(?P<id>\d+)"
+        ]
 
         for regex in regexes:
             if match := re.search(regex, self.url):
@@ -71,6 +76,9 @@ class IliasPage:
         if self._is_exercise_file():
             log.explain("Page is an exercise, searching for elements")
             return self._find_exercise_entries()
+        if self._is_personal_desktop():
+            log.explain("Page is the personal desktop")
+            return self._find_personal_desktop_entries()
         log.explain("Page is a normal folder, searching for elements")
         return self._find_normal_entries()
 
@@ -115,6 +123,9 @@ class IliasPage:
 
         return False
 
+    def _is_personal_desktop(self) -> bool:
+        return self._soup.find("a", attrs={"href": lambda x: x and "block_type=pditems" in x})
+
     def _player_to_video(self) -> List[IliasPageElement]:
         # Fetch the actual video page. This is a small wrapper page initializing a javscript
         # player. Sadly we can not execute that JS. The actual video stream url is nowhere
@@ -146,6 +157,26 @@ class IliasPage:
             full_name = f"{self._source_name.replace('.mp4', '')} ({stream['content']}).mp4"
             video_url = stream["sources"]["mp4"][0]["src"]
             items.append(IliasPageElement(IliasElementType.VIDEO, video_url, full_name))
+
+        return items
+
+    def _find_personal_desktop_entries(self) -> List[IliasPageElement]:
+        items: List[IliasPageElement] = []
+
+        titles: List[Tag] = self._soup.select(".il-item-title")
+        for title in titles:
+            link = title.find("a")
+            name = _sanitize_path_name(link.text.strip())
+            url = self._abs_url_from_link(link)
+
+            type = self._find_type_from_link(name, link, url)
+            if not type:
+                _unexpected_html_warning()
+                log.warn_contd(f"Could not extract type for {link}")
+                continue
+
+            log.explain(f"Found {name!r}")
+            items.append(IliasPageElement(type, url, name))
 
         return items
 
@@ -551,9 +582,30 @@ class IliasPage:
         if "target=file_" in parsed_url.query:
             return IliasElementType.FILE
 
+        if "target=grp_" in parsed_url.query:
+            return IliasElementType.FOLDER
+
+        if "target=crs_" in parsed_url.query:
+            return IliasElementType.FOLDER
+
+        if "baseClass=ilExerciseHandlerGUI" in parsed_url.query:
+            return IliasElementType.EXERCISE
+
+        if "baseClass=ilLinkResourceHandlerGUI" in parsed_url.query and "calldirectlink" in parsed_url.query:
+            return IliasElementType.LINK
+
+        if "cmd=showThreads" in parsed_url.query or "target=frm_" in parsed_url.query:
+            return IliasElementType.FORUM
+
+        if "cmdClass=ilobjtestgui" in parsed_url.query:
+            return IliasElementType.TEST
+
+        # Booking and Meeting can not be detected based on the link. They do have a ref_id though, so
+        # try to guess it from the image.
+
         # Everything with a ref_id can *probably* be opened to reveal nested things
         # video groups, directories, exercises, etc
-        if "ref_id=" in parsed_url.query:
+        if "ref_id=" in parsed_url.query or "goto.php" in parsed_url.path:
             return IliasPage._find_type_from_folder_like(link_element, url)
 
         _unexpected_html_warning()
@@ -574,7 +626,7 @@ class IliasPage:
         # We look for the outer div of our inner link, to find information around it
         # (mostly the icon)
         for parent in link_element.parents:
-            if "ilContainerListItemOuter" in parent["class"]:
+            if "ilContainerListItemOuter" in parent["class"] or "il-std-item" in parent["class"]:
                 found_parent = parent
                 break
 
@@ -585,6 +637,9 @@ class IliasPage:
 
         # Find the small descriptive icon to figure out the type
         img_tag: Optional[Tag] = found_parent.select_one("img.ilListItemIcon")
+
+        if img_tag is None:
+            img_tag = found_parent.select_one("img.icon")
 
         if img_tag is None:
             _unexpected_html_warning()
