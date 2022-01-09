@@ -25,6 +25,7 @@ ambiguous situations.
 ### Added
 - A KIT IPD crawler
 - Support for ILIAS cards
+- (Rudimentary) support for content pages
 - Support for multi-stream videos
 - Support for ILIAS 7
 
