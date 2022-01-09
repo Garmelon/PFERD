@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager, contextmanager
 # TODO In Python 3.9 and above, ContextManager is deprecated
 from typing import AsyncIterator, ContextManager, Iterator, List, Optional
 
-from rich.console import Console, RenderGroup
+from rich.console import Console, Group
 from rich.live import Live
 from rich.markup import escape
 from rich.panel import Panel
@@ -68,7 +68,7 @@ class Log:
         if self._download_progress.task_ids:
             elements.append(self._download_progress)
 
-        group = RenderGroup(*elements)  # type: ignore
+        group = Group(*elements)  # type: ignore
         self._live.update(group)
 
     @contextmanager
