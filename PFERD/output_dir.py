@@ -231,7 +231,9 @@ class OutputDirectory:
         stat = local_path.stat()
 
         remote_newer = None
-        if heuristics.mtime and heuristics.mtime.year > 1970:
+
+        # Python on Windows crashes when faced with timestamps around the unix epoch
+        if heuristics.mtime and (os.name != "nt" or heuristics.mtime.year > 1970):
             mtime = heuristics.mtime
             remote_newer = mtime.timestamp() > stat.st_mtime
             if remote_newer:
