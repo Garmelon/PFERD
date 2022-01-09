@@ -22,6 +22,8 @@ ambiguous situations.
 
 ## Unreleased
 
+## 3.3.0 - 2022-01-09
+
 ### Added
 - A KIT IPD crawler
 - Support for ILIAS cards
