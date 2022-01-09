@@ -26,9 +26,15 @@ ambiguous situations.
 - A KIT IPD crawler
 - Support for ILIAS cards
 - Support for multi-stream videos
+- Support for ILIAS 7
 
 ### Removed
 - [Interpolation](https://docs.python.org/3/library/configparser.html#interpolation-of-values) in config file
+
+### Fixed
+- Crawling of recursive courses
+- Crawling files directly placed on the personal desktop
+- Ignore timestamps at the unix epoch as they crash on windows
 
 ## 3.2.0 - 2021-08-04
 
