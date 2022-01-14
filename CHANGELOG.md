@@ -22,6 +22,10 @@ ambiguous situations.
 
 ## Unreleased
 
+### Fixed
+- Shibboleth login fixed. It was broken due to URL parser changes and really
+  *unfortunate* behaviour by aiohttp.
+
 ## 3.3.0 - 2022-01-09
 
 ### Added

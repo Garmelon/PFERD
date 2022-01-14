@@ -4,6 +4,7 @@ from pathlib import PurePath
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Set, TypeVar, Union, cast
 
 import aiohttp
+import yarl
 from aiohttp import hdrs
 from bs4 import BeautifulSoup, Tag
 
@@ -674,14 +675,14 @@ class KitShibbolethLogin:
 
         # Equivalent: Click on "Mit KIT-Account anmelden" button in
         # https://ilias.studium.kit.edu/login.php
-        url = "https://ilias.studium.kit.edu/Shibboleth.sso/Login"
+        url = "https://ilias.studium.kit.edu/shib_login.php"
         data = {
             "sendLogin": "1",
             "idp_selection": "https://idp.scc.kit.edu/idp/shibboleth",
-            "target": "/shib_login.php",
-            "home_organization_selection": "Mit KIT-Account anmelden",
+            "il_target": "",
+            "home_organization_selection": "Weiter",
         }
-        soup: BeautifulSoup = await _post(sess, url, data)
+        soup: BeautifulSoup = await _shib_post(sess, url, data)
 
         # Attempt to login using credentials, if necessary
         while not self._login_successful(soup):
@@ -761,3 +762,33 @@ class KitShibbolethLogin:
 async def _post(session: aiohttp.ClientSession, url: str, data: Any) -> BeautifulSoup:
     async with session.post(url, data=data) as response:
         return soupify(await response.read())
+
+
+async def _shib_post(session: aiohttp.ClientSession, url: str, data: Any) -> BeautifulSoup:
+    """
+    aiohttp unescapes '/' and ':' in URL query parameters which is not RFC compliant and rejected
+    by Shibboleth. Thanks a lot. So now we unroll the requests manually, parse location headers and
+    build encoded URL objects ourselfs... Who thought mangling location header was a good idea??
+    """
+    async with session.post(url, data=data, allow_redirects=False) as response:
+        location = response.headers.get("location")
+        if not location:
+            raise CrawlWarning(f"Login failed, no location header present at {url}")
+        correct_url = yarl.URL(location, encoded=True)
+
+        async with session.get(correct_url, allow_redirects=False) as response:
+            as_yarl = yarl.URL(response.url)
+            location = response.headers.get("location")
+
+            if not location or not as_yarl.host:
+                raise CrawlWarning(f"Login failed, no location header present at {correct_url}")
+
+            correct_url = yarl.URL.build(
+                scheme=as_yarl.scheme,
+                host=as_yarl.host,
+                path=location,
+                encoded=True
+            )
+
+            async with session.get(correct_url, allow_redirects=False) as response:
+                return soupify(await response.read())
