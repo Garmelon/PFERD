@@ -499,7 +499,7 @@ instance's greatest bottleneck.
             log.explain_topic(f"Checking local cache for video {video_path.name}")
             all_found_locally = True
             for video in contained_videos:
-                transformed_path = self._transformer.transform(video)
+                transformed_path = self._to_local_video_path(video)
                 if transformed_path:
                     exists_locally = self._output_dir.resolve(transformed_path).exists()
                     all_found_locally = all_found_locally and exists_locally
@@ -508,6 +508,11 @@ instance's greatest bottleneck.
                 return True
             log.explain("Missing at least one video, continuing with requests!")
         return False
+
+    def _to_local_video_path(self, path: PurePath) -> Optional[PurePath]:
+        if transformed := self._transformer.transform(path):
+            return self._deduplicator.fixup_path(transformed)
+        return None
 
     @anoncritical
     @_iorepeat(3, "downloading video")
@@ -528,7 +533,7 @@ instance's greatest bottleneck.
                 log.explain(f"Using single video mode for {element.name}")
                 stream_element = stream_elements[0]
 
-                transformed_path = self._transformer.transform(original_path)
+                transformed_path = self._to_local_video_path(original_path)
                 if not transformed_path:
                     raise CrawlError(f"Download returned a path but transform did not for {original_path}")
 

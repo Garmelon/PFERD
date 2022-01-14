@@ -56,6 +56,12 @@ class Deduplicator:
             log.explain(f"Changed path to {fmt_path(new_path)} for windows compatibility")
         return new_path
 
+    def fixup_path(self, path: PurePath) -> PurePath:
+        """Fixes up the path for windows, if enabled. Returns the path unchanged otherwise."""
+        if self._windows_paths:
+            return self._fixup_for_windows(path)
+        return path
+
     def mark(self, path: PurePath) -> PurePath:
         if self._windows_paths:
             path = self._fixup_for_windows(path)

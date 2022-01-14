@@ -23,8 +23,10 @@ ambiguous situations.
 ## Unreleased
 
 ### Fixed
-- Shibboleth login fixed. It was broken due to URL parser changes and really
+- Shibboleth login. It was broken due to URL parser changes and really
   *unfortunate* behaviour by aiohttp.
+- local video cache on windows if the path was changed to accomodate windows
+  file system limitations (e.g. replace `:`)
 
 ## 3.3.0 - 2022-01-09
 
