@@ -22,6 +22,8 @@ ambiguous situations.
 
 ## Unreleased
 
+## 3.3.1 - 2022-01-15
+
 ### Fixed
 - ILIAS login
 - Local video cache if `windows_paths` is enabled
