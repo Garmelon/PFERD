@@ -23,10 +23,8 @@ ambiguous situations.
 ## Unreleased
 
 ### Fixed
-- Shibboleth login. It was broken due to URL parser changes and really
-  *unfortunate* behaviour by aiohttp.
-- local video cache on windows if the path was changed to accomodate windows
-  file system limitations (e.g. replace `:`)
+- ILIAS login
+- Local video cache if `windows_paths` is enabled
 
 ## 3.3.0 - 2022-01-09
 

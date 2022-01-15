@@ -773,7 +773,7 @@ async def _shib_post(session: aiohttp.ClientSession, url: str, data: Any) -> Bea
     """
     aiohttp unescapes '/' and ':' in URL query parameters which is not RFC compliant and rejected
     by Shibboleth. Thanks a lot. So now we unroll the requests manually, parse location headers and
-    build encoded URL objects ourselfs... Who thought mangling location header was a good idea??
+    build encoded URL objects ourselves... Who thought mangling location header was a good idea??
     """
     async with session.post(url, data=data, allow_redirects=False) as response:
         location = response.headers.get("location")
