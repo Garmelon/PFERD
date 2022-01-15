@@ -223,6 +223,23 @@ is stored in the keyring.
 - `keyring_name`: The service name PFERD uses for storing credentials. (Default:
   `PFERD`)
 
+### The `pass` authenticator
+
+This authenticator queries the [`pass` password manager][3] for a username and
+password. It tries to be mostly compatible with [browserpass][4] and
+[passff][5], so see those links for an overview of the format. If PFERD fails
+to load your password, you can use the `--explain` flag to see why.
+
+- `passname`: The name of the password to use (Required)
+- `username_prefixes`: A comma-separated list of username line prefixes
+  (Default: `login,username,user`)
+- `password_prefixes`: A comma-separated list of password line prefixes
+  (Default: `password,pass,secret`)
+
+[3]: <https://www.passwordstore.org/> "Pass: The Standard Unix Password Manager"
+[4]: <https://github.com/browserpass/browserpass-extension#organizing-password-store> "Organizing password store"
+[5]: <https://github.com/passff/passff#multi-line-format> "Multi-line format"
+
 ### The `tfa` authenticator
 
 This authenticator prompts the user on the console for a two-factor
@@ -316,7 +333,7 @@ is a regular expression and `TARGET` an f-string based template. If a path
 matches `SOURCE`, the output path is created using `TARGET` as template.
 `SOURCE` is automatically anchored.
 
-`TARGET` uses Python's [format string syntax][3]. The *n*-th capturing group can
+`TARGET` uses Python's [format string syntax][6]. The *n*-th capturing group can
 be referred to as `{g<n>}` (e.g. `{g3}`). `{g0}` refers to the original path.
 If capturing group *n*'s contents are a valid integer, the integer value is
 available as `{i<n>}` (e.g. `{i3}`). If capturing group *n*'s contents are a
@@ -337,7 +354,7 @@ Example: `f(oo+)/be?ar -re-> B{g1.upper()}H/fear`
 - Converts `fooooo/bear` into `BOOOOOH/fear`
 - Converts `foo/bar/baz` into `BOOH/fear/baz`
 
-[3]: <https://docs.python.org/3/library/string.html#format-string-syntax> "Format String Syntax"
+[6]: <https://docs.python.org/3/library/string.html#format-string-syntax> "Format String Syntax"
 
 ### The `-name-re->` arrow
 

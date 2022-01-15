@@ -25,6 +25,7 @@ ambiguous situations.
 ### Added
 - Download of page descriptions
 - Forum download support
+- `pass` authenticator
 
 ### Changed
 - Add `cpp` extension to default `link_regex` of IPD crawler
