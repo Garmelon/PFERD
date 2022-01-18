@@ -280,11 +280,22 @@ class IliasPage:
 
     def _listed_video_to_element(self, link: Tag) -> IliasPageElement:
         # The link is part of a table with multiple columns, describing metadata.
-        # 6th child (1 indexed) is the modification time string
-        modification_string = link.parent.parent.parent.select_one(
-            "td.std:nth-child(6)"
-        ).getText().strip()
-        modification_time = datetime.strptime(modification_string, "%d.%m.%Y - %H:%M")
+        # 6th or 7th child (1 indexed) is the modification time string. Try to find it
+        # by parsing backwards from the end and finding something that looks like a date
+        modification_time = None
+        row: Tag = link.parent.parent.parent
+        column_count = len(row.select("td.std"))
+        for index in range(column_count, 0, -1):
+            modification_string = link.parent.parent.parent.select_one(
+                f"td.std:nth-child({index})"
+            ).getText().strip()
+            if re.search(r"\d+\.\d+.\d+ - \d+:\d+", modification_string):
+                modification_time = datetime.strptime(modification_string, "%d.%m.%Y - %H:%M")
+                break
+
+        if modification_time is None:
+            log.warn(f"Could not determine upload time for {link}")
+            modification_time = datetime.now()
 
         title = link.parent.parent.parent.select_one("td.std:nth-child(3)").getText().strip()
         title += ".mp4"
