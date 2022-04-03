@@ -68,7 +68,7 @@ class Log:
         if self._download_progress.task_ids:
             elements.append(self._download_progress)
 
-        group = Group(*elements)  # type: ignore
+        group = Group(*elements)
         self._live.update(group)
 
     @contextmanager
