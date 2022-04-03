@@ -710,6 +710,12 @@ class KitShibbolethLogin:
             }
             soup = await _post(sess, url, data)
 
+            if soup.find(id="attributeRelease"):
+                raise CrawlError(
+                    "ILIAS Shibboleth entitlements changed! "
+                    "Please log in once in your browser and review them"
+                )
+
             if self._tfa_required(soup):
                 soup = await self._authenticate_tfa(sess, soup)
 
