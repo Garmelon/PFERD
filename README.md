@@ -26,6 +26,15 @@ $ pip install --upgrade git+https://github.com/Garmelon/PFERD@latest
 
 The use of [venv](https://docs.python.org/3/library/venv.html) is recommended.
 
+### Arch Linux
+You can install it as an [aur-package](https://aur.archlinux.org/packages/pferd)
+with your favourite [aur-helper](https://wiki.archlinux.org/title/AUR_helpers)
+(example is with [yay](https://github.com/Jguer/yay)):
+
+```bash
+yay -S pfred
+```
+
 ## Basic usage
 
 PFERD can be run directly from the command line with no config file. Run `pferd
