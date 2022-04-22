@@ -27,12 +27,20 @@ $ pip install --upgrade git+https://github.com/Garmelon/PFERD@latest
 The use of [venv](https://docs.python.org/3/library/venv.html) is recommended.
 
 ### Arch Linux
-You can install it as an [aur-package](https://aur.archlinux.org/packages/pferd)
-with your favourite [aur-helper](https://wiki.archlinux.org/title/AUR_helpers)
+You can install it from the [aur-package](https://aur.archlinux.org/packages/pferd)
+with:
+
+```bash
+git clone https://aur.archlinux.org/pferd.git
+cd pferd
+makepkg -isc
+```
+
+You can also use your favourite [aur-helper](https://wiki.archlinux.org/title/AUR_helpers)
 (example is with [yay](https://github.com/Jguer/yay)):
 
 ```bash
-yay -S pfred
+yay -S pferd
 ```
 
 ## Basic usage
