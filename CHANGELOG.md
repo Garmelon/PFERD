@@ -22,6 +22,9 @@ ambiguous situations.
 
 ## Unreleased
 
+### Added
+- Links to unofficial packages and repology in the readme
+
 ## 3.3.1 - 2022-01-15
 
 ### Fixed
