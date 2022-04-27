@@ -1,7 +1,8 @@
 import asyncio
 import re
+from collections.abc import Awaitable, Coroutine
 from pathlib import PurePath
-from typing import Any, Awaitable, Callable, Dict, List, Optional, Set, TypeVar, Union, cast
+from typing import Any, Callable, Dict, List, Optional, Set, Union, cast
 
 import aiohttp
 import yarl
@@ -13,7 +14,7 @@ from ...config import Config
 from ...logging import ProgressBar, log
 from ...output_dir import FileSink, Redownload
 from ...utils import fmt_path, soupify, url_set_query_param
-from ..crawler import CrawlError, CrawlToken, CrawlWarning, DownloadToken, anoncritical
+from ..crawler import AWrapped, CrawlError, CrawlToken, CrawlWarning, DownloadToken, anoncritical
 from ..http_crawler import HttpCrawler, HttpCrawlerSection
 from .file_templates import Links
 from .kit_ilias_html import IliasElementType, IliasPage, IliasPageElement
@@ -81,8 +82,6 @@ _VIDEO_ELEMENTS: Set[IliasElementType] = set([
     IliasElementType.VIDEO_FOLDER,
     IliasElementType.VIDEO_FOLDER_MAYBE_PAGINATED,
 ])
-
-AWrapped = TypeVar("AWrapped", bound=Callable[..., Awaitable[Optional[Any]]])
 
 
 def _iorepeat(attempts: int, name: str, failure_is_error: bool = False) -> Callable[[AWrapped], AWrapped]:
@@ -252,7 +251,7 @@ instance's greatest bottleneck.
         url: str,
         parent: IliasPageElement,
         path: PurePath,
-    ) -> Optional[Awaitable[None]]:
+    ) -> Optional[Coroutine[Any, Any, None]]:
         maybe_cl = await self.crawl(path)
         if not maybe_cl:
             return None
@@ -310,7 +309,7 @@ instance's greatest bottleneck.
         self,
         parent_path: PurePath,
         element: IliasPageElement,
-    ) -> Optional[Awaitable[None]]:
+    ) -> Optional[Coroutine[Any, Any, None]]:
         if element.url in self._visited_urls:
             raise CrawlWarning(
                 f"Found second path to element {element.name!r} at {element.url!r}. Aborting subpath"
@@ -360,7 +359,7 @@ instance's greatest bottleneck.
         self,
         element: IliasPageElement,
         element_path: PurePath,
-    ) -> Optional[Awaitable[None]]:
+    ) -> Optional[Coroutine[Any, Any, None]]:
         log.explain_topic(f"Decision: Crawl Link {fmt_path(element_path)}")
         log.explain(f"Links type is {self._links}")
 
@@ -407,7 +406,7 @@ instance's greatest bottleneck.
         self,
         element: IliasPageElement,
         element_path: PurePath,
-    ) -> Optional[Awaitable[None]]:
+    ) -> Optional[Coroutine[Any, Any, None]]:
         log.explain_topic(f"Decision: Crawl Booking Link {fmt_path(element_path)}")
         log.explain(f"Links type is {self._links}")
 
@@ -443,7 +442,7 @@ instance's greatest bottleneck.
             if hdrs.LOCATION not in resp.headers:
                 return soupify(await resp.read()).select_one("a").get("href").strip()
 
-        self._authenticate()
+        await self._authenticate()
 
         async with self.session.get(export_url, allow_redirects=False) as resp:
             # No redirect means we were authenticated
@@ -456,7 +455,7 @@ instance's greatest bottleneck.
         self,
         element: IliasPageElement,
         element_path: PurePath,
-    ) -> Optional[Awaitable[None]]:
+    ) -> Optional[Coroutine[Any, Any, None]]:
         # Copy old mapping as it is likely still relevant
         if self.prev_report:
             self.report.add_custom_value(
@@ -564,7 +563,7 @@ instance's greatest bottleneck.
         self,
         element: IliasPageElement,
         element_path: PurePath,
-    ) -> Optional[Awaitable[None]]:
+    ) -> Optional[Coroutine[Any, Any, None]]:
         maybe_dl = await self.download(element_path, mtime=element.mtime)
         if not maybe_dl:
             return None

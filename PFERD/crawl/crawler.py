@@ -1,9 +1,10 @@
 import asyncio
 import os
 from abc import ABC, abstractmethod
+from collections.abc import Awaitable, Coroutine
 from datetime import datetime
 from pathlib import Path, PurePath
-from typing import Any, Awaitable, Callable, Dict, List, Optional, Sequence, Set, Tuple, TypeVar
+from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple, TypeVar
 
 from ..auth import Authenticator
 from ..config import Config, Section
@@ -58,7 +59,7 @@ def noncritical(f: Wrapped) -> Wrapped:
     return wrapper  # type: ignore
 
 
-AWrapped = TypeVar("AWrapped", bound=Callable[..., Awaitable[Optional[Any]]])
+AWrapped = TypeVar("AWrapped", bound=Callable[..., Coroutine[Any, Any, Optional[Any]]])
 
 
 def anoncritical(f: AWrapped) -> AWrapped:
