@@ -159,3 +159,7 @@ def main() -> None:
         sys.exit(1)
     else:
         pferd.print_report()
+
+
+if __name__ == "__main__":
+    main()
