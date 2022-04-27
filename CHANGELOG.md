@@ -24,8 +24,11 @@ ambiguous situations.
 
 ### Added
 - Message when Shibboleth entitlements need to be manually reviewed
-- Support for video listings with more columns
 - Links to unofficial packages and repology in the readme
+
+### Changed
+- Support video listings with more columns
+- Use UTF-8 when reading/writing the config file
 
 ### Fixed
 - Crash during authentication when the Shibboleth session is still valid
