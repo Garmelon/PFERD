@@ -128,6 +128,8 @@ class Config:
             raise ConfigLoadError(path, "That's a directory, not a file")
         except PermissionError:
             raise ConfigLoadError(path, "Insufficient permissions")
+        except UnicodeDecodeError:
+            raise ConfigLoadError(path, "File is not encoded using UTF-8")
 
     def dump(self, path: Optional[Path] = None) -> None:
         """
