@@ -120,7 +120,7 @@ class Config:
         # Using config.read_file instead of config.read because config.read
         # would just ignore a missing file and carry on.
         try:
-            with open(path) as f:
+            with open(path, encoding="utf-8") as f:
                 parser.read_file(f, source=str(path))
         except FileNotFoundError:
             raise ConfigLoadError(path, "File does not exist")
@@ -154,12 +154,12 @@ class Config:
             try:
                 # x = open for exclusive creation, failing if the file already
                 # exists
-                with open(path, "x") as f:
+                with open(path, "x", encoding="utf-8") as f:
                     self._parser.write(f)
             except FileExistsError:
                 print("That file already exists.")
                 if asyncio.run(prompt_yes_no("Overwrite it?", default=False)):
-                    with open(path, "w") as f:
+                    with open(path, "w", encoding="utf-8") as f:
                         self._parser.write(f)
                 else:
                     raise ConfigDumpError(path, "File already exists")
