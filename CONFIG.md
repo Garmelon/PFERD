@@ -7,6 +7,8 @@ Boolean values can be `yes` or `no`. For more details and some examples on the
 format, see the [configparser documentation][1] ([interpolation][2] is
 disabled).
 
+Note: On Windows the config file must be encoded using the Windows 1252 charset (aka. ANSI) in order to preserve german umlauts.
+
 [1]: <https://docs.python.org/3/library/configparser.html#supported-ini-file-structure> "Supported INI File Structure"
 [2]: <https://docs.python.org/3/library/configparser.html#interpolation-of-values> "Interpolation of values"
 
