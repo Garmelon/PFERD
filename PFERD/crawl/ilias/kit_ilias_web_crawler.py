@@ -784,15 +784,19 @@ async def _shib_post(session: aiohttp.ClientSession, url: str, data: Any) -> Bea
     async with session.post(url, data=data, allow_redirects=False) as response:
         location = response.headers.get("location")
         if not location:
-            raise CrawlWarning(f"Login failed, no location header present at {url}")
+            raise CrawlWarning(f"Login failed (1), no location header present at {url}")
         correct_url = yarl.URL(location, encoded=True)
 
         async with session.get(correct_url, allow_redirects=False) as response:
-            as_yarl = yarl.URL(response.url)
             location = response.headers.get("location")
+            # If shib still still has a valid session, it will directly respond to the request
+            if location is None:
+                return soupify(await response.read())
 
+            as_yarl = yarl.URL(response.url)
+            # Probably not needed anymore, but might catch a few weird situations with a nicer message
             if not location or not as_yarl.host:
-                raise CrawlWarning(f"Login failed, no location header present at {correct_url}")
+                raise CrawlWarning(f"Login failed (2), no location header present at {correct_url}")
 
             correct_url = yarl.URL.build(
                 scheme=as_yarl.scheme,
