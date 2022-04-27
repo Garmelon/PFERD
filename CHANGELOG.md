@@ -23,16 +23,18 @@ ambiguous situations.
 ## Unreleased
 
 ### Added
+- Message when Shibboleth entitlements need to be manually reviewed
+- Support for video listings with more columns
 - Links to unofficial packages and repology in the readme
+
+### Fixed
+- Crash during authentication when the Shibboleth session is still valid
 
 ## 3.3.1 - 2022-01-15
 
 ### Fixed
 - ILIAS login
 - Local video cache if `windows_paths` is enabled
-- Report when Shibboleth reviews entitlements
-- Support for video listings with more columns
-- Authentication when the shib session is still valid
 
 ## 3.3.0 - 2022-01-09
 
