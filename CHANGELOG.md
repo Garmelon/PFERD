@@ -29,6 +29,7 @@ ambiguous situations.
 - Local video cache if `windows_paths` is enabled
 - Report when Shibboleth reviews entitlements
 - Support for video listings with more columns
+- Authentication when the shib session is still valid
 
 ## 3.3.0 - 2022-01-09
 
