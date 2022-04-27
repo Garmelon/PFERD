@@ -27,6 +27,7 @@ ambiguous situations.
 - Links to unofficial packages and repology in the readme
 
 ### Changed
+- Increase minimum supported Python version to 3.9
 - Support video listings with more columns
 - Use UTF-8 when reading/writing the config file
 
