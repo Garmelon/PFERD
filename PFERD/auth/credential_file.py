@@ -20,8 +20,10 @@ class CredentialFileAuthenticator(Authenticator):
 
         path = config.default_section.working_dir() / section.path()
         try:
-            with open(path) as f:
+            with open(path, encoding="utf-8") as f:
                 lines = list(f)
+        except UnicodeDecodeError:
+            raise AuthLoadError(f"Credential file at {fmt_real_path(path)} is not encoded using UTF-8")
         except OSError as e:
             raise AuthLoadError(f"No credential file at {fmt_real_path(path)}") from e
 
