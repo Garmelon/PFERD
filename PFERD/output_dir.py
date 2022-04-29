@@ -503,7 +503,7 @@ class OutputDirectory:
         try:
             self._prev_report = Report.load(self._report_path)
             log.explain("Loaded report successfully")
-        except (OSError, json.JSONDecodeError, ReportLoadError) as e:
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError, ReportLoadError) as e:
             log.explain("Failed to load report")
             log.explain(str(e))
 

@@ -100,10 +100,10 @@ class Report:
     @classmethod
     def load(cls, path: Path) -> "Report":
         """
-        May raise OSError, JsonDecodeError, ReportLoadError.
+        May raise OSError, UnicodeDecodeError, JsonDecodeError, ReportLoadError.
         """
 
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             data = json.load(f)
 
         if not isinstance(data, dict):
@@ -148,7 +148,7 @@ class Report:
             "encountered_errors": self.encountered_errors,
         }
 
-        with open(path, "w") as f:
+        with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, sort_keys=True)
             f.write("\n")  # json.dump doesn't do this
 
