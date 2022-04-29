@@ -108,7 +108,7 @@ class HttpCrawler(Crawler):
 
     def _load_cookies_from_file(self, path: Path) -> None:
         jar: Any = http.cookies.SimpleCookie()
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             for i, line in enumerate(f):
                 # Names of headers are case insensitive
                 if line[:11].lower() == "set-cookie:":
@@ -121,7 +121,7 @@ class HttpCrawler(Crawler):
         jar: Any = http.cookies.SimpleCookie()
         for morsel in self._cookie_jar:
             jar[morsel.key] = morsel
-        with open(path, "w") as f:
+        with open(path, "w", encoding="utf-8") as f:
             f.write(jar.output(sep="\n"))
             f.write("\n")  # A trailing newline is just common courtesy
 
