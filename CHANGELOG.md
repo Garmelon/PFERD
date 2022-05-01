@@ -22,6 +22,8 @@ ambiguous situations.
 
 ## Unreleased
 
+## 3.4.0 - 2022-05-01
+
 ### Added
 - Message when Shibboleth entitlements need to be manually reviewed
 - Links to unofficial packages and repology in the readme
