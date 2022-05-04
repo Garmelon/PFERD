@@ -22,6 +22,9 @@ ambiguous situations.
 
 ## Unreleased
 
+### Changed
+- Add `.cpp` to IPD link regex
+
 ## 3.4.0 - 2022-05-01
 
 ### Added
