@@ -28,6 +28,8 @@ ambiguous situations.
 
 ### Fixed
 - IPD crawler crashes on some sites
+- Meeting name normalization for yesterday, today and tomorrow fails
+- Crawling of meeting file previews
 
 ## 3.4.0 - 2022-05-01
 
