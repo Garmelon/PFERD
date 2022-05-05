@@ -763,9 +763,14 @@ def demangle_date(date_str: str, fail_silently: bool = False) -> Optional[dateti
     """
     try:
         date_str = re.sub(r"\s+", " ", date_str)
+        date_str = re.sub("(Gestern|Yesterday):", "", date_str, re.I)
+        date_str = re.sub("(Heute|Today):", "", date_str, re.I)
+        date_str = re.sub("(Morgen|Tomorrow):",  "", date_str, re.I)
+
         date_str = re.sub("Gestern|Yesterday", _format_date_english(_yesterday()), date_str, re.I)
         date_str = re.sub("Heute|Today", _format_date_english(date.today()), date_str, re.I)
         date_str = re.sub("Morgen|Tomorrow",  _format_date_english(_tomorrow()), date_str, re.I)
+        date_str = date_str.strip()
         for german, english in zip(german_months, english_months):
             date_str = date_str.replace(german, english)
             # Remove trailing dots for abbreviations, e.g. "20. Apr. 2020" -> "20. Apr 2020"
