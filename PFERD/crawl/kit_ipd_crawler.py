@@ -161,4 +161,10 @@ class KitIpdCrawler(HttpCrawler):
 
     async def get_page(self) -> BeautifulSoup:
         async with self.session.get(self._url) as request:
-            return soupify(await request.read())
+            # The web page for Algorithmen für Routenplanung contains some
+            # weird comments that beautifulsoup doesn't parse correctly. This
+            # hack enables those pages to be crawled, and should hopefully not
+            # cause issues on other pages.
+            content = (await request.read()).decode("utf-8")
+            content = re.sub(r"<!--.*?-->", "", content)
+            return soupify(content.encode("utf-8"))

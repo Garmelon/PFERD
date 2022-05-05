@@ -25,6 +25,9 @@ ambiguous situations.
 ### Changed
 - Add `cpp` extension to default `link_regex` of IPD crawler
 
+### Fixed
+- IPD crawler crashes on some sites
+
 ## 3.4.0 - 2022-05-01
 
 ### Added
