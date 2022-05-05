@@ -23,7 +23,7 @@ ambiguous situations.
 ## Unreleased
 
 ### Changed
-- Add `.cpp` to IPD link regex
+- Add `cpp` extension to default `link_regex` of IPD crawler
 
 ## 3.4.0 - 2022-05-01
 

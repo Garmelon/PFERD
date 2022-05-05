@@ -146,7 +146,7 @@ requests is likely a good idea.
 - `target`: URL to a KIT-IPD page
 - `link_regex`: A regex that is matched against the `href` part of links. If it
   matches, the given link is downloaded as a file. This is used to extract
-  files from KIT-IPD pages. (Default: `^.*/[^/]*\.(?:pdf|zip|c|java)$`)
+  files from KIT-IPD pages. (Default: `^.*/[^/]*\.(?:pdf|zip|c|cpp|java)$`)
 
 ### The `kit-ilias-web` crawler
 
