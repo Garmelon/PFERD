@@ -428,6 +428,12 @@ class IliasPage:
             element_type = self._find_type_from_link(element_name, link, abs_url)
             description = self._find_link_description(link)
 
+            # The last meeting on every page is expanded by default.
+            # Its content is then shown inline *and* in the meeting page itself.
+            # We should skip the inline content.
+            if element_type != IliasElementType.MEETING and self._is_in_expanded_meeting(link):
+                continue
+
             if not element_type:
                 continue
             if element_type == IliasElementType.MEETING:
@@ -444,6 +450,26 @@ class IliasPage:
         result += self._find_cards()
 
         return result
+
+    def _is_in_expanded_meeting(self, tag: Tag) -> bool:
+        """
+        Returns whether a file is part of an expanded meeting.
+        Has false positives for meetings themselves as their title is also "in the expanded meeting content".
+        It is in the same general div and this whole thing is guesswork.
+        Therefore, you should check for meetings before passing them in this function.
+        """
+        parents: List[Tag] = list(tag.parents)
+        for parent in parents:
+            if not parent.get("class"):
+                continue
+
+            # We should not crawl files under meetings
+            if "ilContainerListItemContentCB" in parent.get("class"):
+                link: Tag = parent.parent.find("a")
+                type = IliasPage._find_type_from_folder_like(link, self._page_url)
+                return type == IliasElementType.MEETING
+
+        return False
 
     def _find_upwards_folder_hierarchy(self, tag: Tag) -> List[str]:
         """
