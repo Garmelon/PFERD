@@ -45,7 +45,7 @@ class KitIpdFolder:
     def explain(self) -> None:
         log.explain_topic(f"Folder {self.name!r}")
         for file in self.files:
-            log.explain(f"File {file.name!r}")
+            log.explain(f"File {file.name!r} (href={file.url!r})")
 
     def __hash__(self) -> int:
         return self.name.__hash__()
@@ -113,7 +113,7 @@ class KitIpdCrawler(HttpCrawler):
             else:
                 file = self._extract_file(element)
                 items.add(file)
-                log.explain_topic(f"Orphan file {file.name!r}")
+                log.explain_topic(f"Orphan file {file.name!r} (href={file.url!r})")
                 log.explain("Attributing it to root folder")
 
         return items

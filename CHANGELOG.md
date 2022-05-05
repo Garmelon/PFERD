@@ -24,6 +24,7 @@ ambiguous situations.
 
 ### Changed
 - Add `cpp` extension to default `link_regex` of IPD crawler
+- Mention hrefs in IPD crawler for users of `link_regex` option
 
 ### Fixed
 - IPD crawler crashes on some sites
