@@ -24,11 +24,12 @@ ambiguous situations.
 
 ### Changed
 - Add `cpp` extension to default `link_regex` of IPD crawler
-- Mention hrefs in IPD crawler for users of `link_regex` option
+- Mention hrefs in IPD crawler's `--explain` output for users of `link_regex` option
+- Simplify default IPD crawler `link_regex`
 
 ### Fixed
 - IPD crawler crashes on some sites
-- Meeting name normalization for yesterday, today and tomorrow fails
+- Meeting name normalization for yesterday, today and tomorrow
 - Crawling of meeting file previews
 
 ## 3.4.0 - 2022-05-01
