@@ -746,17 +746,26 @@ class IliasPage:
         Normalizes meeting names, which have a relative time as their first part,
         to their date in ISO format.
         """
-        date_portion_str = meeting_name.split(" - ")[0]
+
+        # This checks whether we can reach a `:` without passing a `-`
+        if re.search(r"^[^-]+: ", meeting_name):
+            # Meeting name only contains date: "05. Jan 2000:"
+            split_delimiter = ":"
+        else:
+            # Meeting name contains date and start/end times: "05. Jan 2000, 16:00 - 17:30:"
+            split_delimiter = ", "
+
+        # We have a meeting day without time
+        date_portion_str = meeting_name.split(split_delimiter)[0]
         date_portion = demangle_date(date_portion_str)
 
+        # We failed to parse the date, bail out
         if not date_portion:
             return meeting_name
 
-        rest_of_name = meeting_name
-        if rest_of_name.startswith(date_portion_str):
-            rest_of_name = rest_of_name[len(date_portion_str):]
-
-        return datetime.strftime(date_portion, "%Y-%m-%d, %H:%M") + rest_of_name
+        # Replace the first section with the absolute date
+        rest_of_name = split_delimiter.join(meeting_name.split(split_delimiter)[1:])
+        return datetime.strftime(date_portion, "%Y-%m-%d") + split_delimiter + rest_of_name
 
     def _abs_url_from_link(self, link_tag: Tag) -> str:
         """
@@ -781,17 +790,15 @@ english_months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep',
 
 def demangle_date(date_str: str, fail_silently: bool = False) -> Optional[datetime]:
     """
-    Demangle a given date in one of the following formats:
+    Demangle a given date in one of the following formats (hour/minute part is optional):
     "Gestern, HH:MM"
     "Heute, HH:MM"
     "Morgen, HH:MM"
     "dd. mon yyyy, HH:MM
     """
     try:
+        # Normalize whitespace because users
         date_str = re.sub(r"\s+", " ", date_str)
-        date_str = re.sub("(Gestern|Yesterday):", "", date_str, re.I)
-        date_str = re.sub("(Heute|Today):", "", date_str, re.I)
-        date_str = re.sub("(Morgen|Tomorrow):",  "", date_str, re.I)
 
         date_str = re.sub("Gestern|Yesterday", _format_date_english(_yesterday()), date_str, re.I)
         date_str = re.sub("Heute|Today", _format_date_english(date.today()), date_str, re.I)
@@ -802,19 +809,28 @@ def demangle_date(date_str: str, fail_silently: bool = False) -> Optional[dateti
             # Remove trailing dots for abbreviations, e.g. "20. Apr. 2020" -> "20. Apr 2020"
             date_str = date_str.replace(english + ".", english)
 
-        # We now have a nice english String in the format: "dd. mmm yyyy, hh:mm"
-        day_part, time_part = date_str.split(",")
+        # We now have a nice english String in the format: "dd. mmm yyyy, hh:mm" or "dd. mmm yyyy"
+
+        # Check if we have a time as well
+        if ", " in date_str:
+            day_part, time_part = date_str.split(",")
+        else:
+            day_part = date_str.split(",")[0]
+            time_part = None
+
         day_str, month_str, year_str = day_part.split(" ")
 
         day = int(day_str.strip().replace(".", ""))
         month = english_months.index(month_str.strip()) + 1
         year = int(year_str.strip())
 
-        hour_str, minute_str = time_part.split(":")
-        hour = int(hour_str)
-        minute = int(minute_str)
+        if time_part:
+            hour_str, minute_str = time_part.split(":")
+            hour = int(hour_str)
+            minute = int(minute_str)
+            return datetime(year, month, day, hour, minute)
 
-        return datetime(year, month, day, hour, minute)
+        return datetime(year, month, day)
     except Exception:
         if not fail_silently:
             log.warn(f"Date parsing failed for {date_str!r}")
