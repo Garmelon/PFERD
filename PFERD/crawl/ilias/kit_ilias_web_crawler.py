@@ -17,6 +17,7 @@ from ...utils import fmt_path, soupify, url_set_query_param
 from ..crawler import AWrapped, CrawlError, CrawlToken, CrawlWarning, DownloadToken, anoncritical
 from ..http_crawler import HttpCrawler, HttpCrawlerSection
 from .file_templates import Links
+from .ilias_html_cleaner import clean, insert_base_markup
 from .kit_ilias_html import IliasElementType, IliasPage, IliasPageElement
 
 TargetType = Union[str, int]
@@ -215,6 +216,8 @@ instance's greatest bottleneck.
         cl = maybe_cl  # Not mypy's fault, but explained here: https://github.com/python/mypy/issues/2608
 
         elements: List[IliasPageElement] = []
+        # A list as variable redefinitions are not propagated to outer scopes
+        description: List[BeautifulSoup] = []
 
         @_iorepeat(3, "crawling url")
         async def gather_elements() -> None:
@@ -233,8 +236,14 @@ instance's greatest bottleneck.
                 page = IliasPage(soup, url, None)
                 elements.extend(page.get_child_elements())
 
+                if description_string := page.get_description():
+                    description.append(description_string)
+
         # Fill up our task list with the found elements
         await gather_elements()
+
+        if description:
+            await self._download_description(PurePath("."), description[0])
 
         elements.sort(key=lambda e: e.id())
 
@@ -265,6 +274,8 @@ instance's greatest bottleneck.
         cl: CrawlToken,
     ) -> None:
         elements: List[IliasPageElement] = []
+        # A list as variable redefinitions are not propagated to outer scopes
+        description: List[BeautifulSoup] = []
 
         @_iorepeat(3, "crawling folder")
         async def gather_elements() -> None:
@@ -285,9 +296,14 @@ instance's greatest bottleneck.
                         next_stage_url = None
 
                 elements.extend(page.get_child_elements())
+                if description_string := page.get_description():
+                    description.append(description_string)
 
         # Fill up our task list with the found elements
         await gather_elements()
+
+        if description:
+            await self._download_description(PurePath("."), description[0])
 
         elements.sort(key=lambda e: e.id())
 
@@ -424,6 +440,19 @@ instance's greatest bottleneck.
             return None
 
         return self._download_booking(element, link_template_maybe, maybe_dl)
+
+    @anoncritical
+    @_iorepeat(1, "downloading description")
+    async def _download_description(self, parent_path: PurePath, description: BeautifulSoup) -> None:
+        path = parent_path / "Description.html"
+        dl = await self.download(path, redownload=Redownload.ALWAYS)
+        if not dl:
+            return
+
+        async with dl as (bar, sink):
+            description = clean(insert_base_markup(description))
+            sink.file.write(description.prettify().encode("utf-8"))
+            sink.done()
 
     @anoncritical
     @_iorepeat(3, "resolving booking")

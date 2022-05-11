@@ -22,6 +22,9 @@ ambiguous situations.
 
 ## Unreleased
 
+### Added
+- Download of page descriptions
+
 ### Changed
 - Add `cpp` extension to default `link_regex` of IPD crawler
 - Mention hrefs in IPD crawler's `--explain` output for users of `link_regex` option

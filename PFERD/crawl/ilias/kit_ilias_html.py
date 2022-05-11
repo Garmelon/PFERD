@@ -85,6 +85,31 @@ class IliasPage:
         log.explain("Page is a normal folder, searching for elements")
         return self._find_normal_entries()
 
+    def get_description(self) -> Optional[BeautifulSoup]:
+        def is_interesting_class(name: str) -> bool:
+            return name in ["ilCOPageSection", "ilc_Paragraph", "ilc_va_ihcap_VAccordIHeadCap"]
+
+        paragraphs: List[Tag] = self._soup.findAll(class_=is_interesting_class)
+        if not paragraphs:
+            return None
+
+        # Extract bits and pieces into a string and parse it again.
+        # This ensures we don't miss anything and weird structures are resolved
+        # somewhat gracefully.
+        raw_html = ""
+        for p in paragraphs:
+            if p.find_parent(class_=is_interesting_class):
+                continue
+
+            # Ignore special listings (like folder groupings)
+            if "ilc_section_Special" in p["class"]:
+                continue
+
+            raw_html += str(p) + "\n"
+        raw_html = f"<body>\n{raw_html}\n</body>"
+
+        return BeautifulSoup(raw_html, "html.parser")
+
     def get_next_stage_element(self) -> Optional[IliasPageElement]:
         if self._is_ilias_opencast_embedding():
             return self.get_child_elements()[0]
