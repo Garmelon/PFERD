@@ -3,7 +3,7 @@ import re
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from enum import Enum
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup, Tag
@@ -53,6 +53,20 @@ class IliasPageElement:
         # Fall back to URL
         log.warn(f"Didn't find identity for {self.name} - {self.url}. Please report this.")
         return self.url
+
+
+@dataclass
+class IliasDownloadForumData:
+    url: str
+    form_data: Dict[str, Union[str, List[str]]]
+
+
+@dataclass
+class IliasForumThread:
+    title: str
+    title_tag: Tag
+    content_tag: Tag
+    mtime: Optional[datetime]
 
 
 class IliasPage:
@@ -110,12 +124,38 @@ class IliasPage:
 
         return BeautifulSoup(raw_html, "html.parser")
 
+    def get_download_forum_data(self) -> Optional[IliasDownloadForumData]:
+        form = self._soup.find("form", attrs={"action": lambda x: x and "fallbackCmd=showThreads" in x})
+        if not form:
+            return None
+        post_url = self._abs_url_from_relative(form["action"])
+
+        form_data: Dict[str, Union[str, List[ſtr]]] = {
+            "thread_ids[]": [f["value"] for f in form.find_all(attrs={"name": "thread_ids[]"})],
+            "selected_cmd2": "html",
+            "select_cmd2": "Ausführen",
+            "selected_cmd": "",
+        }
+
+        return IliasDownloadForumData(post_url, form_data)
+
     def get_next_stage_element(self) -> Optional[IliasPageElement]:
+        if self._is_forum_page():
+            if "trows=800" in self._page_url:
+                return None
+            return self._get_show_max_forum_entries_per_page_url()
         if self._is_ilias_opencast_embedding():
             return self.get_child_elements()[0]
         if self._page_type == IliasElementType.VIDEO_FOLDER_MAYBE_PAGINATED:
             return self._find_video_entries_paginated()[0]
         return None
+
+    def _is_forum_page(self) -> bool:
+        read_more_btn = self._soup.find(
+            "button",
+            attrs={"onclick": lambda x: x and "cmdClass=ilobjforumgui&cmd=markAllRead" in x}
+        )
+        return read_more_btn is not None
 
     def _is_video_player(self) -> bool:
         return "paella_config_file" in str(self._soup)
@@ -193,6 +233,19 @@ class IliasPage:
             items.append(IliasPageElement(IliasElementType.VIDEO, video_url, full_name))
 
         return items
+
+    def _get_show_max_forum_entries_per_page_url(self) -> Optional[IliasPageElement]:
+        correct_link = self._soup.find(
+            "a",
+            attrs={"href": lambda x: x and "trows=800" in x and "cmd=showThreads" in x}
+        )
+
+        if not correct_link:
+            return None
+
+        link = self._abs_url_from_link(correct_link)
+
+        return IliasPageElement(IliasElementType.FORUM, link, "show all forum threads")
 
     def _find_personal_desktop_entries(self) -> List[IliasPageElement]:
         items: List[IliasPageElement] = []
@@ -877,3 +930,38 @@ def _tomorrow() -> date:
 
 def _sanitize_path_name(name: str) -> str:
     return name.replace("/", "-").replace("\\", "-").strip()
+
+
+def parse_ilias_forum_export(forum_export: BeautifulSoup) -> List[IliasForumThread]:
+    elements = []
+    for p in forum_export.select("body > p"):
+        title_tag = p
+        content_tag = p.find_next_sibling("ul")
+        title = p.find("b").text
+        if ":" in title:
+            title = title[title.find(":") + 1:]
+        title = title.strip()
+        mtime = _guess_timestamp_from_forum_post_content(content_tag)
+        elements.append(IliasForumThread(title, title_tag, content_tag, mtime))
+
+    return elements
+
+
+def _guess_timestamp_from_forum_post_content(content: Tag) -> Optional[datetime]:
+    posts: Optional[Tag] = content.select(".ilFrmPostHeader > span.small")
+    if not posts:
+        return None
+
+    newest_date: Optional[datetime] = None
+
+    for post in posts:
+        text = post.text.strip()
+        text = text[text.rfind("|") + 1:]
+        date = demangle_date(text, fail_silently=True)
+        if not date:
+            continue
+
+        if not newest_date or newest_date < date:
+            newest_date = date
+
+    return newest_date

@@ -197,7 +197,7 @@ directly or as a GitHub issue: https://github.com/Garmelon/PFERD/issues/new
         if self.output_explain:
             self.print(f"  {escape(text)}")
 
-    def status(self, style: str, action: str, text: str) -> None:
+    def status(self, style: str, action: str, text: str, suffix: str = "") -> None:
         """
         Print a status update while crawling. Allows markup in the "style"
         argument which will be applied to the "action" string.
@@ -205,7 +205,7 @@ directly or as a GitHub issue: https://github.com/Garmelon/PFERD/issues/new
 
         if self.output_status:
             action = escape(f"{action:<{self.STATUS_WIDTH}}")
-            self.print(f"{style}{action}[/] {escape(text)}")
+            self.print(f"{style}{action}[/] {escape(text)} {suffix}")
 
     def report(self, text: str) -> None:
         """

@@ -18,7 +18,8 @@ from ..crawler import AWrapped, CrawlError, CrawlToken, CrawlWarning, DownloadTo
 from ..http_crawler import HttpCrawler, HttpCrawlerSection
 from .file_templates import Links
 from .ilias_html_cleaner import clean, insert_base_markup
-from .kit_ilias_html import IliasElementType, IliasPage, IliasPageElement
+from .kit_ilias_html import (IliasElementType, IliasForumThread, IliasPage, IliasPageElement,
+                             _sanitize_path_name, parse_ilias_forum_export)
 
 TargetType = Union[str, int]
 
@@ -66,6 +67,9 @@ class KitIliasWebCrawlerSection(HttpCrawlerSection):
 
     def videos(self) -> bool:
         return self.s.getboolean("videos", fallback=False)
+
+    def forums(self) -> bool:
+        return self.s.getboolean("forums", fallback=False)
 
 
 _DIRECTORY_PAGES: Set[IliasElementType] = set([
@@ -183,6 +187,7 @@ instance's greatest bottleneck.
         self._link_file_redirect_delay = section.link_redirect_delay()
         self._links = section.links()
         self._videos = section.videos()
+        self._forums = section.forums()
         self._visited_urls: Set[str] = set()
 
     async def _run(self) -> None:
@@ -335,22 +340,27 @@ instance's greatest bottleneck.
         element_path = PurePath(parent_path, element.name)
 
         if element.type in _VIDEO_ELEMENTS:
-            log.explain_topic(f"Decision: Crawl video element {fmt_path(element_path)}")
             if not self._videos:
-                log.explain("Video crawling is disabled")
-                log.explain("Answer: no")
+                log.status(
+                    "[bold bright_black]",
+                    "Ignored",
+                    fmt_path(element_path),
+                    "[bright_black](enable with option 'videos')"
+                )
                 return None
-            else:
-                log.explain("Video crawling is enabled")
-                log.explain("Answer: yes")
 
         if element.type == IliasElementType.FILE:
             return await self._handle_file(element, element_path)
         elif element.type == IliasElementType.FORUM:
-            log.explain_topic(f"Decision: Crawl {fmt_path(element_path)}")
-            log.explain("Forums are not supported")
-            log.explain("Answer: No")
-            return None
+            if not self._forums:
+                log.status(
+                    "[bold bright_black]",
+                    "Ignored",
+                    fmt_path(element_path),
+                    "[bright_black](enable with option 'forums')"
+                )
+                return None
+            return await self._handle_forum(element, element_path)
         elif element.type == IliasElementType.TEST:
             log.explain_topic(f"Decision: Crawl {fmt_path(element_path)}")
             log.explain("Tests contain no relevant files")
@@ -635,6 +645,68 @@ instance's greatest bottleneck.
         if not await try_stream():
             raise CrawlError("File streaming failed after authenticate()")
 
+    async def _handle_forum(
+        self,
+        element: IliasPageElement,
+        element_path: PurePath,
+    ) -> Optional[Coroutine[Any, Any, None]]:
+        maybe_cl = await self.crawl(element_path)
+        if not maybe_cl:
+            return None
+        return self._crawl_forum(element, maybe_cl)
+
+    @_iorepeat(3, "crawling forum")
+    @anoncritical
+    async def _crawl_forum(self, element: IliasPageElement, cl: CrawlToken) -> None:
+        elements = []
+
+        async with cl:
+            next_stage_url = element.url
+            while next_stage_url:
+                log.explain_topic(f"Parsing HTML page for {fmt_path(cl.path)}")
+                log.explain(f"URL: {next_stage_url}")
+
+                soup = await self._get_page(next_stage_url)
+                page = IliasPage(soup, next_stage_url, None)
+
+                if next := page.get_next_stage_element():
+                    next_stage_url = next.url
+                else:
+                    break
+
+            download_data = page.get_download_forum_data()
+            if not download_data:
+                raise CrawlWarning("Failed to extract forum data")
+            html = await self._post_authenticated(download_data.url, download_data.form_data)
+            elements = parse_ilias_forum_export(soupify(html))
+
+        elements.sort(key=lambda elem: elem.title)
+
+        tasks: List[Awaitable[None]] = []
+        for elem in elements:
+            tasks.append(asyncio.create_task(self._download_forum_thread(cl.path, elem)))
+
+        # And execute them
+        await self.gather(tasks)
+
+    @anoncritical
+    @_iorepeat(3, "saving forum thread")
+    async def _download_forum_thread(
+        self,
+        parent_path: PurePath,
+        element: IliasForumThread,
+    ) -> None:
+        path = parent_path / (_sanitize_path_name(element.title) + ".html")
+        maybe_dl = await self.download(path, mtime=element.mtime)
+        if not maybe_dl:
+            return
+
+        async with maybe_dl as (bar, sink):
+            content = element.title_tag.prettify()
+            content += element.content_tag.prettify()
+            sink.file.write(content.encode("utf-8"))
+            sink.done()
+
     async def _get_page(self, url: str) -> BeautifulSoup:
         auth_id = await self._current_auth_id()
         async with self.session.get(url) as request:
@@ -652,13 +724,37 @@ instance's greatest bottleneck.
                 return soup
         raise CrawlError("get_page failed even after authenticating")
 
+    async def _post_authenticated(
+        self,
+        url: str,
+        data: dict[str, Union[str, List[str]]]
+    ) -> BeautifulSoup:
+        auth_id = await self._current_auth_id()
+
+        form_data = aiohttp.FormData()
+        for key, val in data.items():
+            form_data.add_field(key, val)
+
+        async with self.session.post(url, data=form_data(), allow_redirects=False) as request:
+            if request.status == 200:
+                return await request.read()
+
+        # We weren't authenticated, so try to do that
+        await self.authenticate(auth_id)
+
+        # Retry once after authenticating. If this fails, we will die.
+        async with self.session.post(url, data=data, allow_redirects=False) as request:
+            if request.status == 200:
+                return await request.read()
+        raise CrawlError("post_authenticated failed even after authenticating")
+
     # We repeat this as the login method in shibboleth doesn't handle I/O errors.
     # Shibboleth is quite reliable as well, the repeat is likely not critical here.
-    @_iorepeat(3, "Login", failure_is_error=True)
+    @ _iorepeat(3, "Login", failure_is_error=True)
     async def _authenticate(self) -> None:
         await self._shibboleth_login.login(self.session)
 
-    @staticmethod
+    @ staticmethod
     def _is_logged_in(soup: BeautifulSoup) -> bool:
         # Normal ILIAS pages
         mainbar: Optional[Tag] = soup.find(class_="il-maincontrols-metabar")

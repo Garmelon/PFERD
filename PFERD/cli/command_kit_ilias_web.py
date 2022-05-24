@@ -63,6 +63,11 @@ GROUP.add_argument(
     help="crawl and download videos"
 )
 GROUP.add_argument(
+    "--forums",
+    action=BooleanOptionalAction,
+    help="crawl and download forum posts"
+)
+GROUP.add_argument(
     "--http-timeout", "-t",
     type=float,
     metavar="SECONDS",
@@ -90,6 +95,8 @@ def load(
         section["link_redirect_delay"] = str(args.link_redirect_delay)
     if args.videos is not None:
         section["videos"] = "yes" if args.videos else "no"
+    if args.forums is not None:
+        section["forums"] = "yes" if args.forums else "no"
     if args.http_timeout is not None:
         section["http_timeout"] = str(args.http_timeout)
 
