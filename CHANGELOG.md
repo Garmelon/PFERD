@@ -36,6 +36,9 @@ ambiguous situations.
 - IPD crawler crashes on some sites
 - Meeting name normalization for yesterday, today and tomorrow
 - Crawling of meeting file previews
+- Login with new login button html layout
+- Descriptions for courses are now placed in the correct subfolder when
+  downloading the whole desktop
 
 ## 3.4.0 - 2022-05-01
 
