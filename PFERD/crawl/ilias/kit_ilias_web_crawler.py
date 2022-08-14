@@ -308,7 +308,7 @@ instance's greatest bottleneck.
         await gather_elements()
 
         if description:
-            await self._download_description(PurePath("."), description[0])
+            await self._download_description(cl.path, description[0])
 
         elements.sort(key=lambda e: e.id())
 
