@@ -759,7 +759,7 @@ instance's greatest bottleneck.
         # Normal ILIAS pages
         mainbar: Optional[Tag] = soup.find(class_="il-maincontrols-metabar")
         if mainbar is not None:
-            login_button = mainbar.find("button", attrs={"data-action": lambda x: x and "login.php" in x})
+            login_button = mainbar.find(attrs={"href": lambda x: x and "login.php" in x})
             shib_login = soup.find(id="button_shib_login")
             return not login_button and not shib_login
 
