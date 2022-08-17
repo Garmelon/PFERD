@@ -22,6 +22,8 @@ ambiguous situations.
 
 ## Unreleased
 
+## 3.4.1 - 2022-08-17
+
 ### Added
 - Download of page descriptions
 - Forum download support
