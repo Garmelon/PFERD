@@ -22,6 +22,9 @@ ambiguous situations.
 
 ## Unreleased
 
+### Fixed
+- Forum crawling crashing when parsing empty (= 0 messages) threads
+
 ## 3.4.1 - 2022-08-17
 
 ### Added

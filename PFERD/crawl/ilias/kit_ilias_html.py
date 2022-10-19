@@ -937,6 +937,13 @@ def parse_ilias_forum_export(forum_export: BeautifulSoup) -> List[IliasForumThre
     for p in forum_export.select("body > p"):
         title_tag = p
         content_tag = p.find_next_sibling("ul")
+
+        if not content_tag:
+            # ILIAS allows users to delete the initial post while keeping the thread open
+            # This produces empty threads without *any* content.
+            # I am not sure why you would want this, but ILIAS makes it easy to do.
+            continue
+
         title = p.find("b").text
         if ":" in title:
             title = title[title.find(":") + 1:]
