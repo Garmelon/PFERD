@@ -380,6 +380,13 @@ instance's greatest bottleneck.
             log.explain_topic(f"Decision: Crawl {fmt_path(element_path)}")
             log.explain("Tests contain no relevant files")
             log.explain("Answer: No")
+        elif element.type == IliasElementType.SURVEY:
+            log.status(
+                "[bold bright_black]",
+                "Ignored",
+                fmt_path(element_path),
+                "[bright_black](surveys contain no relevant data)"
+            )
             return None
         elif element.type == IliasElementType.LINK:
             return await self._handle_link(element, element_path)

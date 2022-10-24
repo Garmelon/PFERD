@@ -24,6 +24,7 @@ class IliasElementType(Enum):
     LINK = "link"
     BOOKING = "booking"
     MEETING = "meeting"
+    SURVEY = "survey"
     VIDEO = "video"
     VIDEO_PLAYER = "video_player"
     VIDEO_FOLDER = "video_folder"
@@ -730,6 +731,8 @@ class IliasPage:
             return IliasElementType.TEST
         if "fold" in icon["class"]:
             return IliasElementType.FOLDER
+        if "svy" in icon["class"]:
+            return IliasElementType.SURVEY
 
         _unexpected_html_warning()
         log.warn_contd(f"Could not extract type from {icon} for card title {card_title}")
