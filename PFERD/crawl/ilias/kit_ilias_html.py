@@ -146,11 +146,17 @@ class IliasPage:
         if self._is_forum_page():
             if "trows=800" in self._page_url:
                 return None
+            log.explain("Requesting *all* forum threads")
             return self._get_show_max_forum_entries_per_page_url()
         if self._is_ilias_opencast_embedding():
+            log.explain("Unwrapping opencast embedding")
             return self.get_child_elements()[0]
         if self._page_type == IliasElementType.VIDEO_FOLDER_MAYBE_PAGINATED:
+            log.explain("Unwrapping video pagination")
             return self._find_video_entries_paginated()[0]
+        if self._contains_collapsed_future_meetings():
+            log.explain("Requesting *all* future meetings")
+            return self._uncollapse_future_meetings_url()
         return None
 
     def _is_forum_page(self) -> bool:
@@ -202,6 +208,16 @@ class IliasPage:
         if not link:
             return False
         return "target=copa_" in link.get("value")
+
+    def _contains_collapsed_future_meetings(self) -> bool:
+        return self._uncollapse_future_meetings_url() is not None
+
+    def _uncollapse_future_meetings_url(self) -> Optional[IliasPageElement]:
+        element = self._soup.find("a", attrs={"href": lambda x: x and "crs_next_sess=1" in x})
+        if not element:
+            return None
+        link = self._abs_url_from_link(element)
+        return IliasPageElement(IliasElementType.FOLDER, link, "show all meetings")
 
     def _player_to_video(self) -> List[IliasPageElement]:
         # Fetch the actual video page. This is a small wrapper page initializing a javscript
@@ -792,6 +808,10 @@ class IliasPage:
 
         if img_tag is None:
             img_tag = found_parent.select_one("img.icon")
+
+        if img_tag is None and found_parent.find("a", attrs={"href": lambda x: x and "crs_next_sess=" in x}):
+            log.explain("Found session expansion button, skipping it as it has no content")
+            return None
 
         if img_tag is None:
             _unexpected_html_warning()

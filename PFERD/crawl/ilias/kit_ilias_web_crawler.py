@@ -234,19 +234,28 @@ instance's greatest bottleneck.
         async def gather_elements() -> None:
             elements.clear()
             async with cl:
-                soup = await self._get_page(url)
-
-                if expected_id is not None:
-                    perma_link_element: Tag = soup.find(id="current_perma_link")
-                    if not perma_link_element or "crs_" not in perma_link_element.get("value"):
-                        raise CrawlError("Invalid course id? Didn't find anything looking like a course")
+                next_stage_url: Optional[str] = url
+                current_parent = None
 
                 # Duplicated code, but the root page is special - we want to avoid fetching it twice!
-                log.explain_topic("Parsing root HTML page")
-                log.explain(f"URL: {url}")
-                page = IliasPage(soup, url, None)
-                elements.extend(page.get_child_elements())
+                while next_stage_url:
+                    soup = await self._get_page(next_stage_url)
 
+                    if current_parent is None and expected_id is not None:
+                        perma_link_element: Tag = soup.find(id="current_perma_link")
+                        if not perma_link_element or "crs_" not in perma_link_element.get("value"):
+                            raise CrawlError("Invalid course id? Didn't find anything looking like a course")
+
+                    log.explain_topic(f"Parsing HTML page for {fmt_path(cl.path)}")
+                    log.explain(f"URL: {next_stage_url}")
+                    page = IliasPage(soup, next_stage_url, current_parent)
+                    if next_element := page.get_next_stage_element():
+                        current_parent = next_element
+                        next_stage_url = next_element.url
+                    else:
+                        next_stage_url = None
+
+                elements.extend(page.get_child_elements())
                 if description_string := page.get_description():
                     description.append(description_string)
 
