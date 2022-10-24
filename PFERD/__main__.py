@@ -5,6 +5,8 @@ import os
 import sys
 from pathlib import Path
 
+from PFERD.update import check_for_updates
+
 from .auth import AuthLoadError
 from .cli import PARSER, ParserLoadError, load_default_section
 from .config import Config, ConfigDumpError, ConfigLoadError, ConfigOptionError
@@ -134,6 +136,11 @@ def main() -> None:
             loop.run_until_complete(asyncio.sleep(1))
             loop.close()
         else:
+            log.explain_topic("Checking for updates")
+            if not args.skip_update_check:
+                asyncio.run(check_for_updates())
+            else:
+                log.explain("Update check skipped due to configuration option")
             asyncio.run(pferd.run(args.debug_transforms))
     except (ConfigOptionError, AuthLoadError) as e:
         log.unlock()

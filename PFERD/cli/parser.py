@@ -152,6 +152,11 @@ PARSER.add_argument(
     version=f"{NAME} {VERSION} (https://github.com/Garmelon/PFERD)",
 )
 PARSER.add_argument(
+    "--skip-update-check",
+    action="store_true",
+    help="disable automatic update checks at startup"
+)
+PARSER.add_argument(
     "--config", "-c",
     type=Path,
     metavar="PATH",
