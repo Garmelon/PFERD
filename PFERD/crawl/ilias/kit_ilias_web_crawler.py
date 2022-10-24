@@ -23,6 +23,12 @@ from .kit_ilias_html import (IliasElementType, IliasForumThread, IliasPage, Ilia
 
 TargetType = Union[str, int]
 
+_ILIAS_URL = "https://ilias.studium.kit.edu"
+
+
+class KitShibbolethBackgroundLoginSuccessful():
+    pass
+
 
 class KitIliasWebCrawlerSection(HttpCrawlerSection):
     def target(self) -> TargetType:
@@ -36,7 +42,7 @@ class KitIliasWebCrawlerSection(HttpCrawlerSection):
         if target == "desktop":
             # Full personal desktop
             return target
-        if target.startswith("https://ilias.studium.kit.edu"):
+        if target.startswith(_ILIAS_URL):
             # ILIAS URL
             return target
 
@@ -181,7 +187,7 @@ instance's greatest bottleneck.
             section.tfa_auth(authenticators),
         )
 
-        self._base_url = "https://ilias.studium.kit.edu"
+        self._base_url = _ILIAS_URL
 
         self._target = section.target()
         self._link_file_redirect_delay = section.link_redirect_delay()
@@ -808,14 +814,17 @@ class KitShibbolethLogin:
 
         # Equivalent: Click on "Mit KIT-Account anmelden" button in
         # https://ilias.studium.kit.edu/login.php
-        url = "https://ilias.studium.kit.edu/shib_login.php"
+        url = f"{_ILIAS_URL}/shib_login.php"
         data = {
             "sendLogin": "1",
             "idp_selection": "https://idp.scc.kit.edu/idp/shibboleth",
             "il_target": "",
             "home_organization_selection": "Weiter",
         }
-        soup: BeautifulSoup = await _shib_post(sess, url, data)
+        soup: Union[BeautifulSoup, KitShibbolethBackgroundLoginSuccessful] = await _shib_post(sess, url, data)
+
+        if isinstance(soup, KitShibbolethBackgroundLoginSuccessful):
+            return
 
         # Attempt to login using credentials, if necessary
         while not self._login_successful(soup):
@@ -854,7 +863,7 @@ class KitShibbolethLogin:
         # (or clicking "Continue" if you have JS disabled)
         relay_state = soup.find("input", {"name": "RelayState"})
         saml_response = soup.find("input", {"name": "SAMLResponse"})
-        url = "https://ilias.studium.kit.edu/Shibboleth.sso/SAML2/POST"
+        url = f"{_ILIAS_URL}/Shibboleth.sso/SAML2/POST"
         data = {  # using the info obtained in the while loop above
             "RelayState": relay_state["value"],
             "SAMLResponse": saml_response["value"],
@@ -903,22 +912,35 @@ async def _post(session: aiohttp.ClientSession, url: str, data: Any) -> Beautifu
         return soupify(await response.read())
 
 
-async def _shib_post(session: aiohttp.ClientSession, url: str, data: Any) -> BeautifulSoup:
+async def _shib_post(
+    session: aiohttp.ClientSession,
+    url: str,
+    data: Any
+) -> Union[BeautifulSoup, KitShibbolethBackgroundLoginSuccessful]:
     """
     aiohttp unescapes '/' and ':' in URL query parameters which is not RFC compliant and rejected
     by Shibboleth. Thanks a lot. So now we unroll the requests manually, parse location headers and
     build encoded URL objects ourselves... Who thought mangling location header was a good idea??
     """
+    log.explain_topic("Shib login POST")
     async with session.post(url, data=data, allow_redirects=False) as response:
         location = response.headers.get("location")
+        log.explain(f"Got location {location!r}")
         if not location:
             raise CrawlWarning(f"Login failed (1), no location header present at {url}")
         correct_url = yarl.URL(location, encoded=True)
+        log.explain(f"Corrected location to {correct_url!r}")
+
+        if str(correct_url).startswith(_ILIAS_URL):
+            log.explain("ILIAS recognized our shib token and logged us in in the background, returning")
+            return KitShibbolethBackgroundLoginSuccessful()
 
         async with session.get(correct_url, allow_redirects=False) as response:
             location = response.headers.get("location")
+            log.explain(f"Redirected to {location!r} with status {response.status}")
             # If shib still still has a valid session, it will directly respond to the request
             if location is None:
+                log.explain("Shib recognized us, returning its response directly")
                 return soupify(await response.read())
 
             as_yarl = yarl.URL(response.url)
@@ -932,6 +954,7 @@ async def _shib_post(session: aiohttp.ClientSession, url: str, data: Any) -> Bea
                 path=location,
                 encoded=True
             )
+            log.explain(f"Corrected location to {correct_url!r}")
 
             async with session.get(correct_url, allow_redirects=False) as response:
                 return soupify(await response.read())
