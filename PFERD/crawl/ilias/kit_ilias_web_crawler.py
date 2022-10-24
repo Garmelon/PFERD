@@ -377,9 +377,13 @@ instance's greatest bottleneck.
                 return None
             return await self._handle_forum(element, element_path)
         elif element.type == IliasElementType.TEST:
-            log.explain_topic(f"Decision: Crawl {fmt_path(element_path)}")
-            log.explain("Tests contain no relevant files")
-            log.explain("Answer: No")
+            log.status(
+                "[bold bright_black]",
+                "Ignored",
+                fmt_path(element_path),
+                "[bright_black](tests contain no relevant data)"
+            )
+            return None
         elif element.type == IliasElementType.SURVEY:
             log.status(
                 "[bold bright_black]",

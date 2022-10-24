@@ -731,6 +731,8 @@ class IliasPage:
             return IliasElementType.TEST
         if "fold" in icon["class"]:
             return IliasElementType.FOLDER
+        if "copa" in icon["class"]:
+            return IliasElementType.FOLDER
         if "svy" in icon["class"]:
             return IliasElementType.SURVEY
 
