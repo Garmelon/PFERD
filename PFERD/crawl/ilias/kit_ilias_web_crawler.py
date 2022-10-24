@@ -658,7 +658,7 @@ instance's greatest bottleneck.
     @_iorepeat(3, "crawling forum")
     @anoncritical
     async def _crawl_forum(self, element: IliasPageElement, cl: CrawlToken) -> None:
-        elements = []
+        elements: List[IliasForumThread] = []
 
         async with cl:
             next_stage_url = element.url
@@ -677,6 +677,10 @@ instance's greatest bottleneck.
             download_data = page.get_download_forum_data()
             if not download_data:
                 raise CrawlWarning("Failed to extract forum data")
+            if download_data.empty:
+                log.explain("Forum had no threads")
+                elements = []
+                return
             html = await self._post_authenticated(download_data.url, download_data.form_data)
             elements = parse_ilias_forum_export(soupify(html))
 

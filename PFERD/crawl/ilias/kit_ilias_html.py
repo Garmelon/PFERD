@@ -59,6 +59,7 @@ class IliasPageElement:
 class IliasDownloadForumData:
     url: str
     form_data: Dict[str, Union[str, List[str]]]
+    empty: bool
 
 
 @dataclass
@@ -130,14 +131,16 @@ class IliasPage:
             return None
         post_url = self._abs_url_from_relative(form["action"])
 
+        thread_ids = [f["value"] for f in form.find_all(attrs={"name": "thread_ids[]"})]
+
         form_data: Dict[str, Union[str, List[ſtr]]] = {
-            "thread_ids[]": [f["value"] for f in form.find_all(attrs={"name": "thread_ids[]"})],
+            "thread_ids[]": thread_ids,
             "selected_cmd2": "html",
             "select_cmd2": "Ausführen",
             "selected_cmd": "",
         }
 
-        return IliasDownloadForumData(post_url, form_data)
+        return IliasDownloadForumData(url=post_url, form_data=form_data, empty=len(thread_ids) == 0)
 
     def get_next_stage_element(self) -> Optional[IliasPageElement]:
         if self._is_forum_page():
