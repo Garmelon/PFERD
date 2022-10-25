@@ -25,6 +25,7 @@ ambiguous situations.
 ### Fixed
 - Forum crawling crashing when parsing empty (= 0 messages) threads
 - Forum crawling crashing when a forum has no threads at all
+- kit-ipd crawler if URL did not end with a trailing slash
 
 ## 3.4.1 - 2022-08-17
 

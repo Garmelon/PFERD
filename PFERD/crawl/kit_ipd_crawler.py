@@ -24,6 +24,9 @@ class KitIpdCrawlerSection(HttpCrawlerSection):
         if not target.startswith("https://"):
             self.invalid_value("target", target, "Should be a URL")
 
+        if not target.endswith("/"):
+            target = target + "/"
+
         return target
 
     def link_regex(self) -> Pattern[str]:
