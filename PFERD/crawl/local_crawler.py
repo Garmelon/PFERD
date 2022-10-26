@@ -71,8 +71,6 @@ class LocalCrawler(Crawler):
         if not cl:
             return
 
-        tasks = []
-
         async with cl:
             await asyncio.sleep(random.uniform(
                 0.5 * self._crawl_delay,
@@ -81,9 +79,7 @@ class LocalCrawler(Crawler):
 
             for child in path.iterdir():
                 pure_child = cl.path / child.name
-                tasks.append(self._crawl_path(child, pure_child))
-
-        await self.gather(tasks)
+                await self._crawl_path(child, pure_child)
 
     async def _crawl_file(self, path: Path, pure: PurePath) -> None:
         stat = path.stat()
