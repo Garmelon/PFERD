@@ -22,10 +22,16 @@ ambiguous situations.
 
 ## Unreleased
 
+### Added
+- Recognize and crawl content pages in cards
+- Recognize and ignore surveys
+
 ### Fixed
-- Forum crawling crashing when parsing empty (= 0 messages) threads
+- Forum crawling crashing when a thread has no messages at all
 - Forum crawling crashing when a forum has no threads at all
-- kit-ipd crawler if URL did not end with a trailing slash
+- Ilias login failing in some cases
+- Crawling of paginated future meetings
+- IPD crawler handling of URLs without trailing slash
 
 ## 3.4.1 - 2022-08-17
 
