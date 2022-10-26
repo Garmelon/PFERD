@@ -22,6 +22,8 @@ ambiguous situations.
 
 ## Unreleased
 
+## 3.4.2 - 2022-10-26
+
 ### Added
 - Recognize and crawl content pages in cards
 - Recognize and ignore surveys
