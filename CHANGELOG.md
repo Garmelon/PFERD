@@ -22,6 +22,9 @@ ambiguous situations.
 
 ## Unreleased
 
+### Changed
+- Clear up error message shown when multiple paths are found to an element
+
 ## 3.4.2 - 2022-10-26
 
 ### Added

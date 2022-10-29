@@ -134,7 +134,7 @@ class IliasPage:
 
         thread_ids = [f["value"] for f in form.find_all(attrs={"name": "thread_ids[]"})]
 
-        form_data: Dict[str, Union[str, List[ſtr]]] = {
+        form_data: Dict[str, Union[str, List[str]]] = {
             "thread_ids[]": thread_ids,
             "selected_cmd2": "html",
             "select_cmd2": "Ausführen",

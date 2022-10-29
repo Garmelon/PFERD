@@ -194,7 +194,7 @@ instance's greatest bottleneck.
         self._links = section.links()
         self._videos = section.videos()
         self._forums = section.forums()
-        self._visited_urls: Set[str] = set()
+        self._visited_urls: Dict[str, PurePath] = dict()
 
     async def _run(self) -> None:
         if isinstance(self._target, int):
@@ -348,9 +348,11 @@ instance's greatest bottleneck.
     ) -> Optional[Coroutine[Any, Any, None]]:
         if element.url in self._visited_urls:
             raise CrawlWarning(
-                f"Found second path to element {element.name!r} at {element.url!r}. Aborting subpath"
+                f"Found second path to element {element.name!r} at {element.url!r}. "
+                + f"First path: {fmt_path(self._visited_urls[element.url])}. "
+                + f"Second path: {fmt_path(parent_path)}."
             )
-        self._visited_urls.add(element.url)
+        self._visited_urls[element.url] = parent_path
 
         element_path = PurePath(parent_path, element.name)
 
