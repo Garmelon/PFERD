@@ -22,6 +22,9 @@ ambiguous situations.
 
 ## Unreleased
 
+### Added
+- Missing documentation for `forums` option
+
 ### Changed
 - Clear up error message shown when multiple paths are found to an element
 

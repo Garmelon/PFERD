@@ -181,6 +181,7 @@ script once per day should be fine.
   redirect to the actual URL. Set to a negative value to disable the automatic
   redirect. (Default: `-1`)
 - `videos`: Whether to download videos. (Default: `no`)
+- `forums`: Whether to download forum threads. (Default: `no`)
 - `http_timeout`: The timeout (in seconds) for all HTTP requests. (Default:
   `20.0`)
 
