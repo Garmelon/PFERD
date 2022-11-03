@@ -30,7 +30,10 @@ The use of [venv](https://docs.python.org/3/library/venv.html) is recommended.
 
 Unofficial packages are available for:
 - [AUR](https://aur.archlinux.org/packages/pferd)
+- [brew](https://formulae.brew.sh/formula/pferd)
+- [conda-forge](https://github.com/conda-forge/pferd-feedstock)
 - [nixpkgs](https://github.com/NixOS/nixpkgs/blob/master/pkgs/tools/misc/pferd/default.nix)
+- [PyPi](https://pypi.org/project/pferd)
 
 See also PFERD's [repology page](https://repology.org/project/pferd/versions).
 
