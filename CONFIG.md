@@ -290,7 +290,7 @@ path matches `SOURCE`, it is renamed to `TARGET`.
 Example: `foo/bar --> baz`
 - Doesn't match `foo`, `a/foo/bar` or `foo/baz`
 - Converts `foo/bar` into `baz`
-- Converts `foo/bar/wargl` into `bar/wargl`
+- Converts `foo/bar/wargl` into `baz/wargl`
 
 Example: `foo/bar --> !`
 - Doesn't match `foo`, `a/foo/bar` or `foo/baz`
