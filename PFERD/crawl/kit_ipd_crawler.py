@@ -2,7 +2,7 @@ import os
 import re
 from dataclasses import dataclass
 from pathlib import PurePath
-from typing import Awaitable, List, Optional, Pattern, Set, Union
+from typing import Awaitable, List, Optional, Pattern, Set, Tuple, Union
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup, Tag
@@ -23,9 +23,6 @@ class KitIpdCrawlerSection(HttpCrawlerSection):
 
         if not target.startswith("https://"):
             self.invalid_value("target", target, "Should be a URL")
-
-        if not target.endswith("/"):
-            target = target + "/"
 
         return target
 
@@ -102,32 +99,32 @@ class KitIpdCrawler(HttpCrawler):
             await self._stream_from_url(file.url, sink, bar)
 
     async def _fetch_items(self) -> Set[Union[KitIpdFile, KitIpdFolder]]:
-        page = await self.get_page()
+        page, url = await self.get_page()
         elements: List[Tag] = self._find_file_links(page)
         items: Set[Union[KitIpdFile, KitIpdFolder]] = set()
 
         for element in elements:
             folder_label = self._find_folder_label(element)
             if folder_label:
-                folder = self._extract_folder(folder_label)
+                folder = self._extract_folder(folder_label, url)
                 if folder not in items:
                     items.add(folder)
                     folder.explain()
             else:
-                file = self._extract_file(element)
+                file = self._extract_file(element, url)
                 items.add(file)
                 log.explain_topic(f"Orphan file {file.name!r} (href={file.url!r})")
                 log.explain("Attributing it to root folder")
 
         return items
 
-    def _extract_folder(self, folder_tag: Tag) -> KitIpdFolder:
+    def _extract_folder(self, folder_tag: Tag, url: str) -> KitIpdFolder:
         files: List[KitIpdFile] = []
         name = folder_tag.getText().strip()
 
         container: Tag = folder_tag.findNextSibling(name="table")
         for link in self._find_file_links(container):
-            files.append(self._extract_file(link))
+            files.append(self._extract_file(link, url))
 
         return KitIpdFolder(name, files)
 
@@ -138,16 +135,16 @@ class KitIpdCrawler(HttpCrawler):
             return None
         return enclosing_table.findPreviousSibling(name=re.compile("^h[1-6]$"))
 
-    def _extract_file(self, link: Tag) -> KitIpdFile:
-        url = self._abs_url_from_link(link)
+    def _extract_file(self, link: Tag, url: str) -> KitIpdFile:
+        url = self._abs_url_from_link(url, link)
         name = os.path.basename(url)
         return KitIpdFile(name, url)
 
     def _find_file_links(self, tag: Union[Tag, BeautifulSoup]) -> List[Tag]:
         return tag.findAll(name="a", attrs={"href": self._file_regex})
 
-    def _abs_url_from_link(self, link_tag: Tag) -> str:
-        return urljoin(self._url, link_tag.get("href"))
+    def _abs_url_from_link(self, url: str, link_tag: Tag) -> str:
+        return urljoin(url, link_tag.get("href"))
 
     async def _stream_from_url(self, url: str, sink: FileSink, bar: ProgressBar) -> None:
         async with self.session.get(url, allow_redirects=False) as resp:
@@ -162,7 +159,7 @@ class KitIpdCrawler(HttpCrawler):
 
             sink.done()
 
-    async def get_page(self) -> BeautifulSoup:
+    async def get_page(self) -> Tuple[BeautifulSoup, str]:
         async with self.session.get(self._url) as request:
             # The web page for Algorithmen für Routenplanung contains some
             # weird comments that beautifulsoup doesn't parse correctly. This
@@ -170,4 +167,4 @@ class KitIpdCrawler(HttpCrawler):
             # cause issues on other pages.
             content = (await request.read()).decode("utf-8")
             content = re.sub(r"<!--.*?-->", "", content)
-            return soupify(content.encode("utf-8"))
+            return soupify(content.encode("utf-8")), str(request.url)
