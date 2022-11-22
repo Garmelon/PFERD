@@ -126,13 +126,6 @@ def _iorepeat(attempts: int, name: str, failure_is_error: bool = False) -> Calla
     return decorator
 
 
-def _wrap_io_in_warning(name: str) -> Callable[[AWrapped], AWrapped]:
-    """
-    Wraps any I/O exception in a CrawlWarning.
-    """
-    return _iorepeat(1, name)
-
-
 # Crawler control flow:
 #
 #     crawl_desktop -+
@@ -226,114 +219,45 @@ instance's greatest bottleneck.
             return
         cl = maybe_cl  # Not mypy's fault, but explained here: https://github.com/python/mypy/issues/2608
 
-        elements: List[IliasPageElement] = []
-        # A list as variable redefinitions are not propagated to outer scopes
-        description: List[BeautifulSoup] = []
+        def ensure_is_valid_course_id(parent: Optional[IliasPageElement], soup: BeautifulSoup) -> None:
+            if parent is None and expected_id is not None:
+                perma_link_element: Tag = soup.find(id="current_perma_link")
+                if not perma_link_element or "crs_" not in perma_link_element.get("value"):
+                    raise CrawlError("Invalid course id? Didn't find anything looking like a course")
 
-        @_iorepeat(3, "crawling url")
-        async def gather_elements() -> None:
-            elements.clear()
-            async with cl:
-                next_stage_url: Optional[str] = url
-                current_parent = None
-
-                # Duplicated code, but the root page is special - we want to avoid fetching it twice!
-                while next_stage_url:
-                    soup = await self._get_page(next_stage_url)
-
-                    if current_parent is None and expected_id is not None:
-                        perma_link_element: Tag = soup.find(id="current_perma_link")
-                        if not perma_link_element or "crs_" not in perma_link_element.get("value"):
-                            raise CrawlError("Invalid course id? Didn't find anything looking like a course")
-
-                    log.explain_topic(f"Parsing HTML page for {fmt_path(cl.path)}")
-                    log.explain(f"URL: {next_stage_url}")
-                    page = IliasPage(soup, next_stage_url, current_parent)
-                    if next_element := page.get_next_stage_element():
-                        current_parent = next_element
-                        next_stage_url = next_element.url
-                    else:
-                        next_stage_url = None
-
-                elements.extend(page.get_child_elements())
-                if description_string := page.get_description():
-                    description.append(description_string)
-
-        # Fill up our task list with the found elements
-        await gather_elements()
-
-        if description:
-            await self._download_description(PurePath("."), description[0])
-
-        elements.sort(key=lambda e: e.id())
-
-        tasks: List[Awaitable[None]] = []
-        for element in elements:
-            if handle := await self._handle_ilias_element(PurePath("."), element):
-                tasks.append(asyncio.create_task(handle))
-
-        # And execute them
-        await self.gather(tasks)
-
-    async def _handle_ilias_page(
-        self,
-        url: str,
-        parent: IliasPageElement,
-        path: PurePath,
-    ) -> Optional[Coroutine[Any, Any, None]]:
-        maybe_cl = await self.crawl(path)
-        if not maybe_cl:
-            return None
-        return self._crawl_ilias_page(url, parent, maybe_cl)
+        await self._crawl_ilias_page(url, None, cl, ensure_is_valid_course_id)
 
     @anoncritical
     async def _crawl_ilias_page(
         self,
         url: str,
-        parent: IliasPageElement,
+        parent: Optional[IliasPageElement],
         cl: CrawlToken,
+        next_stage_hook: Callable[[Optional[IliasPageElement], BeautifulSoup], None] = lambda a, b: None
     ) -> None:
-        elements: List[IliasPageElement] = []
-        # A list as variable redefinitions are not propagated to outer scopes
-        description: List[BeautifulSoup] = []
+        async with cl:
+            next_stage_url: Optional[str] = url
+            current_parent = parent
 
-        @_iorepeat(3, "crawling folder")
-        async def gather_elements() -> None:
-            elements.clear()
-            async with cl:
-                next_stage_url: Optional[str] = url
-                current_parent = parent
+            while next_stage_url:
+                soup = await self._get_page(next_stage_url)
+                log.explain_topic(f"Parsing HTML page for {fmt_path(cl.path)}")
+                log.explain(f"URL: {next_stage_url}")
 
-                while next_stage_url:
-                    soup = await self._get_page(next_stage_url)
-                    log.explain_topic(f"Parsing HTML page for {fmt_path(cl.path)}")
-                    log.explain(f"URL: {next_stage_url}")
-                    page = IliasPage(soup, next_stage_url, current_parent)
-                    if next_element := page.get_next_stage_element():
-                        current_parent = next_element
-                        next_stage_url = next_element.url
-                    else:
-                        next_stage_url = None
+                next_stage_hook(current_parent, soup)
 
-                elements.extend(page.get_child_elements())
-                if description_string := page.get_description():
-                    description.append(description_string)
+                page = IliasPage(soup, next_stage_url, current_parent)
+                if next_element := page.get_next_stage_element():
+                    current_parent = next_element
+                    next_stage_url = next_element.url
+                else:
+                    next_stage_url = None
 
-        # Fill up our task list with the found elements
-        await gather_elements()
+        for element in sorted(page.get_child_elements(), key=lambda e: e.id()):
+            await self._handle_ilias_element(cl.path, element)
 
-        if description:
-            await self._download_description(cl.path, description[0])
-
-        elements.sort(key=lambda e: e.id())
-
-        tasks: List[Awaitable[None]] = []
-        for element in elements:
-            if handle := await self._handle_ilias_element(cl.path, element):
-                tasks.append(asyncio.create_task(handle))
-
-        # And execute them
-        await self.gather(tasks)
+        if description_string := page.get_description():
+            await self._download_description(cl.path, description_string)
 
     # These decorators only apply *to this method* and *NOT* to the returned
     # awaitables!
@@ -345,7 +269,7 @@ instance's greatest bottleneck.
         self,
         parent_path: PurePath,
         element: IliasPageElement,
-    ) -> Optional[Coroutine[Any, Any, None]]:
+    ) -> None:
         if element.url in self._visited_urls:
             raise CrawlWarning(
                 f"Found second path to element {element.name!r} at {element.url!r}. "
@@ -367,7 +291,7 @@ instance's greatest bottleneck.
                 return None
 
         if element.type == IliasElementType.FILE:
-            return await self._handle_file(element, element_path)
+            await self._handle_file(element, element_path)
         elif element.type == IliasElementType.FORUM:
             if not self._forums:
                 log.status(
@@ -377,7 +301,7 @@ instance's greatest bottleneck.
                     "[bright_black](enable with option 'forums')"
                 )
                 return None
-            return await self._handle_forum(element, element_path)
+            await self._handle_forum(element, element_path)
         elif element.type == IliasElementType.TEST:
             log.status(
                 "[bold bright_black]",
@@ -395,15 +319,18 @@ instance's greatest bottleneck.
             )
             return None
         elif element.type == IliasElementType.LINK:
-            return await self._handle_link(element, element_path)
+            await self._handle_link(element, element_path)
         elif element.type == IliasElementType.BOOKING:
-            return await self._handle_booking(element, element_path)
+            await self._handle_booking(element, element_path)
         elif element.type == IliasElementType.VIDEO:
-            return await self._handle_file(element, element_path)
+            await self._handle_file(element, element_path)
         elif element.type == IliasElementType.VIDEO_PLAYER:
-            return await self._handle_video(element, element_path)
+            await self._handle_video(element, element_path)
         elif element.type in _DIRECTORY_PAGES:
-            return await self._handle_ilias_page(element.url, element, element_path)
+            maybe_cl = await self.crawl(element_path)
+            if not maybe_cl:
+                return None
+            await self._crawl_ilias_page(element.url, element, maybe_cl)
         else:
             # This will retry it a few times, failing everytime. It doesn't make any network
             # requests, so that's fine.
@@ -413,7 +340,7 @@ instance's greatest bottleneck.
         self,
         element: IliasPageElement,
         element_path: PurePath,
-    ) -> Optional[Coroutine[Any, Any, None]]:
+    ) -> None:
         log.explain_topic(f"Decision: Crawl Link {fmt_path(element_path)}")
         log.explain(f"Links type is {self._links}")
 
@@ -430,7 +357,7 @@ instance's greatest bottleneck.
         if not maybe_dl:
             return None
 
-        return self._download_link(element, link_template_maybe, maybe_dl)
+        await self._download_link(element, link_template_maybe, maybe_dl)
 
     @anoncritical
     @_iorepeat(3, "resolving link")
@@ -522,7 +449,7 @@ instance's greatest bottleneck.
         self,
         element: IliasPageElement,
         element_path: PurePath,
-    ) -> Optional[Coroutine[Any, Any, None]]:
+    ) -> None:
         # Copy old mapping as it is likely still relevant
         if self.prev_report:
             self.report.add_custom_value(
@@ -548,7 +475,7 @@ instance's greatest bottleneck.
 
             return None
 
-        return self._download_video(element_path, element, maybe_dl)
+        await self._download_video(element_path, element, maybe_dl)
 
     def _previous_contained_videos(self, video_path: PurePath) -> List[PurePath]:
         if not self.prev_report:
@@ -630,11 +557,11 @@ instance's greatest bottleneck.
         self,
         element: IliasPageElement,
         element_path: PurePath,
-    ) -> Optional[Coroutine[Any, Any, None]]:
+    ) -> None:
         maybe_dl = await self.download(element_path, mtime=element.mtime)
         if not maybe_dl:
             return None
-        return self._download_file(element, maybe_dl)
+        await self._download_file(element, maybe_dl)
 
     @anoncritical
     @_iorepeat(3, "downloading file")
@@ -677,11 +604,11 @@ instance's greatest bottleneck.
         self,
         element: IliasPageElement,
         element_path: PurePath,
-    ) -> Optional[Coroutine[Any, Any, None]]:
+    ) -> None:
         maybe_cl = await self.crawl(element_path)
         if not maybe_cl:
             return None
-        return self._crawl_forum(element, maybe_cl)
+        await self._crawl_forum(element, maybe_cl)
 
     @_iorepeat(3, "crawling forum")
     @anoncritical
