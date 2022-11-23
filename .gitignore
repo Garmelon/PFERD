@@ -2,7 +2,6 @@
 /.venv/
 /PFERD.egg-info/
 __pycache__/
-/.vscode/
 
 # pyinstaller
 /pferd.spec
