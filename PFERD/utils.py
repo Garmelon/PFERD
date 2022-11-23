@@ -92,17 +92,32 @@ def url_set_query_params(url: str, params: Dict[str, str]) -> str:
 
 
 def str_path(path: PurePath) -> str:
+    """
+    Turn a path into a string, in a platform-independent way.
+
+    This function always uses "/" as path separator, even on Windows.
+    """
     if not path.parts:
         return "."
     return "/".join(path.parts)
 
 
 def fmt_path(path: PurePath) -> str:
+    """
+    Turn a path into a delimited string.
+
+    This is useful if file or directory names contain weird characters like
+    newlines, leading/trailing whitespace or unprintable characters. This way,
+    they are escaped and visible to the user.
+    """
     return repr(str_path(path))
 
 
 def fmt_real_path(path: Path) -> str:
-    return repr(str(path.absolute()))
+    """
+    Like fmt_path, but resolves the path before converting it to a string.
+    """
+    return fmt_path(path.absolute())
 
 
 class ReusableAsyncContextManager(ABC, Generic[T]):
