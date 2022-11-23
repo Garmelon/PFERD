@@ -9,7 +9,6 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple, Ty
 from ..auth import Authenticator
 from ..config import Config, Section
 from ..deduplicator import Deduplicator
-from ..limiter import Limiter
 from ..logging import ProgressBar, log
 from ..output_dir import FileSink, FileSinkToken, OnConflict, OutputDirectory, OutputDirError, Redownload
 from ..report import MarkConflictError, MarkDuplicateError, Report
@@ -98,10 +97,9 @@ def anoncritical(f: AWrapped) -> AWrapped:
 
 
 class CrawlToken(ReusableAsyncContextManager[ProgressBar]):
-    def __init__(self, limiter: Limiter, path: PurePath):
+    def __init__(self, path: PurePath):
         super().__init__()
 
-        self._limiter = limiter
         self._path = path
 
     @property
@@ -110,17 +108,15 @@ class CrawlToken(ReusableAsyncContextManager[ProgressBar]):
 
     async def _on_aenter(self) -> ProgressBar:
         self._stack.callback(lambda: log.status("[bold cyan]", "Crawled", fmt_path(self._path)))
-        await self._stack.enter_async_context(self._limiter.limit_crawl())
         bar = self._stack.enter_context(log.crawl_bar("[bold bright_cyan]", "Crawling", fmt_path(self._path)))
 
         return bar
 
 
 class DownloadToken(ReusableAsyncContextManager[Tuple[ProgressBar, FileSink]]):
-    def __init__(self, limiter: Limiter, fs_token: FileSinkToken, path: PurePath):
+    def __init__(self, fs_token: FileSinkToken, path: PurePath):
         super().__init__()
 
-        self._limiter = limiter
         self._fs_token = fs_token
         self._path = path
 
@@ -129,7 +125,6 @@ class DownloadToken(ReusableAsyncContextManager[Tuple[ProgressBar, FileSink]]):
         return self._path
 
     async def _on_aenter(self) -> Tuple[ProgressBar, FileSink]:
-        await self._stack.enter_async_context(self._limiter.limit_download())
         sink = await self._stack.enter_async_context(self._fs_token)
         # The "Downloaded ..." message is printed in the output dir, not here
         bar = self._stack.enter_context(log.download_bar("[bold bright_cyan]", "Downloading",
@@ -235,12 +230,6 @@ class Crawler(ABC):
         self.name = name
         self.error_free = True
 
-        self._limiter = Limiter(
-            task_limit=section.tasks(),
-            download_limit=section.downloads(),
-            task_delay=section.task_delay(),
-        )
-
         self._deduplicator = Deduplicator(section.windows_paths())
         self._transformer = Transformer(section.transform())
 
@@ -288,7 +277,7 @@ class Crawler(ABC):
             return None
 
         log.explain("Answer: Yes")
-        return CrawlToken(self._limiter, path)
+        return CrawlToken(path)
 
     async def download(
             self,
@@ -313,7 +302,7 @@ class Crawler(ABC):
             return None
 
         log.explain("Answer: Yes")
-        return DownloadToken(self._limiter, fs_token, path)
+        return DownloadToken(fs_token, path)
 
     async def _cleanup(self) -> None:
         log.explain_topic("Decision: Clean up files")
