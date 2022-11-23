@@ -14,4 +14,4 @@ pip install --editable .
 
 # Installing tools and type hints
 pip install --upgrade mypy flake8 autopep8 isort pyinstaller
-pip install --upgrade types-chardet types-certifi
+mypy PFERD --install-types --non-interactive
