@@ -64,42 +64,37 @@ class KitIpdCrawler(HttpCrawler):
         self._file_regex = section.link_regex()
 
     async def _run(self) -> None:
-        maybe_cl = await self.crawl(PurePath("."))
-        if not maybe_cl:
+        cl = await self.crawl(PurePath("."))
+        if not cl:
             return
 
-        tasks: List[Awaitable[None]] = []
-
-        async with maybe_cl:
+        async with cl:
             for item in await self._fetch_items():
                 if isinstance(item, KitIpdFolder):
-                    tasks.append(self._crawl_folder(item))
+                    await self._crawl_folder(item)
                 else:
                     # Orphan files are placed in the root folder
-                    tasks.append(self._download_file(PurePath("."), item))
-
-        await self.gather(tasks)
+                    await self._download_file(PurePath("."), item)
 
     async def _crawl_folder(self, folder: KitIpdFolder) -> None:
         path = PurePath(folder.name)
         if not await self.crawl(path):
             return
 
-        tasks = [self._download_file(path, file) for file in folder.files]
-
-        await self.gather(tasks)
+        for file in folder.files:
+            await self._download_file(path, file)
 
     async def _download_file(self, parent: PurePath, file: KitIpdFile) -> None:
         element_path = parent / file.name
-        maybe_dl = await self.download(element_path)
-        if not maybe_dl:
+        dl = await self.download(element_path)
+        if not dl:
             return
 
-        async with maybe_dl as (bar, sink):
+        async with dl as (bar, sink):
             await self._stream_from_url(file.url, sink, bar)
 
     async def _fetch_items(self) -> Set[Union[KitIpdFile, KitIpdFolder]]:
-        page, url = await self.get_page()
+        page, url = await self._get_page()
         elements: List[Tag] = self._find_file_links(page)
         items: Set[Union[KitIpdFile, KitIpdFolder]] = set()
 
@@ -159,7 +154,7 @@ class KitIpdCrawler(HttpCrawler):
 
             sink.done()
 
-    async def get_page(self) -> Tuple[BeautifulSoup, str]:
+    async def _get_page(self) -> Tuple[BeautifulSoup, str]:
         async with self.session.get(self._url) as request:
             # The web page for Algorithmen für Routenplanung contains some
             # weird comments that beautifulsoup doesn't parse correctly. This
