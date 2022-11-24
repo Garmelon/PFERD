@@ -2,7 +2,7 @@ import os
 import re
 from dataclasses import dataclass
 from pathlib import PurePath
-from typing import Awaitable, List, Optional, Pattern, Set, Tuple, Union
+from typing import List, Optional, Pattern, Set, Tuple, Union
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup, Tag
