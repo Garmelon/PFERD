@@ -1,12 +1,9 @@
 import asyncio
-import http.cookies
-import ssl
+from http.cookiejar import LWPCookieJar
 from pathlib import Path, PurePath
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
-import aiohttp
-import certifi
-from aiohttp.client import ClientTimeout
+import requests
 
 from ..auth import Authenticator
 from ..config import Config
@@ -35,9 +32,9 @@ class HttpCrawler(Crawler):
 
         self._authentication_id = 0
         self._authentication_lock = asyncio.Lock()
-        self._request_count = 0
-        self._http_timeout = section.http_timeout()
+        self._http_timeout = section.http_timeout()  # TODO Use or remove
 
+        self._cookie_jar = LWPCookieJar()
         self._cookie_jar_path = self._output_dir.resolve(self.COOKIE_FILE)
         self._shared_cookie_jar_paths: Optional[List[Path]] = None
         self._shared_auth = shared_auth
@@ -57,7 +54,6 @@ class HttpCrawler(Crawler):
         # This should reduce the amount of requests we make: If an authentication is in progress
         # all future requests wait for authentication to complete.
         async with self._authentication_lock:
-            self._request_count += 1
             return self._authentication_id
 
     async def authenticate(self, caller_auth_id: int) -> None:
@@ -106,32 +102,13 @@ class HttpCrawler(Crawler):
 
         self._shared_cookie_jar_paths.append(self._cookie_jar_path)
 
-    def _load_cookies_from_file(self, path: Path) -> None:
-        jar: Any = http.cookies.SimpleCookie()
-        with open(path, encoding="utf-8") as f:
-            for i, line in enumerate(f):
-                # Names of headers are case insensitive
-                if line[:11].lower() == "set-cookie:":
-                    jar.load(line[11:])
-                else:
-                    log.explain(f"Line {i} doesn't start with 'Set-Cookie:', ignoring it")
-        self._cookie_jar.update_cookies(jar)
-
-    def _save_cookies_to_file(self, path: Path) -> None:
-        jar: Any = http.cookies.SimpleCookie()
-        for morsel in self._cookie_jar:
-            jar[morsel.key] = morsel
-        with open(path, "w", encoding="utf-8") as f:
-            f.write(jar.output(sep="\n"))
-            f.write("\n")  # A trailing newline is just common courtesy
-
     def _load_cookies(self) -> None:
         log.explain_topic("Loading cookies")
 
         cookie_jar_path: Optional[Path] = None
 
         if self._shared_cookie_jar_paths is None:
-            log.explain("Not sharing any cookies")
+            log.explain("Not sharing cookies")
             cookie_jar_path = self._cookie_jar_path
         else:
             log.explain("Sharing cookies")
@@ -154,46 +131,38 @@ class HttpCrawler(Crawler):
 
         log.explain(f"Loading cookies from {fmt_real_path(cookie_jar_path)}")
         try:
-            self._load_cookies_from_file(cookie_jar_path)
+            self._cookie_jar.load(filename=str(cookie_jar_path))
         except Exception as e:
-            log.explain("Failed to load cookies")
-            log.explain(str(e))
+            log.explain(f"Failed to load cookies: {e}")
+            log.explain("Proceeding without cookies")
 
     def _save_cookies(self) -> None:
         log.explain_topic("Saving cookies")
 
         try:
             log.explain(f"Saving cookies to {fmt_real_path(self._cookie_jar_path)}")
-            self._save_cookies_to_file(self._cookie_jar_path)
+            self._cookie_jar.save(filename=str(self._cookie_jar_path))
         except Exception as e:
-            log.warn(f"Failed to save cookies to {fmt_real_path(self._cookie_jar_path)}")
-            log.warn(str(e))
+            log.warn(f"Failed to save cookies: {e}")
 
     async def run(self) -> None:
         self._request_count = 0
-        self._cookie_jar = aiohttp.CookieJar()
         self._load_cookies()
 
-        async with aiohttp.ClientSession(
-                headers={"User-Agent": f"{NAME}/{VERSION}"},
-                cookie_jar=self._cookie_jar,
-                connector=aiohttp.TCPConnector(ssl=ssl.create_default_context(cafile=certifi.where())),
-                timeout=ClientTimeout(
-                    # 30 minutes. No download in the history of downloads was longer than 30 minutes.
-                    # This is enough to transfer a 600 MB file over a 3 Mib/s connection.
-                    # Allowing an arbitrary value could be annoying for overnight batch jobs
-                    total=15 * 60,
-                    connect=self._http_timeout,
-                    sock_connect=self._http_timeout,
-                    sock_read=self._http_timeout,
-                )
-        ) as session:
-            self.session = session
+        self.session = requests.Session()
+        self.session.headers["User-Agent"] = f"{NAME}/{VERSION}"
+
+        # From the request docs: "All requests code should work out of the box
+        # with externally provided instances of CookieJar, e.g. LWPCookieJar and
+        # FileCookieJar."
+        # https://requests.readthedocs.io/en/latest/api/#requests.cookies.RequestsCookieJar
+        self.session.cookies = self._cookie_jar  # type: ignore
+
+        with self.session:
             try:
                 await super().run()
             finally:
                 del self.session
-        log.explain_topic(f"Total amount of HTTP requests: {self._request_count}")
 
         # They are saved in authenticate, but a final save won't hurt
         self._save_cookies()
