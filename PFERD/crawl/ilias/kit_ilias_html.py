@@ -158,6 +158,8 @@ class IliasPage:
         if self._contains_collapsed_future_meetings():
             log.explain("Requesting *all* future meetings")
             return self._uncollapse_future_meetings_url()
+        if not self._is_content_tab_selected():
+            return self._select_content_page_url()
         return None
 
     def _is_forum_page(self) -> bool:
@@ -219,6 +221,27 @@ class IliasPage:
             return None
         link = self._abs_url_from_link(element)
         return IliasPageElement(IliasElementType.FOLDER, link, "show all meetings")
+
+    def _is_content_tab_selected(self) -> bool:
+        return self._select_content_page_url() is None
+
+    def _select_content_page_url(self) -> Optional[IliasPageElement]:
+        tab = self._soup.find(
+            id="tab_view_content",
+            attrs={"class": lambda x: x is not None and "active" not in x}
+        )
+        # Already selected (or not found)
+        if not tab:
+            return None
+        link = tab.find("a")
+        if link:
+            link = self._abs_url_from_link(link)
+            return IliasPageElement(IliasElementType.FOLDER, link, "select content page")
+
+        _unexpected_html_warning()
+        log.warn_contd(f"Could not find content tab URL on {self._page_url!r}.")
+        log.warn_contd("PFERD might not find content on the course's main page.")
+        return None
 
     def _player_to_video(self) -> List[IliasPageElement]:
         # Fetch the actual video page. This is a small wrapper page initializing a javscript

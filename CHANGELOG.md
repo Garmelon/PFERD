@@ -22,6 +22,9 @@ ambiguous situations.
 
 ## Unreleased
 
+### Fixed
+- Crawling of courses with the timeline view as the default tab
+
 ## 3.4.3 - 2022-11-29
 
 ### Added
