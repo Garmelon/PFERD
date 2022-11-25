@@ -30,6 +30,7 @@ ambiguous situations.
 
 ### Fixed
 - IPD crawler unnecessarily appending trailing slashes
+- Crawling opencast when ILIAS is set to English
 
 ## 3.4.2 - 2022-10-26
 

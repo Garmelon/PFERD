@@ -366,7 +366,7 @@ class IliasPage:
         """
         # Video start links are marked with an "Abspielen" link
         video_links: List[Tag] = self._soup.findAll(
-            name="a", text=re.compile(r"\s*Abspielen\s*")
+            name="a", text=re.compile(r"\s*(Abspielen|Play)\s*")
         )
 
         results: List[IliasPageElement] = []
