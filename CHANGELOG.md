@@ -22,6 +22,8 @@ ambiguous situations.
 
 ## Unreleased
 
+## 3.4.3 - 2022-11-29
+
 ### Added
 - Missing documentation for `forums` option
 
