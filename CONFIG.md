@@ -75,6 +75,8 @@ common to all crawlers:
       using `prompt` and always choosing "yes".
     - `no-delete`: Never delete local files, but overwrite local files if the
       remote file is different.
+    - `no-delete-prompt-overwrite`: Never delete local files, but prompt to local files if the
+      overwrite remote file is different.
 - `transform`: Rules for renaming and excluding certain files and directories.
   For more details, see [this section](#transformation-rules). (Default: empty)
 - `tasks`: The maximum number of concurrent tasks (such as crawling or

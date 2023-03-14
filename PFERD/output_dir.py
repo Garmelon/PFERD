@@ -44,6 +44,7 @@ class OnConflict(Enum):
     LOCAL_FIRST = "local-first"
     REMOTE_FIRST = "remote-first"
     NO_DELETE = "no-delete"
+    NO_DELETE_PROMPT_OVERWRITE = "no-delete-prompt-overwrite"
 
     @staticmethod
     def from_string(string: str) -> "OnConflict":
@@ -51,7 +52,7 @@ class OnConflict(Enum):
             return OnConflict(string)
         except ValueError:
             raise ValueError("must be one of 'prompt', 'local-first',"
-                             " 'remote-first', 'no-delete'")
+                             " 'remote-first', 'no-delete', 'no-delete-ask-overwrite'")
 
 
 @dataclass
@@ -264,7 +265,7 @@ class OutputDirectory:
             on_conflict: OnConflict,
             path: PurePath,
     ) -> bool:
-        if on_conflict == OnConflict.PROMPT:
+        if on_conflict in {OnConflict.PROMPT, OnConflict.NO_DELETE_PROMPT_OVERWRITE}:
             async with log.exclusive_output():
                 prompt = f"Replace {fmt_path(path)} with remote file?"
                 return await prompt_yes_no(prompt, default=False)
@@ -283,7 +284,7 @@ class OutputDirectory:
             on_conflict: OnConflict,
             path: PurePath,
     ) -> bool:
-        if on_conflict == OnConflict.PROMPT:
+        if on_conflict in {OnConflict.PROMPT, OnConflict.NO_DELETE_PROMPT_OVERWRITE}:
             async with log.exclusive_output():
                 prompt = f"Recursively delete {fmt_path(path)} and replace with remote file?"
                 return await prompt_yes_no(prompt, default=False)
@@ -303,7 +304,7 @@ class OutputDirectory:
             path: PurePath,
             parent: PurePath,
     ) -> bool:
-        if on_conflict == OnConflict.PROMPT:
+        if on_conflict in {OnConflict.PROMPT, OnConflict.NO_DELETE_PROMPT_OVERWRITE}:
             async with log.exclusive_output():
                 prompt = f"Delete {fmt_path(parent)} so remote file {fmt_path(path)} can be downloaded?"
                 return await prompt_yes_no(prompt, default=False)
@@ -330,7 +331,7 @@ class OutputDirectory:
             return False
         elif on_conflict == OnConflict.REMOTE_FIRST:
             return True
-        elif on_conflict == OnConflict.NO_DELETE:
+        elif on_conflict in {OnConflict.NO_DELETE, OnConflict.NO_DELETE_PROMPT_OVERWRITE}:
             return False
 
         # This should never be reached
