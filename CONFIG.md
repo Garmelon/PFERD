@@ -26,6 +26,9 @@ default values for the other sections.
   `Added ...`) while running a crawler. (Default: `yes`)
 - `report`: Whether PFERD should print a report of added, changed and deleted
    local files for all crawlers before exiting. (Default: `yes`)
+- `show_not_deleted`: Whether PFERD should print messages in status and report
+   when a local-only file wasn't deleted. Combines nicely with the
+   `no-delete-prompt-override` conflict resolution strategy.
 - `share_cookies`: Whether crawlers should share cookies where applicable. For
   example, some crawlers share cookies if they crawl the same website using the
   same account. (Default: `yes`)
@@ -75,8 +78,9 @@ common to all crawlers:
       using `prompt` and always choosing "yes".
     - `no-delete`: Never delete local files, but overwrite local files if the
       remote file is different.
-    - `no-delete-prompt-overwrite`: Never delete local files, but prompt to overwrite local files if the
-      remote file is different.
+    - `no-delete-prompt-overwrite`: Never delete local files, but prompt to
+      overwrite local files if the remote file is different. Combines nicely
+      with the `show_not_deleted` option.
 - `transform`: Rules for renaming and excluding certain files and directories.
   For more details, see [this section](#transformation-rules). (Default: empty)
 - `tasks`: The maximum number of concurrent tasks (such as crawling or

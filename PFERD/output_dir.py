@@ -496,7 +496,7 @@ class OutputDirectory:
             except OSError:
                 pass
         else:
-            log.status("[bold bright_magenta]", "Not deleted", fmt_path(pure))
+            log.not_deleted("[bold bright_magenta]", "Not deleted", fmt_path(pure))
             self._report.not_delete_file(pure)
 
     def load_prev_report(self) -> None:

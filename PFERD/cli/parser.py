@@ -215,6 +215,11 @@ PARSER.add_argument(
     action=BooleanOptionalAction,
     help="whether crawlers should share cookies where applicable"
 )
+PARSER.add_argument(
+    "--show-not-deleted",
+    action=BooleanOptionalAction,
+    help="print messages in status and report when PFERD did not delete a local only file"
+)
 
 
 def load_default_section(
@@ -233,6 +238,7 @@ def load_default_section(
         section["report"] = "yes" if args.report else "no"
     if args.share_cookies is not None:
         section["share_cookies"] = "yes" if args.share_cookies else "no"
-
+    if args.show_not_deleted is not None:
+        section["show_not_deleted"] = "yes" if args.show_not_deleted else "no"
 
 SUBPARSERS = PARSER.add_subparsers(title="crawlers")

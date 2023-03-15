@@ -82,6 +82,9 @@ class DefaultSection(Section):
     def report(self) -> bool:
         return self.s.getboolean("report", fallback=True)
 
+    def show_not_deleted(self) -> bool:
+        return self.s.getboolean("show_not_deleted", fallback=True)
+
     def share_cookies(self) -> bool:
         return self.s.getboolean("share_cookies", fallback=True)
 
