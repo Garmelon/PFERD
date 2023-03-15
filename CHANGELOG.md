@@ -31,6 +31,9 @@ ambiguous situations.
 ### Added
 - `no-delete-prompt-override` conflict resolution strategy
 - support for ILIAS learning modules
+- `show_not_deleted` option to stop printing the "Not Deleted" status or report
+  message. This combines nicely with the `no-delete-prompt-override` strategy,
+  causing PFERD to mostly ignore local-only files.
 
 ## 3.4.3 - 2022-11-29
 

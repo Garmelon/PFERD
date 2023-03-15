@@ -59,6 +59,7 @@ class Log:
         # Whether different parts of the output are enabled or disabled
         self.output_explain = False
         self.output_status = True
+        self.output_not_deleted = True
         self.output_report = True
 
     def _update_live(self) -> None:
@@ -207,12 +208,31 @@ directly or as a GitHub issue: https://github.com/Garmelon/PFERD/issues/new
             action = escape(f"{action:<{self.STATUS_WIDTH}}")
             self.print(f"{style}{action}[/] {escape(text)} {suffix}")
 
+    def not_deleted(self, style: str, action: str, text: str, suffix: str = "") -> None:
+        """
+        Print a message for a local only file that wasn't
+        deleted while crawling. Allows markup in the "style"
+        argument which will be applied to the "action" string.
+        """
+
+        if self.output_status and self.output_not_deleted:
+            action = escape(f"{action:<{self.STATUS_WIDTH}}")
+            self.print(f"{style}{action}[/] {escape(text)} {suffix}")
+
     def report(self, text: str) -> None:
         """
         Print a report after crawling. Allows markup.
         """
 
         if self.output_report:
+            self.print(text)
+
+    def report_not_deleted(self, text: str) -> None:
+        """
+        Print a report for a local only file that wasn't deleted after crawling. Allows markup.
+        """
+
+        if self.output_report and self.output_not_deleted:
             self.print(text)
 
     @contextmanager

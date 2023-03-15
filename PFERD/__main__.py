@@ -47,6 +47,8 @@ def configure_logging_from_args(args: argparse.Namespace) -> None:
         log.output_explain = args.explain
     if args.status is not None:
         log.output_status = args.status
+    if args.show_not_deleted is not None:
+        log.output_not_deleted = args.show_not_deleted
     if args.report is not None:
         log.output_report = args.report
 
@@ -72,6 +74,8 @@ def configure_logging_from_config(args: argparse.Namespace, config: Config) -> N
             log.output_status = config.default_section.status()
         if args.report is None:
             log.output_report = config.default_section.report()
+        if args.show_not_deleted is None:
+            log.output_not_deleted = config.default_section.show_not_deleted()
     except ConfigOptionError as e:
         log.error(str(e))
         sys.exit(1)
