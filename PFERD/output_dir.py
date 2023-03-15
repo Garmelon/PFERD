@@ -52,7 +52,7 @@ class OnConflict(Enum):
             return OnConflict(string)
         except ValueError:
             raise ValueError("must be one of 'prompt', 'local-first',"
-                             " 'remote-first', 'no-delete', 'no-delete-ask-overwrite'")
+                             " 'remote-first', 'no-delete', 'no-delete-prompt-overwrite'")
 
 
 @dataclass
