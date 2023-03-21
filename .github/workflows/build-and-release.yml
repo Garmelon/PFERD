@@ -17,9 +17,9 @@ jobs:
         python: ["3.9"]
     steps:
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python }}
 
@@ -45,7 +45,7 @@ jobs:
         run: mv dist/pferd* dist/pferd-${{ matrix.os }}
 
       - name: Upload binary
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: Binaries
           path: dist/pferd-${{ matrix.os }}
@@ -57,7 +57,7 @@ jobs:
     steps:
 
       - name: Download binaries
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: Binaries
 
