@@ -708,7 +708,11 @@ class IliasPage:
                 "div",
                 attrs={"class": lambda x: x and "caption" in x},
             )
-            description = caption_parent.find_next_sibling("div").getText().strip()
+            caption_container = caption_parent.find_next_sibling("div")
+            if caption_container:
+                description = caption_container.getText().strip()
+            else:
+                description = None
 
             if not type:
                 _unexpected_html_warning()
