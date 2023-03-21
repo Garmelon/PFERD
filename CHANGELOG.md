@@ -24,6 +24,7 @@ ambiguous situations.
 
 ### Fixed
 - Crawling of courses with the timeline view as the default tab
+- Crawling of file and custom opencast cards
 
 ## 3.4.3 - 2022-11-29
 

@@ -738,7 +738,7 @@ class IliasPage:
 
         icon: Tag = card_root.select_one(".il-card-repository-head .icon")
 
-        if "opencast" in icon["class"]:
+        if "opencast" in icon["class"] or "xoct" in icon["class"]:
             return IliasElementType.VIDEO_FOLDER_MAYBE_PAGINATED
         if "exc" in icon["class"]:
             return IliasElementType.EXERCISE
@@ -758,6 +758,8 @@ class IliasPage:
             return IliasElementType.FOLDER
         if "svy" in icon["class"]:
             return IliasElementType.SURVEY
+        if "file" in icon["class"]:
+            return IliasElementType.FILE
 
         _unexpected_html_warning()
         log.warn_contd(f"Could not extract type from {icon} for card title {card_title}")
