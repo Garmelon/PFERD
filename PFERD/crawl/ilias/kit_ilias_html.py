@@ -79,6 +79,16 @@ class IliasPage:
         self._page_type = source_element.type if source_element else None
         self._source_name = source_element.name if source_element else ""
 
+    @staticmethod
+    def is_root_page(soup: BeautifulSoup) -> bool:
+        permalink = soup.find(id="current_perma_link")
+        if permalink is None:
+            return False
+        value = permalink.attrs.get("value")
+        if value is None:
+            return False
+        return "goto.php?target=root_" in value
+
     def get_child_elements(self) -> List[IliasPageElement]:
         """
         Return all child page elements you can find here.

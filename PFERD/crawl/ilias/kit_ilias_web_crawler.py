@@ -239,7 +239,7 @@ instance's greatest bottleneck.
 
                 # Duplicated code, but the root page is special - we want to avoid fetching it twice!
                 while next_stage_url:
-                    soup = await self._get_page(next_stage_url)
+                    soup = await self._get_page(next_stage_url, root_page_allowed=True)
 
                     if current_parent is None and expected_id is not None:
                         perma_link_element: Tag = soup.find(id="current_perma_link")
@@ -739,12 +739,12 @@ instance's greatest bottleneck.
             sink.file.write(content.encode("utf-8"))
             sink.done()
 
-    async def _get_page(self, url: str) -> BeautifulSoup:
+    async def _get_page(self, url: str, root_page_allowed: bool = False) -> BeautifulSoup:
         auth_id = await self._current_auth_id()
         async with self.session.get(url) as request:
             soup = soupify(await request.read())
             if self._is_logged_in(soup):
-                return soup
+                return self._verify_page(soup, url, root_page_allowed)
 
         # We weren't authenticated, so try to do that
         await self.authenticate(auth_id)
@@ -753,8 +753,20 @@ instance's greatest bottleneck.
         async with self.session.get(url) as request:
             soup = soupify(await request.read())
             if self._is_logged_in(soup):
-                return soup
+                return self._verify_page(soup, url, root_page_allowed)
         raise CrawlError("get_page failed even after authenticating")
+
+    def _verify_page(self, soup: BeautifulSoup, url: str, root_page_allowed: bool) -> BeautifulSoup:
+        if IliasPage.is_root_page(soup) and not root_page_allowed:
+            raise CrawlError(
+                "Unexpectedly encountered ILIAS root page. "
+                "This usually happens because the ILIAS instance is broken. "
+                "If so, wait a day or two and try again. "
+                "It could also happen because a crawled element links to the ILIAS root page. "
+                "If so, use a transform with a ! as target to ignore the particular element. "
+                f"The redirect came from {url}"
+            )
+        return soup
 
     async def _post_authenticated(
         self,

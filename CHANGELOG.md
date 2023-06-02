@@ -26,6 +26,7 @@ ambiguous situations.
 - Crawling of courses with the timeline view as the default tab
 - Crawling of file and custom opencast cards
 - Crawling of button cards without descriptions
+- Abort crawling when encountering an unexpected ilias root page redirect
 
 ### Added
 - `no-delete-prompt-override` conflict resolution strategy
