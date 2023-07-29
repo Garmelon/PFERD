@@ -27,6 +27,9 @@ ambiguous situations.
 - Crawling of file and custom opencast cards
 - Crawling of button cards without descriptions
 
+### Added
+- `no-delete-prompt-override` conflict resolution strategy
+
 ## 3.4.3 - 2022-11-29
 
 ### Added
