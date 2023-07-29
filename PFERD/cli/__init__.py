@@ -8,6 +8,7 @@
 # well.
 
 from . import command_local  # noqa: F401 imported but unused
+from . import command_ilias_web  # noqa: F401 imported but unused
 from . import command_kit_ilias_web  # noqa: F401 imported but unused
 from . import command_kit_ipd  # noqa: F401 imported but unused
 from .parser import PARSER, ParserLoadError, load_default_section  # noqa: F401 imported but unused
