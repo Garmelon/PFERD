@@ -102,24 +102,24 @@ class Links(Enum):
     INTERNET_SHORTCUT = "internet-shortcut"
 
     def template(self) -> Optional[str]:
-        if self == self.FANCY:
+        if self == Links.FANCY:
             return _link_template_fancy
-        elif self == self.PLAINTEXT:
+        elif self == Links.PLAINTEXT:
             return _link_template_plain
-        elif self == self.INTERNET_SHORTCUT:
+        elif self == Links.INTERNET_SHORTCUT:
             return _link_template_internet_shortcut
-        elif self == self.IGNORE:
+        elif self == Links.IGNORE:
             return None
         raise ValueError("Missing switch case")
 
     def extension(self) -> Optional[str]:
-        if self == self.FANCY:
+        if self == Links.FANCY:
             return ".html"
-        elif self == self.PLAINTEXT:
+        elif self == Links.PLAINTEXT:
             return ".txt"
-        elif self == self.INTERNET_SHORTCUT:
+        elif self == Links.INTERNET_SHORTCUT:
             return ".url"
-        elif self == self.IGNORE:
+        elif self == Links.IGNORE:
             return None
         raise ValueError("Missing switch case")
 
