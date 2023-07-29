@@ -22,6 +22,7 @@ class IliasElementType(Enum):
     FOLDER = "folder"
     FORUM = "forum"
     LINK = "link"
+    LEARNING_MODULE = "learning_module"
     BOOKING = "booking"
     MEETING = "meeting"
     SURVEY = "survey"
@@ -69,6 +70,14 @@ class IliasForumThread:
     title_tag: Tag
     content_tag: Tag
     mtime: Optional[datetime]
+
+
+@dataclass
+class IliasLearningModulePage:
+    title: str
+    content: Tag
+    next_url: Optional[str]
+    previous_url: Optional[str]
 
 
 class IliasPage:
@@ -135,6 +144,34 @@ class IliasPage:
         raw_html = f"<body>\n{raw_html}\n</body>"
 
         return BeautifulSoup(raw_html, "html.parser")
+
+    def get_learning_module_data(self) -> Optional[IliasLearningModulePage]:
+        if not self._is_learning_module_page():
+            return None
+        content = self._soup.select_one("#ilLMPageContent")
+        title = self._soup.select_one(".ilc_page_title_PageTitle").getText().strip()
+        return IliasLearningModulePage(
+            title=title,
+            content=content,
+            next_url=self._find_learning_module_next(),
+            previous_url=self._find_learning_module_prev()
+        )
+
+    def _find_learning_module_next(self) -> Optional[str]:
+        for link in self._soup.select("a.ilc_page_rnavlink_RightNavigationLink"):
+            url = self._abs_url_from_link(link)
+            if "baseClass=ilLMPresentationGUI" not in url:
+                continue
+            return url
+        return None
+
+    def _find_learning_module_prev(self) -> Optional[str]:
+        for link in self._soup.select("a.ilc_page_lnavlink_LeftNavigationLink"):
+            url = self._abs_url_from_link(link)
+            if "baseClass=ilLMPresentationGUI" not in url:
+                continue
+            return url
+        return None
 
     def get_download_forum_data(self) -> Optional[IliasDownloadForumData]:
         form = self._soup.find("form", attrs={"action": lambda x: x and "fallbackCmd=showThreads" in x})
@@ -221,6 +258,12 @@ class IliasPage:
         if not link:
             return False
         return "target=copa_" in link.get("value")
+
+    def _is_learning_module_page(self) -> bool:
+        link = self._soup.find(id="current_perma_link")
+        if not link:
+            return False
+        return "target=pg_" in link.get("value")
 
     def _contains_collapsed_future_meetings(self) -> bool:
         return self._uncollapse_future_meetings_url() is not None
@@ -811,6 +854,9 @@ class IliasPage:
 
         if "cmdClass=ilobjtestgui" in parsed_url.query:
             return IliasElementType.TEST
+
+        if "baseClass=ilLMPresentationGUI" in parsed_url.query:
+            return IliasElementType.LEARNING_MODULE
 
         # Booking and Meeting can not be detected based on the link. They do have a ref_id though, so
         # try to guess it from the image.

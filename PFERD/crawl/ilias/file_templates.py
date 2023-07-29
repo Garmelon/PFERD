@@ -1,6 +1,10 @@
 from enum import Enum
 from typing import Optional
 
+import bs4
+
+from PFERD.utils import soupify
+
 _link_template_plain = "{{link}}"
 _link_template_fancy = """
 <!DOCTYPE html>
@@ -93,6 +97,71 @@ _link_template_internet_shortcut = """
 [InternetShortcut]
 URL={{link}}
 """.strip()
+
+_learning_module_template = """
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>{{name}}</title>
+    </head>
+
+    <style>
+    * {
+        box-sizing: border-box;
+    }
+    .center-flex {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .nav {
+        display: flex;
+        justify-content: space-between;
+    }
+    </style>
+    <body class="center-flex">
+{{body}}
+    </body>
+</html>
+"""
+
+
+def learning_module_template(body: bs4.Tag, name: str, prev: Optional[str], next: Optional[str]) -> str:
+    # Seems to be comments, ignore those.
+    for elem in body.select(".il-copg-mob-fullscreen-modal"):
+        elem.decompose()
+
+    nav_template = """
+        <div class="nav">
+            {{left}}
+            {{right}}
+        </div>
+    """
+    if prev and body.select_one(".ilc_page_lnav_LeftNavigation"):
+        text = body.select_one(".ilc_page_lnav_LeftNavigation").getText().strip()
+        left = f'<a href="{prev}">{text}</a>'
+    else:
+        left = "<span></span>"
+
+    if next and body.select_one(".ilc_page_rnav_RightNavigation"):
+        text = body.select_one(".ilc_page_rnav_RightNavigation").getText().strip()
+        right = f'<a href="{next}">{text}</a>'
+    else:
+        right = "<span></span>"
+
+    if top_nav := body.select_one(".ilc_page_tnav_TopNavigation"):
+        top_nav.replace_with(
+            soupify(nav_template.replace("{{left}}", left).replace("{{right}}", right).encode())
+        )
+
+    if bot_nav := body.select_one(".ilc_page_bnav_BottomNavigation"):
+        bot_nav.replace_with(soupify(nav_template.replace(
+            "{{left}}", left).replace("{{right}}", right).encode())
+        )
+
+    body = body.prettify()
+    return _learning_module_template.replace("{{body}}", body).replace("{{name}}", name)
 
 
 class Links(Enum):

@@ -1,8 +1,11 @@
 import asyncio
+import base64
+import os
 import re
 from collections.abc import Awaitable, Coroutine
 from pathlib import PurePath
-from typing import Any, Callable, Dict, List, Optional, Set, Union, cast
+from typing import Any, Callable, Dict, List, Literal, Optional, Set, Union, cast
+from urllib.parse import urljoin
 
 import aiohttp
 import yarl
@@ -16,10 +19,10 @@ from ...output_dir import FileSink, Redownload
 from ...utils import fmt_path, soupify, url_set_query_param
 from ..crawler import AWrapped, CrawlError, CrawlToken, CrawlWarning, DownloadToken, anoncritical
 from ..http_crawler import HttpCrawler, HttpCrawlerSection
-from .file_templates import Links
+from .file_templates import Links, learning_module_template
 from .ilias_html_cleaner import clean, insert_base_markup
-from .kit_ilias_html import (IliasElementType, IliasForumThread, IliasPage, IliasPageElement,
-                             _sanitize_path_name, parse_ilias_forum_export)
+from .kit_ilias_html import (IliasElementType, IliasForumThread, IliasLearningModulePage, IliasPage,
+                             IliasPageElement, _sanitize_path_name, parse_ilias_forum_export)
 
 TargetType = Union[str, int]
 
@@ -394,6 +397,8 @@ instance's greatest bottleneck.
                 "[bright_black](surveys contain no relevant data)"
             )
             return None
+        elif element.type == IliasElementType.LEARNING_MODULE:
+            return await self._handle_learning_module(element, element_path)
         elif element.type == IliasElementType.LINK:
             return await self._handle_link(element, element_path)
         elif element.type == IliasElementType.BOOKING:
@@ -739,6 +744,135 @@ instance's greatest bottleneck.
             sink.file.write(content.encode("utf-8"))
             sink.done()
 
+    async def _handle_learning_module(
+        self,
+        element: IliasPageElement,
+        element_path: PurePath,
+    ) -> Optional[Coroutine[Any, Any, None]]:
+        maybe_cl = await self.crawl(element_path)
+        if not maybe_cl:
+            return None
+        return self._crawl_learning_module(element, maybe_cl)
+
+    @_iorepeat(3, "crawling learning module")
+    @anoncritical
+    async def _crawl_learning_module(self, element: IliasPageElement, cl: CrawlToken) -> None:
+        elements: List[IliasLearningModulePage] = []
+
+        async with cl:
+            log.explain_topic(f"Parsing initial HTML page for {fmt_path(cl.path)}")
+            log.explain(f"URL: {element.url}")
+            soup = await self._get_page(element.url)
+            page = IliasPage(soup, element.url, None)
+            if next := page.get_learning_module_data():
+                elements.extend(await self._crawl_learning_module_direction(
+                    cl.path, next.previous_url, "left"
+                ))
+                elements.append(next)
+                elements.extend(await self._crawl_learning_module_direction(
+                    cl.path, next.next_url, "right"
+                ))
+
+        # Reflect their natural ordering in the file names
+        for index, lm_element in enumerate(elements):
+            lm_element.title = f"{index:02}_{lm_element.title}"
+
+        tasks: List[Awaitable[None]] = []
+        for index, elem in enumerate(elements):
+            prev_url = elements[index - 1].title if index > 0 else None
+            next_url = elements[index + 1].title if index < len(elements) - 1 else None
+            tasks.append(asyncio.create_task(
+                self._download_learning_module_page(cl.path, elem, prev_url, next_url)
+            ))
+
+        # And execute them
+        await self.gather(tasks)
+
+    async def _crawl_learning_module_direction(
+        self,
+        path: PurePath,
+        start_url: Optional[str],
+        dir: Union[Literal["left"], Literal["right"]]
+    ) -> List[IliasLearningModulePage]:
+        elements: List[IliasLearningModulePage] = []
+
+        if not start_url:
+            return elements
+
+        next_element_url: Optional[str] = start_url
+        counter = 0
+        while next_element_url:
+            log.explain_topic(f"Parsing HTML page for {fmt_path(path)} ({dir}-{counter})")
+            log.explain(f"URL: {next_element_url}")
+            soup = await self._get_page(next_element_url)
+            page = IliasPage(soup, next_element_url, None)
+            if next := page.get_learning_module_data():
+                elements.append(next)
+                if dir == "left":
+                    next_element_url = next.previous_url
+                else:
+                    next_element_url = next.next_url
+            counter += 1
+
+        return elements
+
+    @anoncritical
+    @_iorepeat(3, "saving learning module page")
+    async def _download_learning_module_page(
+        self,
+        parent_path: PurePath,
+        element: IliasLearningModulePage,
+        prev: Optional[str],
+        next: Optional[str]
+    ) -> None:
+        path = parent_path / (_sanitize_path_name(element.title) + ".html")
+        maybe_dl = await self.download(path)
+        if not maybe_dl:
+            return
+        my_path = self._transformer.transform(maybe_dl.path)
+        if not my_path:
+            return
+
+        if prev:
+            prev_p = self._transformer.transform(parent_path / (_sanitize_path_name(prev) + ".html"))
+            if prev_p:
+                prev = os.path.relpath(prev_p, my_path.parent)
+            else:
+                prev = None
+        if next:
+            next_p = self._transformer.transform(parent_path / (_sanitize_path_name(next) + ".html"))
+            if next_p:
+                next = os.path.relpath(next_p, my_path.parent)
+            else:
+                next = None
+
+        async with maybe_dl as (bar, sink):
+            content = element.content
+            content = await self.internalize_images(content)
+            sink.file.write(learning_module_template(content, maybe_dl.path.name, prev, next).encode("utf-8"))
+            sink.done()
+
+    async def internalize_images(self, tag: Tag) -> Tag:
+        """
+        Tries to fetch ILIAS images and embed them as base64 data.
+        """
+        log.explain_topic("Internalizing images")
+        for elem in tag.find_all(recursive=True):
+            if not isinstance(elem, Tag):
+                continue
+            if elem.name == "img":
+                if src := elem.attrs.get("src", None):
+                    url = urljoin(_ILIAS_URL, src)
+                    if not url.startswith(_ILIAS_URL):
+                        continue
+                    log.explain(f"Internalizing {url!r}")
+                    img = await self._get_authenticated(url)
+                    elem.attrs["src"] = "data:;base64," + base64.b64encode(img).decode()
+            if elem.name == "iframe" and elem.attrs.get("src", "").startswith("//"):
+                # For unknown reasons the protocol seems to be stripped.
+                elem.attrs["src"] = "https:" + elem.attrs["src"]
+        return tag
+
     async def _get_page(self, url: str, root_page_allowed: bool = False) -> BeautifulSoup:
         auth_id = await self._current_auth_id()
         async with self.session.get(url) as request:
@@ -772,7 +906,7 @@ instance's greatest bottleneck.
         self,
         url: str,
         data: dict[str, Union[str, List[str]]]
-    ) -> BeautifulSoup:
+    ) -> bytes:
         auth_id = await self._current_auth_id()
 
         form_data = aiohttp.FormData()
@@ -791,6 +925,22 @@ instance's greatest bottleneck.
             if request.status == 200:
                 return await request.read()
         raise CrawlError("post_authenticated failed even after authenticating")
+
+    async def _get_authenticated(self, url: str) -> bytes:
+        auth_id = await self._current_auth_id()
+
+        async with self.session.get(url, allow_redirects=False) as request:
+            if request.status == 200:
+                return await request.read()
+
+        # We weren't authenticated, so try to do that
+        await self.authenticate(auth_id)
+
+        # Retry once after authenticating. If this fails, we will die.
+        async with self.session.get(url, allow_redirects=False) as request:
+            if request.status == 200:
+                return await request.read()
+        raise CrawlError("get_authenticated failed even after authenticating")
 
     # We repeat this as the login method in shibboleth doesn't handle I/O errors.
     # Shibboleth is quite reliable as well, the repeat is likely not critical here.

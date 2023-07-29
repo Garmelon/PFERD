@@ -82,7 +82,7 @@ def clean(soup: BeautifulSoup) -> BeautifulSoup:
             dummy.decompose()
         if len(children) > 1:
             continue
-        if type(children[0]) == Comment:
+        if isinstance(type(children[0]), Comment):
             dummy.decompose()
 
     for hrule_imposter in soup.find_all(class_="ilc_section_Separator"):

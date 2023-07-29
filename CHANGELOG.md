@@ -30,6 +30,7 @@ ambiguous situations.
 
 ### Added
 - `no-delete-prompt-override` conflict resolution strategy
+- support for ILIAS learning modules
 
 ## 3.4.3 - 2022-11-29
 
