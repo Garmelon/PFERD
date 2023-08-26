@@ -3,7 +3,7 @@ import re
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from enum import Enum
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union, cast
 from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup, Tag
@@ -26,10 +26,12 @@ class IliasElementType(Enum):
     BOOKING = "booking"
     MEETING = "meeting"
     SURVEY = "survey"
-    VIDEO = "video"
-    VIDEO_PLAYER = "video_player"
-    VIDEO_FOLDER = "video_folder"
-    VIDEO_FOLDER_MAYBE_PAGINATED = "video_folder_maybe_paginated"
+    MEDIACAST_VIDEO_FOLDER = "mediacast_video_folder"
+    MEDIACAST_VIDEO = "mediacast_video"
+    OPENCAST_VIDEO = "opencast_video"
+    OPENCAST_VIDEO_PLAYER = "opencast_video_player"
+    OPENCAST_VIDEO_FOLDER = "opencast_video_folder"
+    OPENCAST_VIDEO_FOLDER_MAYBE_PAGINATED = "opencast_video_folder_maybe_paginated"
 
 
 @dataclass
@@ -45,7 +47,8 @@ class IliasPageElement:
             r"eid=(?P<id>[0-9a-z\-]+)",
             r"file_(?P<id>\d+)",
             r"ref_id=(?P<id>\d+)",
-            r"target=[a-z]+_(?P<id>\d+)"
+            r"target=[a-z]+_(?P<id>\d+)",
+            r"mm_(?P<id>\d+)"
         ]
 
         for regex in regexes:
@@ -105,9 +108,9 @@ class IliasPage:
         if self._is_video_player():
             log.explain("Page is a video player, extracting URL")
             return self._player_to_video()
-        if self._is_video_listing():
-            log.explain("Page is a video listing, searching for elements")
-            return self._find_video_entries()
+        if self._is_opencast_video_listing():
+            log.explain("Page is an opencast video listing, searching for elements")
+            return self._find_opencast_video_entries()
         if self._is_exercise_file():
             log.explain("Page is an exercise, searching for elements")
             return self._find_exercise_entries()
@@ -199,9 +202,9 @@ class IliasPage:
         if self._is_ilias_opencast_embedding():
             log.explain("Unwrapping opencast embedding")
             return self.get_child_elements()[0]
-        if self._page_type == IliasElementType.VIDEO_FOLDER_MAYBE_PAGINATED:
+        if self._page_type == IliasElementType.OPENCAST_VIDEO_FOLDER_MAYBE_PAGINATED:
             log.explain("Unwrapping video pagination")
-            return self._find_video_entries_paginated()[0]
+            return self._find_opencast_video_entries_paginated()[0]
         if self._contains_collapsed_future_meetings():
             log.explain("Requesting *all* future meetings")
             return self._uncollapse_future_meetings_url()
@@ -219,7 +222,7 @@ class IliasPage:
     def _is_video_player(self) -> bool:
         return "paella_config_file" in str(self._soup)
 
-    def _is_video_listing(self) -> bool:
+    def _is_opencast_video_listing(self) -> bool:
         if self._is_ilias_opencast_embedding():
             return True
 
@@ -319,14 +322,14 @@ class IliasPage:
         # and just fetch the lone video url!
         if len(streams) == 1:
             video_url = streams[0]["sources"]["mp4"][0]["src"]
-            return [IliasPageElement(IliasElementType.VIDEO, video_url, self._source_name)]
+            return [IliasPageElement(IliasElementType.OPENCAST_VIDEO, video_url, self._source_name)]
 
         log.explain(f"Found multiple videos for stream at {self._source_name}")
         items = []
         for stream in sorted(streams, key=lambda stream: stream["content"]):
             full_name = f"{self._source_name.replace('.mp4', '')} ({stream['content']}).mp4"
             video_url = stream["sources"]["mp4"][0]["src"]
-            items.append(IliasPageElement(IliasElementType.VIDEO, video_url, full_name))
+            items.append(IliasPageElement(IliasElementType.OPENCAST_VIDEO, video_url, full_name))
 
         return items
 
@@ -385,7 +388,7 @@ class IliasPage:
 
         return items
 
-    def _find_video_entries(self) -> List[IliasPageElement]:
+    def _find_opencast_video_entries(self) -> List[IliasPageElement]:
         # ILIAS has three stages for video pages
         # 1. The initial dummy page without any videos. This page contains the link to the listing
         # 2. The video listing which might be paginated
@@ -405,27 +408,27 @@ class IliasPage:
             query_params = {"limit": "800", "cmd": "asyncGetTableGUI", "cmdMode": "asynch"}
             url = url_set_query_params(url, query_params)
             log.explain("Found ILIAS video frame page, fetching actual content next")
-            return [IliasPageElement(IliasElementType.VIDEO_FOLDER_MAYBE_PAGINATED, url, "")]
+            return [IliasPageElement(IliasElementType.OPENCAST_VIDEO_FOLDER_MAYBE_PAGINATED, url, "")]
 
         is_paginated = self._soup.find(id=re.compile(r"tab_page_sel.+")) is not None
 
-        if is_paginated and not self._page_type == IliasElementType.VIDEO_FOLDER:
+        if is_paginated and not self._page_type == IliasElementType.OPENCAST_VIDEO_FOLDER:
             # We are in stage 2 - try to break pagination
-            return self._find_video_entries_paginated()
+            return self._find_opencast_video_entries_paginated()
 
-        return self._find_video_entries_no_paging()
+        return self._find_opencast_video_entries_no_paging()
 
-    def _find_video_entries_paginated(self) -> List[IliasPageElement]:
+    def _find_opencast_video_entries_paginated(self) -> List[IliasPageElement]:
         table_element: Tag = self._soup.find(name="table", id=re.compile(r"tbl_xoct_.+"))
 
         if table_element is None:
             log.warn("Couldn't increase elements per page (table not found). I might miss elements.")
-            return self._find_video_entries_no_paging()
+            return self._find_opencast_video_entries_no_paging()
 
         id_match = re.match(r"tbl_xoct_(.+)", table_element.attrs["id"])
         if id_match is None:
             log.warn("Couldn't increase elements per page (table id not found). I might miss elements.")
-            return self._find_video_entries_no_paging()
+            return self._find_opencast_video_entries_no_paging()
 
         table_id = id_match.group(1)
 
@@ -434,9 +437,9 @@ class IliasPage:
         url = url_set_query_params(self._page_url, query_params)
 
         log.explain("Disabled pagination, retrying folder as a new entry")
-        return [IliasPageElement(IliasElementType.VIDEO_FOLDER, url, "")]
+        return [IliasPageElement(IliasElementType.OPENCAST_VIDEO_FOLDER, url, "")]
 
-    def _find_video_entries_no_paging(self) -> List[IliasPageElement]:
+    def _find_opencast_video_entries_no_paging(self) -> List[IliasPageElement]:
         """
         Crawls the "second stage" video page. This page contains the actual video urls.
         """
@@ -448,11 +451,11 @@ class IliasPage:
         results: List[IliasPageElement] = []
 
         for link in video_links:
-            results.append(self._listed_video_to_element(link))
+            results.append(self._listed_opencast_video_to_element(link))
 
         return results
 
-    def _listed_video_to_element(self, link: Tag) -> IliasPageElement:
+    def _listed_opencast_video_to_element(self, link: Tag) -> IliasPageElement:
         # The link is part of a table with multiple columns, describing metadata.
         # 6th or 7th child (1 indexed) is the modification time string. Try to find it
         # by parsing backwards from the end and finding something that looks like a date
@@ -479,7 +482,9 @@ class IliasPage:
         video_url = self._abs_url_from_link(link)
 
         log.explain(f"Found video {video_name!r} at {video_url}")
-        return IliasPageElement(IliasElementType.VIDEO_PLAYER, video_url, video_name, modification_time)
+        return IliasPageElement(
+            IliasElementType.OPENCAST_VIDEO_PLAYER, video_url, video_name, modification_time
+        )
 
     def _find_exercise_entries(self) -> List[IliasPageElement]:
         if self._soup.find(id="tab_submission"):
@@ -622,8 +627,47 @@ class IliasPage:
             result.append(IliasPageElement(element_type, abs_url, element_name, description=description))
 
         result += self._find_cards()
+        result += self._find_mediacast_videos()
 
         return result
+
+    def _find_mediacast_videos(self) -> List[IliasPageElement]:
+        videos: List[IliasPageElement] = []
+
+        for elem in cast(List[Tag], self._soup.select(".ilPlayerPreviewOverlayOuter")):
+            element_name = _sanitize_path_name(
+                elem.select_one(".ilPlayerPreviewDescription").getText().strip()
+            )
+            if not element_name.endswith(".mp4"):
+                # just to make sure it has some kinda-alrightish ending
+                element_name = element_name + ".mp4"
+            video_element = elem.find(name="video")
+            if not video_element:
+                _unexpected_html_warning()
+                log.warn_contd(f"No <video> element found for mediacast video '{element_name}'")
+                continue
+
+            videos.append(IliasPageElement(
+                type=IliasElementType.MEDIACAST_VIDEO,
+                url=self._abs_url_from_relative(video_element.get("src")),
+                name=element_name,
+                mtime=self._find_mediacast_video_mtime(elem.findParent(name="td"))
+            ))
+
+        return videos
+
+    def _find_mediacast_video_mtime(self, enclosing_td: Tag) -> Optional[datetime]:
+        description_td: Tag = enclosing_td.findPreviousSibling("td")
+        if not description_td:
+            return None
+
+        meta_tag: Tag = description_td.find_all("p")[-1]
+        if not meta_tag:
+            return None
+
+        updated_str = meta_tag.getText().strip().replace("\n", " ")
+        updated_str = re.sub(".+?: ", "", updated_str)
+        return demangle_date(updated_str)
 
     def _is_in_expanded_meeting(self, tag: Tag) -> bool:
         """
@@ -796,7 +840,7 @@ class IliasPage:
         icon: Tag = card_root.select_one(".il-card-repository-head .icon")
 
         if "opencast" in icon["class"] or "xoct" in icon["class"]:
-            return IliasElementType.VIDEO_FOLDER_MAYBE_PAGINATED
+            return IliasElementType.OPENCAST_VIDEO_FOLDER_MAYBE_PAGINATED
         if "exc" in icon["class"]:
             return IliasElementType.EXERCISE
         if "webr" in icon["class"]:
@@ -817,6 +861,8 @@ class IliasPage:
             return IliasElementType.SURVEY
         if "file" in icon["class"]:
             return IliasElementType.FILE
+        if "mcst" in icon["class"]:
+            return IliasElementType.MEDIACAST_VIDEO_FOLDER
 
         _unexpected_html_warning()
         log.warn_contd(f"Could not extract type from {icon} for card title {card_title}")
@@ -857,6 +903,9 @@ class IliasPage:
 
         if "baseClass=ilLMPresentationGUI" in parsed_url.query:
             return IliasElementType.LEARNING_MODULE
+
+        if "baseClass=ilMediaCastHandlerGUI" in parsed_url.query:
+            return IliasElementType.MEDIACAST_VIDEO_FOLDER
 
         # Booking and Meeting can not be detected based on the link. They do have a ref_id though, so
         # try to guess it from the image.
@@ -909,7 +958,7 @@ class IliasPage:
             return None
 
         if "opencast" in str(img_tag["alt"]).lower():
-            return IliasElementType.VIDEO_FOLDER_MAYBE_PAGINATED
+            return IliasElementType.OPENCAST_VIDEO_FOLDER_MAYBE_PAGINATED
 
         if str(img_tag["src"]).endswith("icon_exc.svg"):
             return IliasElementType.EXERCISE
@@ -928,6 +977,9 @@ class IliasPage:
 
         if str(img_tag["src"]).endswith("icon_tst.svg"):
             return IliasElementType.TEST
+
+        if str(img_tag["src"]).endswith("icon_mcst.svg"):
+            return IliasElementType.MEDIACAST_VIDEO_FOLDER
 
         return IliasElementType.FOLDER
 

@@ -34,6 +34,7 @@ ambiguous situations.
 - `show_not_deleted` option to stop printing the "Not Deleted" status or report
   message. This combines nicely with the `no-delete-prompt-override` strategy,
   causing PFERD to mostly ignore local-only files.
+- support for mediacast video listings
 
 ## 3.4.3 - 2022-11-29
 

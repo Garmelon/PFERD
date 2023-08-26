@@ -86,15 +86,18 @@ _DIRECTORY_PAGES: Set[IliasElementType] = set([
     IliasElementType.EXERCISE_FILES,
     IliasElementType.FOLDER,
     IliasElementType.MEETING,
-    IliasElementType.VIDEO_FOLDER,
-    IliasElementType.VIDEO_FOLDER_MAYBE_PAGINATED,
+    IliasElementType.MEDIACAST_VIDEO_FOLDER,
+    IliasElementType.OPENCAST_VIDEO_FOLDER,
+    IliasElementType.OPENCAST_VIDEO_FOLDER_MAYBE_PAGINATED,
 ])
 
 _VIDEO_ELEMENTS: Set[IliasElementType] = set([
-    IliasElementType.VIDEO,
-    IliasElementType.VIDEO_PLAYER,
-    IliasElementType.VIDEO_FOLDER,
-    IliasElementType.VIDEO_FOLDER_MAYBE_PAGINATED,
+    IliasElementType.MEDIACAST_VIDEO_FOLDER,
+    IliasElementType.MEDIACAST_VIDEO,
+    IliasElementType.OPENCAST_VIDEO,
+    IliasElementType.OPENCAST_VIDEO_PLAYER,
+    IliasElementType.OPENCAST_VIDEO_FOLDER,
+    IliasElementType.OPENCAST_VIDEO_FOLDER_MAYBE_PAGINATED,
 ])
 
 
@@ -403,10 +406,12 @@ instance's greatest bottleneck.
             return await self._handle_link(element, element_path)
         elif element.type == IliasElementType.BOOKING:
             return await self._handle_booking(element, element_path)
-        elif element.type == IliasElementType.VIDEO:
+        elif element.type == IliasElementType.OPENCAST_VIDEO:
             return await self._handle_file(element, element_path)
-        elif element.type == IliasElementType.VIDEO_PLAYER:
-            return await self._handle_video(element, element_path)
+        elif element.type == IliasElementType.OPENCAST_VIDEO_PLAYER:
+            return await self._handle_opencast_video(element, element_path)
+        elif element.type == IliasElementType.MEDIACAST_VIDEO:
+            return await self._handle_file(element, element_path)
         elif element.type in _DIRECTORY_PAGES:
             return await self._handle_ilias_page(element.url, element, element_path)
         else:
@@ -523,7 +528,7 @@ instance's greatest bottleneck.
 
         raise CrawlError("resolve_link_target failed even after authenticating")
 
-    async def _handle_video(
+    async def _handle_opencast_video(
         self,
         element: IliasPageElement,
         element_path: PurePath,
@@ -544,18 +549,18 @@ instance's greatest bottleneck.
 
         # If we do not want to crawl it (user filter) or we have every file
         # from the cached mapping already, we can ignore this and bail
-        if not maybe_dl or self._all_videos_locally_present(element_path):
+        if not maybe_dl or self._all_opencast_videos_locally_present(element_path):
             # Mark all existing cideos as known so they do not get deleted
             # during dleanup. We "downloaded" them, just without actually making
             # a network request as we assumed they did not change.
-            for video in self._previous_contained_videos(element_path):
+            for video in self._previous_contained_opencast_videos(element_path):
                 await self.download(video)
 
             return None
 
-        return self._download_video(element_path, element, maybe_dl)
+        return self._download_opencast_video(element_path, element, maybe_dl)
 
-    def _previous_contained_videos(self, video_path: PurePath) -> List[PurePath]:
+    def _previous_contained_opencast_videos(self, video_path: PurePath) -> List[PurePath]:
         if not self.prev_report:
             return []
         custom_value = self.prev_report.get_custom_value(str(video_path))
@@ -565,12 +570,12 @@ instance's greatest bottleneck.
         folder = video_path.parent
         return [PurePath(folder, name) for name in names]
 
-    def _all_videos_locally_present(self, video_path: PurePath) -> bool:
-        if contained_videos := self._previous_contained_videos(video_path):
+    def _all_opencast_videos_locally_present(self, video_path: PurePath) -> bool:
+        if contained_videos := self._previous_contained_opencast_videos(video_path):
             log.explain_topic(f"Checking local cache for video {video_path.name}")
             all_found_locally = True
             for video in contained_videos:
-                transformed_path = self._to_local_video_path(video)
+                transformed_path = self._to_local_opencast_video_path(video)
                 if transformed_path:
                     exists_locally = self._output_dir.resolve(transformed_path).exists()
                     all_found_locally = all_found_locally and exists_locally
@@ -580,14 +585,14 @@ instance's greatest bottleneck.
             log.explain("Missing at least one video, continuing with requests!")
         return False
 
-    def _to_local_video_path(self, path: PurePath) -> Optional[PurePath]:
+    def _to_local_opencast_video_path(self, path: PurePath) -> Optional[PurePath]:
         if transformed := self._transformer.transform(path):
             return self._deduplicator.fixup_path(transformed)
         return None
 
     @anoncritical
     @_iorepeat(3, "downloading video")
-    async def _download_video(
+    async def _download_opencast_video(
         self,
         original_path: PurePath,
         element: IliasPageElement,
@@ -604,7 +609,7 @@ instance's greatest bottleneck.
                 log.explain(f"Using single video mode for {element.name}")
                 stream_element = stream_elements[0]
 
-                transformed_path = self._to_local_video_path(original_path)
+                transformed_path = self._to_local_opencast_video_path(original_path)
                 if not transformed_path:
                     raise CrawlError(f"Download returned a path but transform did not for {original_path}")
 
