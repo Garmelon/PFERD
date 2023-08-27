@@ -27,6 +27,7 @@ ambiguous situations.
 - Crawling of file and custom opencast cards
 - Crawling of button cards without descriptions
 - Abort crawling when encountering an unexpected ilias root page redirect
+- Remove size suffix for files in content pages
 
 ### Added
 - `no-delete-prompt-override` conflict resolution strategy

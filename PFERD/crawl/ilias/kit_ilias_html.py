@@ -377,7 +377,8 @@ class IliasPage:
 
         for link in links:
             url = self._abs_url_from_link(link)
-            name = _sanitize_path_name(link.getText().strip().replace("\t", ""))
+            name = re.sub(r"\([\d,.]+ [MK]B\)", "", link.getText()).strip().replace("\t", "")
+            name = _sanitize_path_name(name)
 
             if "file_id" not in url:
                 _unexpected_html_warning()
