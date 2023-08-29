@@ -14,7 +14,7 @@ def name_variants(path: PurePath) -> Iterator[PurePath]:
 
 
 class Deduplicator:
-    FORBIDDEN_CHARS = '<>:"/\\|?*'
+    FORBIDDEN_CHARS = '<>:"/\\|?*' + "".join([chr(i) for i in range(0, 32)])
     FORBIDDEN_NAMES = {
         "CON", "PRN", "AUX", "NUL",
         "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",

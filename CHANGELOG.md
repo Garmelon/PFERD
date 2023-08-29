@@ -28,6 +28,7 @@ ambiguous situations.
 - Crawling of button cards without descriptions
 - Abort crawling when encountering an unexpected ilias root page redirect
 - Remove size suffix for files in content pages
+- Sanitize ascii control characters on Windows
 
 ### Added
 - `no-delete-prompt-override` conflict resolution strategy
