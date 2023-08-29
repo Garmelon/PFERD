@@ -293,7 +293,10 @@ class IliasPage:
         return self._uncollapse_future_meetings_url() is not None
 
     def _uncollapse_future_meetings_url(self) -> Optional[IliasPageElement]:
-        element = self._soup.find("a", attrs={"href": lambda x: x and "crs_next_sess=1" in x})
+        element = self._soup.find(
+            "a",
+            attrs={"href": lambda x: x and ("crs_next_sess=1" in x or "crs_prev_sess=1" in x)}
+        )
         if not element:
             return None
         link = self._abs_url_from_link(element)
@@ -991,7 +994,11 @@ class IliasPage:
         if img_tag is None:
             img_tag = found_parent.select_one("img.icon")
 
-        if img_tag is None and found_parent.find("a", attrs={"href": lambda x: x and "crs_next_sess=" in x}):
+        is_session_expansion_button = found_parent.find(
+            "a",
+            attrs={"href": lambda x: x and ("crs_next_sess=" in x or "crs_prev_sess=" in x)}
+        )
+        if img_tag is None and is_session_expansion_button:
             log.explain("Found session expansion button, skipping it as it has no content")
             return None
 

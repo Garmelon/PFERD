@@ -29,6 +29,7 @@ ambiguous situations.
 - Abort crawling when encountering an unexpected ilias root page redirect
 - Remove size suffix for files in content pages
 - Sanitize ascii control characters on Windows
+- Crawling of paginated past meetings
 
 ### Added
 - `no-delete-prompt-override` conflict resolution strategy
