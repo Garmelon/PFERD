@@ -36,6 +36,7 @@ ambiguous situations.
   message. This combines nicely with the `no-delete-prompt-override` strategy,
   causing PFERD to mostly ignore local-only files.
 - support for mediacast video listings
+- crawling of files in info tab
 
 ## 3.4.3 - 2022-11-29
 

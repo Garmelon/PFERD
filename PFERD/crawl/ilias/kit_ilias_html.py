@@ -22,6 +22,7 @@ class IliasElementType(Enum):
     FOLDER = "folder"
     FORUM = "forum"
     LINK = "link"
+    INFO_TAB = "info_tab"
     LEARNING_MODULE = "learning_module"
     BOOKING = "booking"
     MEETING = "meeting"
@@ -120,8 +121,24 @@ class IliasPage:
         if self._is_content_page():
             log.explain("Page is a content page, searching for elements")
             return self._find_copa_entries()
+        if self._is_info_tab():
+            log.explain("Page is info tab, searching for elements")
+            return self._find_info_tab_entries()
         log.explain("Page is a normal folder, searching for elements")
         return self._find_normal_entries()
+
+    def get_info_tab(self) -> Optional[IliasPageElement]:
+        tab: Optional[Tag] = self._soup.find(
+            name="a",
+            attrs={"href": lambda x: x and "cmdClass=ilinfoscreengui" in x}
+        )
+        if tab is not None:
+            return IliasPageElement(
+                IliasElementType.INFO_TAB,
+                self._abs_url_from_link(tab),
+                "infos"
+            )
+        return None
 
     def get_description(self) -> Optional[BeautifulSoup]:
         def is_interesting_class(name: str) -> bool:
@@ -209,7 +226,11 @@ class IliasPage:
             log.explain("Requesting *all* future meetings")
             return self._uncollapse_future_meetings_url()
         if not self._is_content_tab_selected():
-            return self._select_content_page_url()
+            if self._page_type != IliasElementType.INFO_TAB:
+                log.explain("Selecting content tab")
+                return self._select_content_page_url()
+            else:
+                log.explain("Crawling info tab, skipping content select")
         return None
 
     def _is_forum_page(self) -> bool:
@@ -280,6 +301,10 @@ class IliasPage:
 
     def _is_content_tab_selected(self) -> bool:
         return self._select_content_page_url() is None
+
+    def _is_info_tab(self) -> bool:
+        might_be_info = self._soup.find("form", attrs={"name": lambda x: x == "formInfoScreen"}) is not None
+        return self._page_type == IliasElementType.INFO_TAB and might_be_info
 
     def _select_content_page_url(self) -> Optional[IliasPageElement]:
         tab = self._soup.find(
@@ -386,6 +411,23 @@ class IliasPage:
                 continue
 
             items.append(IliasPageElement(IliasElementType.FILE, url, name))
+
+        return items
+
+    def _find_info_tab_entries(self) -> List[IliasPageElement]:
+        items = []
+        links: List[Tag] = self._soup.select("a.il_ContainerItemCommand")
+
+        for link in links:
+            if "cmdClass=ilobjcoursegui" not in link["href"]:
+                continue
+            if "cmd=sendfile" not in link["href"]:
+                continue
+            items.append(IliasPageElement(
+                IliasElementType.FILE,
+                self._abs_url_from_link(link),
+                _sanitize_path_name(link.getText())
+            ))
 
         return items
 

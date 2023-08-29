@@ -85,6 +85,7 @@ _DIRECTORY_PAGES: Set[IliasElementType] = set([
     IliasElementType.EXERCISE,
     IliasElementType.EXERCISE_FILES,
     IliasElementType.FOLDER,
+    IliasElementType.INFO_TAB,
     IliasElementType.MEETING,
     IliasElementType.MEDIACAST_VIDEO_FOLDER,
     IliasElementType.OPENCAST_VIDEO_FOLDER,
@@ -262,6 +263,8 @@ instance's greatest bottleneck.
                         next_stage_url = None
 
                 elements.extend(page.get_child_elements())
+                if info_tab := page.get_info_tab():
+                    elements.append(info_tab)
                 if description_string := page.get_description():
                     description.append(description_string)
 
@@ -705,7 +708,7 @@ instance's greatest bottleneck.
                 log.explain(f"URL: {next_stage_url}")
 
                 soup = await self._get_page(next_stage_url)
-                page = IliasPage(soup, next_stage_url, None)
+                page = IliasPage(soup, next_stage_url, element)
 
                 if next := page.get_next_stage_element():
                     next_stage_url = next.url
@@ -768,14 +771,14 @@ instance's greatest bottleneck.
             log.explain_topic(f"Parsing initial HTML page for {fmt_path(cl.path)}")
             log.explain(f"URL: {element.url}")
             soup = await self._get_page(element.url)
-            page = IliasPage(soup, element.url, None)
+            page = IliasPage(soup, element.url, element)
             if next := page.get_learning_module_data():
                 elements.extend(await self._crawl_learning_module_direction(
-                    cl.path, next.previous_url, "left"
+                    cl.path, next.previous_url, "left", element
                 ))
                 elements.append(next)
                 elements.extend(await self._crawl_learning_module_direction(
-                    cl.path, next.next_url, "right"
+                    cl.path, next.next_url, "right", element
                 ))
 
         # Reflect their natural ordering in the file names
@@ -797,7 +800,8 @@ instance's greatest bottleneck.
         self,
         path: PurePath,
         start_url: Optional[str],
-        dir: Union[Literal["left"], Literal["right"]]
+        dir: Union[Literal["left"], Literal["right"]],
+        parent_element: IliasPageElement
     ) -> List[IliasLearningModulePage]:
         elements: List[IliasLearningModulePage] = []
 
@@ -810,7 +814,7 @@ instance's greatest bottleneck.
             log.explain_topic(f"Parsing HTML page for {fmt_path(path)} ({dir}-{counter})")
             log.explain(f"URL: {next_element_url}")
             soup = await self._get_page(next_element_url)
-            page = IliasPage(soup, next_element_url, None)
+            page = IliasPage(soup, next_element_url, parent_element)
             if next := page.get_learning_module_data():
                 elements.append(next)
                 if dir == "left":
