@@ -403,6 +403,14 @@ instance's greatest bottleneck.
                 "[bright_black](surveys contain no relevant data)"
             )
             return None
+        elif element.type == IliasElementType.SCORM_LEARNING_MODULE:
+            log.status(
+                "[bold bright_black]",
+                "Ignored",
+                fmt_path(element_path),
+                "[bright_black](scorm learning modules are not supported)"
+            )
+            return None
         elif element.type == IliasElementType.LEARNING_MODULE:
             return await self._handle_learning_module(element, element_path)
         elif element.type == IliasElementType.LINK:
@@ -897,7 +905,7 @@ instance's greatest bottleneck.
             soup = soupify(await request.read())
             if self._is_logged_in(soup):
                 return self._verify_page(soup, url, root_page_allowed)
-        raise CrawlError("get_page failed even after authenticating")
+        raise CrawlError(f"get_page failed even after authenticating on {url!r}")
 
     def _verify_page(self, soup: BeautifulSoup, url: str, root_page_allowed: bool) -> BeautifulSoup:
         if IliasPage.is_root_page(soup) and not root_page_allowed:

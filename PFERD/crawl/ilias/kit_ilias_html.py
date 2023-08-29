@@ -27,6 +27,7 @@ class IliasElementType(Enum):
     BOOKING = "booking"
     MEETING = "meeting"
     SURVEY = "survey"
+    SCORM_LEARNING_MODULE = "scorm_learning_module"
     MEDIACAST_VIDEO_FOLDER = "mediacast_video_folder"
     MEDIACAST_VIDEO = "mediacast_video"
     OPENCAST_VIDEO = "opencast_video"
@@ -953,6 +954,9 @@ class IliasPage:
         if "baseClass=ilMediaCastHandlerGUI" in parsed_url.query:
             return IliasElementType.MEDIACAST_VIDEO_FOLDER
 
+        if "baseClass=ilSAHSPresentationGUI" in parsed_url.query:
+            return IliasElementType.SCORM_LEARNING_MODULE
+
         # Booking and Meeting can not be detected based on the link. They do have a ref_id though, so
         # try to guess it from the image.
 
@@ -1030,6 +1034,9 @@ class IliasPage:
 
         if str(img_tag["src"]).endswith("icon_mcst.svg"):
             return IliasElementType.MEDIACAST_VIDEO_FOLDER
+
+        if str(img_tag["src"]).endswith("icon_sahs.svg"):
+            return IliasElementType.SCORM_LEARNING_MODULE
 
         return IliasElementType.FOLDER
 

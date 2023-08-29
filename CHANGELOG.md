@@ -30,6 +30,7 @@ ambiguous situations.
 - Remove size suffix for files in content pages
 - Sanitize ascii control characters on Windows
 - Crawling of paginated past meetings
+- Ignore SCORM learning modules
 
 ### Added
 - `no-delete-prompt-override` conflict resolution strategy
