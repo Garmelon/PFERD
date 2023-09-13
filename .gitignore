@@ -3,6 +3,7 @@
 /PFERD.egg-info/
 __pycache__/
 /.vscode/
+/.idea/
 
 # pyinstaller
 /pferd.spec
