@@ -22,24 +22,28 @@ ambiguous situations.
 
 ## Unreleased
 
+## 3.5.0 - 2023-09-13
+
+### Added
+- `no-delete-prompt-override` conflict resolution strategy
+- Support for ILIAS learning modules
+- `show_not_deleted` option to stop printing the "Not Deleted" status or report
+  message. This combines nicely with the `no-delete-prompt-override` strategy,
+  causing PFERD to mostly ignore local-only files.
+- Support for mediacast video listings
+- Crawling of files in info tab
+
+### Changed
+- Remove size suffix for files in content pages
+
 ### Fixed
 - Crawling of courses with the timeline view as the default tab
 - Crawling of file and custom opencast cards
 - Crawling of button cards without descriptions
 - Abort crawling when encountering an unexpected ilias root page redirect
-- Remove size suffix for files in content pages
 - Sanitize ascii control characters on Windows
 - Crawling of paginated past meetings
 - Ignore SCORM learning modules
-
-### Added
-- `no-delete-prompt-override` conflict resolution strategy
-- support for ILIAS learning modules
-- `show_not_deleted` option to stop printing the "Not Deleted" status or report
-  message. This combines nicely with the `no-delete-prompt-override` strategy,
-  causing PFERD to mostly ignore local-only files.
-- support for mediacast video listings
-- crawling of files in info tab
 
 ## 3.4.3 - 2022-11-29
 
