@@ -514,8 +514,11 @@ class IliasPage:
                 f"td.std:nth-child({index})"
             ).getText().strip()
             if re.search(r"\d+\.\d+.\d+ - \d+:\d+", modification_string):
+                log.explain(f"Converting {modification_string!r}")
                 modification_time = datetime.strptime(modification_string, "%d.%m.%Y - %H:%M")
                 break
+            else:
+                log.explain(f"Date has wrong format: {modification_string!r}")
 
         if modification_time is None:
             log.warn(f"Could not determine upload time for {link}")

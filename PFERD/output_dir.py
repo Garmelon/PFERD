@@ -415,6 +415,7 @@ class OutputDirectory:
 
     def _update_metadata(self, info: DownloadInfo) -> None:
         if mtime := info.heuristics.mtime:
+            log.explain(f"Setting mtime to {mtime}")
             mtimestamp = mtime.timestamp()
             os.utime(info.local_path, times=(mtimestamp, mtimestamp))
 
