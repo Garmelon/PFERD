@@ -1067,6 +1067,34 @@ class IliasPage:
         rest_of_name = split_delimiter.join(meeting_name.split(split_delimiter)[1:])
         return datetime.strftime(date_portion, "%Y-%m-%d") + split_delimiter + rest_of_name
 
+    @staticmethod
+    def is_logged_in(soup: BeautifulSoup) -> bool:
+        # Normal ILIAS pages
+        mainbar: Optional[Tag] = soup.find(class_="il-maincontrols-metabar")
+        if mainbar is not None:
+            login_button = mainbar.find(attrs={"href": lambda x: x and "login.php" in x})
+            shib_login = soup.find(id="button_shib_login")
+            return not login_button and not shib_login
+
+        # Personal Desktop
+        if soup.find("a", attrs={"href": lambda x: x and "block_type=pditems" in x}):
+            return True
+
+        # Video listing embeds do not have complete ILIAS html. Try to match them by
+        # their video listing table
+        video_table = soup.find(
+            recursive=True,
+            name="table",
+            attrs={"id": lambda x: x is not None and x.startswith("tbl_xoct")}
+        )
+        if video_table is not None:
+            return True
+        # The individual video player wrapper page has nothing of the above.
+        # Match it by its playerContainer.
+        if soup.select_one("#playerContainer") is not None:
+            return True
+        return False
+
     def _abs_url_from_link(self, link_tag: Tag) -> str:
         """
         Create an absolute url from an <a> tag.

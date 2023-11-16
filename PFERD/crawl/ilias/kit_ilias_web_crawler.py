@@ -894,7 +894,7 @@ instance's greatest bottleneck.
         auth_id = await self._current_auth_id()
         async with self.session.get(url) as request:
             soup = soupify(await request.read())
-            if self._is_logged_in(soup):
+            if IliasPage.is_logged_in(soup):
                 return self._verify_page(soup, url, root_page_allowed)
 
         # We weren't authenticated, so try to do that
@@ -903,11 +903,12 @@ instance's greatest bottleneck.
         # Retry once after authenticating. If this fails, we will die.
         async with self.session.get(url) as request:
             soup = soupify(await request.read())
-            if self._is_logged_in(soup):
+            if IliasPage.is_logged_in(soup):
                 return self._verify_page(soup, url, root_page_allowed)
         raise CrawlError(f"get_page failed even after authenticating on {url!r}")
 
-    def _verify_page(self, soup: BeautifulSoup, url: str, root_page_allowed: bool) -> BeautifulSoup:
+    @staticmethod
+    def _verify_page(soup: BeautifulSoup, url: str, root_page_allowed: bool) -> BeautifulSoup:
         if IliasPage.is_root_page(soup) and not root_page_allowed:
             raise CrawlError(
                 "Unexpectedly encountered ILIAS root page. "
@@ -964,34 +965,6 @@ instance's greatest bottleneck.
     @ _iorepeat(3, "Login", failure_is_error=True)
     async def _authenticate(self) -> None:
         await self._shibboleth_login.login(self.session)
-
-    @ staticmethod
-    def _is_logged_in(soup: BeautifulSoup) -> bool:
-        # Normal ILIAS pages
-        mainbar: Optional[Tag] = soup.find(class_="il-maincontrols-metabar")
-        if mainbar is not None:
-            login_button = mainbar.find(attrs={"href": lambda x: x and "login.php" in x})
-            shib_login = soup.find(id="button_shib_login")
-            return not login_button and not shib_login
-
-        # Personal Desktop
-        if soup.find("a", attrs={"href": lambda x: x and "block_type=pditems" in x}):
-            return True
-
-        # Video listing embeds do not have complete ILIAS html. Try to match them by
-        # their video listing table
-        video_table = soup.find(
-            recursive=True,
-            name="table",
-            attrs={"id": lambda x: x is not None and x.startswith("tbl_xoct")}
-        )
-        if video_table is not None:
-            return True
-        # The individual video player wrapper page has nothing of the above.
-        # Match it by its playerContainer.
-        if soup.select_one("#playerContainer") is not None:
-            return True
-        return False
 
 
 class KitShibbolethLogin:
