@@ -81,7 +81,7 @@ class KitIliasWebCrawlerSection(HttpCrawlerSection):
         return self.s.getboolean("forums", fallback=False)
 
 
-_DIRECTORY_PAGES: Set[IliasElementType] = set([
+_DIRECTORY_PAGES: Set[IliasElementType] = {
     IliasElementType.EXERCISE,
     IliasElementType.EXERCISE_FILES,
     IliasElementType.FOLDER,
@@ -90,16 +90,16 @@ _DIRECTORY_PAGES: Set[IliasElementType] = set([
     IliasElementType.MEDIACAST_VIDEO_FOLDER,
     IliasElementType.OPENCAST_VIDEO_FOLDER,
     IliasElementType.OPENCAST_VIDEO_FOLDER_MAYBE_PAGINATED,
-])
+}
 
-_VIDEO_ELEMENTS: Set[IliasElementType] = set([
+_VIDEO_ELEMENTS: Set[IliasElementType] = {
     IliasElementType.MEDIACAST_VIDEO_FOLDER,
     IliasElementType.MEDIACAST_VIDEO,
     IliasElementType.OPENCAST_VIDEO,
     IliasElementType.OPENCAST_VIDEO_PLAYER,
     IliasElementType.OPENCAST_VIDEO_FOLDER,
     IliasElementType.OPENCAST_VIDEO_FOLDER_MAYBE_PAGINATED,
-])
+}
 
 
 def _iorepeat(attempts: int, name: str, failure_is_error: bool = False) -> Callable[[AWrapped], AWrapped]:
@@ -561,8 +561,8 @@ instance's greatest bottleneck.
         # If we do not want to crawl it (user filter) or we have every file
         # from the cached mapping already, we can ignore this and bail
         if not maybe_dl or self._all_opencast_videos_locally_present(element_path):
-            # Mark all existing cideos as known so they do not get deleted
-            # during dleanup. We "downloaded" them, just without actually making
+            # Mark all existing videos as known so they do not get deleted
+            # during cleanup. We "downloaded" them, just without actually making
             # a network request as we assumed they did not change.
             for video in self._previous_contained_opencast_videos(element_path):
                 await self.download(video)
