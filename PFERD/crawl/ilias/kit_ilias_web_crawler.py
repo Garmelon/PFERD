@@ -140,6 +140,10 @@ def _wrap_io_in_warning(name: str) -> Callable[[AWrapped], AWrapped]:
     return _iorepeat(1, name)
 
 
+def _get_video_cache_key(element: IliasPageElement) -> str:
+    return f"ilias-video-cache-{element.id()}"
+
+
 # Crawler control flow:
 #
 #     crawl_desktop -+
@@ -547,8 +551,8 @@ instance's greatest bottleneck.
         # Copy old mapping as it is likely still relevant
         if self.prev_report:
             self.report.add_custom_value(
-                str(element_path),
-                self.prev_report.get_custom_value(str(element_path))
+                _get_video_cache_key(element),
+                self.prev_report.get_custom_value(_get_video_cache_key(element))
             )
 
         # A video might contain other videos, so let's "crawl" the video first
@@ -558,58 +562,69 @@ instance's greatest bottleneck.
         # to ensure backwards compatibility.
         maybe_dl = await self.download(element_path, mtime=element.mtime, redownload=Redownload.ALWAYS)
 
-        # If we do not want to crawl it (user filter) or we have every file
-        # from the cached mapping already, we can ignore this and bail
-        if not maybe_dl or self._all_opencast_videos_locally_present(element_path):
-            # Mark all existing videos as known so they do not get deleted
-            # during cleanup. We "downloaded" them, just without actually making
-            # a network request as we assumed they did not change.
-            for video in self._previous_contained_opencast_videos(element_path):
-                await self.download(video)
+        # If we do not want to crawl it (user filter), we can move on
+        if not maybe_dl:
+            return None
+
+        # If we have every file from the cached mapping already, we can ignore this and bail
+        if self._all_opencast_videos_locally_present(element, maybe_dl.path):
+            # Mark all existing videos as known to ensure they do not get deleted during cleanup.
+            # We "downloaded" them, just without actually making a network request as we assumed
+            # they did not change.
+            contained = self._previous_contained_opencast_videos(element, maybe_dl.path)
+            if len(contained) > 1:
+                # Only do this if we threw away the original dl token,
+                # to not download single-stream videos twice
+                for video in contained:
+                    await self.download(video)
 
             return None
 
-        return self._download_opencast_video(element_path, element, maybe_dl)
+        return self._download_opencast_video(element, maybe_dl)
 
-    def _previous_contained_opencast_videos(self, video_path: PurePath) -> List[PurePath]:
+    def _previous_contained_opencast_videos(
+        self, element: IliasPageElement, element_path: PurePath
+    ) -> List[PurePath]:
         if not self.prev_report:
             return []
-        custom_value = self.prev_report.get_custom_value(str(video_path))
+        custom_value = self.prev_report.get_custom_value(_get_video_cache_key(element))
         if not custom_value:
             return []
-        names = cast(List[str], custom_value)
-        folder = video_path.parent
-        return [PurePath(folder, name) for name in names]
+        cached_value = cast(dict[str, Any], custom_value)
+        if "known_paths" not in cached_value or "own_path" not in cached_value:
+            log.explain(f"'known_paths' or 'own_path' missing from cached value: {cached_value}")
+            return []
+        transformed_own_path = self._transformer.transform(element_path)
+        if cached_value["own_path"] != str(transformed_own_path):
+            log.explain(
+                f"own_path '{transformed_own_path}' does not match cached value: '{cached_value['own_path']}"
+            )
+            return []
+        return [PurePath(name) for name in cached_value["known_paths"]]
 
-    def _all_opencast_videos_locally_present(self, video_path: PurePath) -> bool:
-        if contained_videos := self._previous_contained_opencast_videos(video_path):
-            log.explain_topic(f"Checking local cache for video {video_path.name}")
-            all_found_locally = True
-            for video in contained_videos:
-                transformed_path = self._to_local_opencast_video_path(video)
-                if transformed_path:
-                    exists_locally = self._output_dir.resolve(transformed_path).exists()
-                    all_found_locally = all_found_locally and exists_locally
-            if all_found_locally:
-                log.explain("Found all videos locally, skipping enumeration request")
+    def _all_opencast_videos_locally_present(self, element: IliasPageElement, element_path: PurePath) -> bool:
+        log.explain_topic(f"Checking local cache for video {fmt_path(element_path)}")
+        if contained_videos := self._previous_contained_opencast_videos(element, element_path):
+            log.explain(
+                f"The following contained videos are known: {','.join(map(fmt_path, contained_videos))}"
+            )
+            if all(self._output_dir.resolve(path).exists() for path in contained_videos):
+                log.explain("Found all known videos locally, skipping enumeration request")
                 return True
             log.explain("Missing at least one video, continuing with requests!")
+        else:
+            log.explain("No local cache present")
         return False
-
-    def _to_local_opencast_video_path(self, path: PurePath) -> Optional[PurePath]:
-        if transformed := self._transformer.transform(path):
-            return self._deduplicator.fixup_path(transformed)
-        return None
 
     @anoncritical
     @_iorepeat(3, "downloading video")
-    async def _download_opencast_video(
-        self,
-        original_path: PurePath,
-        element: IliasPageElement,
-        dl: DownloadToken
-    ) -> None:
-        stream_elements: List[IliasPageElement] = []
+    async def _download_opencast_video(self, element: IliasPageElement, dl: DownloadToken) -> None:
+        def add_to_report(paths: list[str]) -> None:
+            self.report.add_custom_value(
+                _get_video_cache_key(element),
+                {"known_paths": paths, "own_path": str(self._transformer.transform(dl.path))}
+            )
+
         async with dl as (bar, sink):
             page = IliasPage(await self._get_page(element.url), element.url, element)
             stream_elements = page.get_child_elements()
@@ -620,32 +635,25 @@ instance's greatest bottleneck.
                 log.explain(f"Using single video mode for {element.name}")
                 stream_element = stream_elements[0]
 
-                transformed_path = self._to_local_opencast_video_path(original_path)
-                if not transformed_path:
-                    raise CrawlError(f"Download returned a path but transform did not for {original_path}")
-
                 # We do not have a local cache yet
-                if self._output_dir.resolve(transformed_path).exists():
-                    log.explain(f"Video for {element.name} existed locally")
-                else:
-                    await self._stream_from_url(stream_element.url, sink, bar, is_video=True)
-                self.report.add_custom_value(str(original_path), [original_path.name])
+                await self._stream_from_url(stream_element.url, sink, bar, is_video=True)
+                add_to_report([str(self._transformer.transform(dl.path))])
                 return
 
         contained_video_paths: List[str] = []
 
         for stream_element in stream_elements:
-            video_path = original_path.parent / stream_element.name
-            contained_video_paths.append(str(video_path))
+            video_path = dl.path.parent / stream_element.name
 
             maybe_dl = await self.download(video_path, mtime=element.mtime, redownload=Redownload.NEVER)
             if not maybe_dl:
                 continue
             async with maybe_dl as (bar, sink):
                 log.explain(f"Streaming video from real url {stream_element.url}")
+                contained_video_paths.append(str(self._transformer.transform(maybe_dl.path)))
                 await self._stream_from_url(stream_element.url, sink, bar, is_video=True)
 
-        self.report.add_custom_value(str(original_path), contained_video_paths)
+        add_to_report(contained_video_paths)
 
     async def _handle_file(
         self,
@@ -657,8 +665,8 @@ instance's greatest bottleneck.
             return None
         return self._download_file(element, maybe_dl)
 
-    @anoncritical
     @_iorepeat(3, "downloading file")
+    @anoncritical
     async def _download_file(self, element: IliasPageElement, dl: DownloadToken) -> None:
         assert dl  # The function is only reached when dl is not None
         async with dl as (bar, sink):
@@ -728,7 +736,6 @@ instance's greatest bottleneck.
                 raise CrawlWarning("Failed to extract forum data")
             if download_data.empty:
                 log.explain("Forum had no threads")
-                elements = []
                 return
             html = await self._post_authenticated(download_data.url, download_data.form_data)
             elements = parse_ilias_forum_export(soupify(html))
@@ -962,7 +969,7 @@ instance's greatest bottleneck.
 
     # We repeat this as the login method in shibboleth doesn't handle I/O errors.
     # Shibboleth is quite reliable as well, the repeat is likely not critical here.
-    @ _iorepeat(3, "Login", failure_is_error=True)
+    @_iorepeat(3, "Login", failure_is_error=True)
     async def _authenticate(self) -> None:
         await self._shibboleth_login.login(self.session)
 
@@ -1112,7 +1119,7 @@ async def _shib_post(
         async with session.get(correct_url, allow_redirects=False) as response:
             location = response.headers.get("location")
             log.explain(f"Redirected to {location!r} with status {response.status}")
-            # If shib still still has a valid session, it will directly respond to the request
+            # If shib still has a valid session, it will directly respond to the request
             if location is None:
                 log.explain("Shib recognized us, returning its response directly")
                 return soupify(await response.read())

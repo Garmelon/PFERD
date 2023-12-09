@@ -22,6 +22,9 @@ ambiguous situations.
 
 ## Unreleased
 
+### Fixed
+- Video name deduplication
+
 ## 3.5.0 - 2023-09-13
 
 ### Added
