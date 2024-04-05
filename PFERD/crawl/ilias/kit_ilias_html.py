@@ -17,7 +17,7 @@ TargetType = Union[str, int]
 class IliasElementType(Enum):
     EXERCISE = "exercise"
     EXERCISE_FILES = "exercise_files"  # own submitted files
-    TEST = "test"                      # an online test. Will be ignored currently.
+    TEST = "test"  # an online test. Will be ignored currently.
     FILE = "file"
     FOLDER = "folder"
     FORUM = "forum"
@@ -95,13 +95,9 @@ class IliasPage:
 
     @staticmethod
     def is_root_page(soup: BeautifulSoup) -> bool:
-        permalink = soup.find(id="current_perma_link")
-        if permalink is None:
-            return False
-        value = permalink.attrs.get("value")
-        if value is None:
-            return False
-        return "goto.php?target=root_" in value
+        if permalink := IliasPage.get_soup_permalink(soup):
+            return "goto.php?target=root_" in permalink
+        return False
 
     def get_child_elements(self) -> List[IliasPageElement]:
         """
@@ -279,16 +275,14 @@ class IliasPage:
         return self._soup.find("a", attrs={"href": lambda x: x and "block_type=pditems" in x})
 
     def _is_content_page(self) -> bool:
-        link = self._soup.find(id="current_perma_link")
-        if not link:
-            return False
-        return "target=copa_" in link.get("value")
+        if link := self.get_permalink():
+            return "target=copa_" in link
+        return False
 
     def _is_learning_module_page(self) -> bool:
-        link = self._soup.find(id="current_perma_link")
-        if not link:
-            return False
-        return "target=pg_" in link.get("value")
+        if link := self.get_permalink():
+            return "target=pg_" in link
+        return False
 
     def _contains_collapsed_future_meetings(self) -> bool:
         return self._uncollapse_future_meetings_url() is not None
@@ -513,8 +507,8 @@ class IliasPage:
             modification_string = link.parent.parent.parent.select_one(
                 f"td.std:nth-child({index})"
             ).getText().strip()
-            if re.search(r"\d+\.\d+.\d+ - \d+:\d+", modification_string):
-                modification_time = datetime.strptime(modification_string, "%d.%m.%Y - %H:%M")
+            if match := re.search(r"\d+\.\d+.\d+ \d+:\d+", modification_string):
+                modification_time = datetime.strptime(match.group(0), "%d.%m.%Y %H:%M")
                 break
 
         if modification_time is None:
@@ -613,7 +607,7 @@ class IliasPage:
             file_listings: List[Tag] = container.findAll(
                 name="a",
                 # download links contain the given command class
-                attrs={"href": lambda x: x and "cmdClass=ilexsubmissionfilegui" in x}
+                attrs={"href": lambda x: x and "cmdclass=ilexsubmissionfilegui" in x.lower()}
             )
 
             # Add each listing as a new
@@ -917,9 +911,9 @@ class IliasPage:
 
     @staticmethod
     def _find_type_from_link(
-            element_name: str,
-            link_element: Tag,
-            url: str
+        element_name: str,
+        link_element: Tag,
+        url: str
     ) -> Optional[IliasElementType]:
         """
         Decides which sub crawler to use for a given top level element.
@@ -1095,6 +1089,9 @@ class IliasPage:
             return True
         return False
 
+    def get_permalink(self) -> Optional[str]:
+        return IliasPage.get_soup_permalink(self._soup)
+
     def _abs_url_from_link(self, link_tag: Tag) -> str:
         """
         Create an absolute url from an <a> tag.
@@ -1106,6 +1103,13 @@ class IliasPage:
         Create an absolute url from a relative URL.
         """
         return urljoin(self._page_url, relative_url)
+
+    @staticmethod
+    def get_soup_permalink(soup: BeautifulSoup) -> Optional[str]:
+        perma_link_element: Tag = soup.select_one(".il-footer-permanent-url > a")
+        if not perma_link_element or not perma_link_element.get("href"):
+            return None
+        return perma_link_element.get("href")
 
 
 def _unexpected_html_warning() -> None:
@@ -1130,7 +1134,7 @@ def demangle_date(date_str: str, fail_silently: bool = False) -> Optional[dateti
 
         date_str = re.sub("Gestern|Yesterday", _format_date_english(_yesterday()), date_str, re.I)
         date_str = re.sub("Heute|Today", _format_date_english(date.today()), date_str, re.I)
-        date_str = re.sub("Morgen|Tomorrow",  _format_date_english(_tomorrow()), date_str, re.I)
+        date_str = re.sub("Morgen|Tomorrow", _format_date_english(_tomorrow()), date_str, re.I)
         date_str = date_str.strip()
         for german, english in zip(german_months, english_months):
             date_str = date_str.replace(german, english)

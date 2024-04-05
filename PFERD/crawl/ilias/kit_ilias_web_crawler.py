@@ -12,17 +12,17 @@ import yarl
 from aiohttp import hdrs
 from bs4 import BeautifulSoup, Tag
 
+from .file_templates import Links, learning_module_template
+from .ilias_html_cleaner import clean, insert_base_markup
+from .kit_ilias_html import (IliasElementType, IliasForumThread, IliasLearningModulePage, IliasPage,
+                             IliasPageElement, _sanitize_path_name, parse_ilias_forum_export)
+from ..crawler import AWrapped, CrawlError, CrawlToken, CrawlWarning, DownloadToken, anoncritical
+from ..http_crawler import HttpCrawler, HttpCrawlerSection
 from ...auth import Authenticator, TfaAuthenticator
 from ...config import Config
 from ...logging import ProgressBar, log
 from ...output_dir import FileSink, Redownload
 from ...utils import fmt_path, soupify, url_set_query_param
-from ..crawler import AWrapped, CrawlError, CrawlToken, CrawlWarning, DownloadToken, anoncritical
-from ..http_crawler import HttpCrawler, HttpCrawlerSection
-from .file_templates import Links, learning_module_template
-from .ilias_html_cleaner import clean, insert_base_markup
-from .kit_ilias_html import (IliasElementType, IliasForumThread, IliasLearningModulePage, IliasPage,
-                             IliasPageElement, _sanitize_path_name, parse_ilias_forum_export)
 
 TargetType = Union[str, int]
 
@@ -130,6 +130,7 @@ def _iorepeat(attempts: int, name: str, failure_is_error: bool = False) -> Calla
             raise CrawlError("Impossible return in ilias _iorepeat")
 
         return wrapper  # type: ignore
+
     return decorator
 
 
@@ -177,11 +178,11 @@ def _get_video_cache_key(element: IliasPageElement) -> str:
 
 class KitIliasWebCrawler(HttpCrawler):
     def __init__(
-            self,
-            name: str,
-            section: KitIliasWebCrawlerSection,
-            config: Config,
-            authenticators: Dict[str, Authenticator]
+        self,
+        name: str,
+        section: KitIliasWebCrawlerSection,
+        config: Config,
+        authenticators: Dict[str, Authenticator]
     ):
         # Setting a main authenticator for cookie sharing
         auth = section.auth(authenticators)
@@ -253,8 +254,8 @@ instance's greatest bottleneck.
                     soup = await self._get_page(next_stage_url, root_page_allowed=True)
 
                     if current_parent is None and expected_id is not None:
-                        perma_link_element: Tag = soup.find(id="current_perma_link")
-                        if not perma_link_element or "crs_" not in perma_link_element.get("value"):
+                        perma_link = IliasPage.get_soup_permalink(soup)
+                        if not perma_link or "crs_" not in perma_link:
                             raise CrawlError("Invalid course id? Didn't find anything looking like a course")
 
                     log.explain_topic(f"Parsing HTML page for {fmt_path(cl.path)}")
@@ -677,7 +678,7 @@ instance's greatest bottleneck.
             async with self.session.get(url, allow_redirects=is_video) as resp:
                 if not is_video:
                     # Redirect means we weren't authenticated
-                    if hdrs.LOCATION in resp.headers:
+                    if hdrs.LOCATION in resp.headers and "&cmd=sendfile" not in resp.headers[hdrs.LOCATION]:
                         return False
                 # we wanted a video but got HTML
                 if is_video and "html" in resp.content_type:
@@ -1052,9 +1053,9 @@ class KitShibbolethLogin:
         await sess.post(url, data=data)
 
     async def _authenticate_tfa(
-            self,
-            session: aiohttp.ClientSession,
-            soup: BeautifulSoup
+        self,
+        session: aiohttp.ClientSession,
+        soup: BeautifulSoup
     ) -> BeautifulSoup:
         if not self._tfa_auth:
             self._tfa_auth = TfaAuthenticator("ilias-anon-tfa")

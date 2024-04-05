@@ -24,6 +24,7 @@ ambiguous situations.
 
 ### Fixed
 - Video name deduplication
+- Compatibility with ILIAS 8
 
 ## 3.5.0 - 2023-09-13
 
