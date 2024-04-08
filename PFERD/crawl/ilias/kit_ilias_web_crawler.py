@@ -12,17 +12,17 @@ import yarl
 from aiohttp import hdrs
 from bs4 import BeautifulSoup, Tag
 
-from .file_templates import Links, learning_module_template
-from .ilias_html_cleaner import clean, insert_base_markup
-from .kit_ilias_html import (IliasElementType, IliasForumThread, IliasLearningModulePage, IliasPage,
-                             IliasPageElement, _sanitize_path_name, parse_ilias_forum_export)
-from ..crawler import AWrapped, CrawlError, CrawlToken, CrawlWarning, DownloadToken, anoncritical
-from ..http_crawler import HttpCrawler, HttpCrawlerSection
 from ...auth import Authenticator, TfaAuthenticator
 from ...config import Config
 from ...logging import ProgressBar, log
 from ...output_dir import FileSink, Redownload
 from ...utils import fmt_path, soupify, url_set_query_param
+from ..crawler import AWrapped, CrawlError, CrawlToken, CrawlWarning, DownloadToken, anoncritical
+from ..http_crawler import HttpCrawler, HttpCrawlerSection
+from .file_templates import Links, learning_module_template
+from .ilias_html_cleaner import clean, insert_base_markup
+from .kit_ilias_html import (IliasElementType, IliasForumThread, IliasLearningModulePage, IliasPage,
+                             IliasPageElement, _sanitize_path_name, parse_ilias_forum_export)
 
 TargetType = Union[str, int]
 
@@ -675,12 +675,28 @@ instance's greatest bottleneck.
 
     async def _stream_from_url(self, url: str, sink: FileSink, bar: ProgressBar, is_video: bool) -> None:
         async def try_stream() -> bool:
-            async with self.session.get(url, allow_redirects=is_video) as resp:
-                if not is_video:
-                    # Redirect means we weren't authenticated
-                    if hdrs.LOCATION in resp.headers and "&cmd=sendfile" not in resp.headers[hdrs.LOCATION]:
-                        return False
-                # we wanted a video but got HTML
+            next_url = url
+
+            # Normal files redirect to the magazine if we are not authenticated. As files could be HTML,
+            # we can not match on the content type here. Instead, we disallow redirects and inspect the
+            # new location. If we are redirected anywhere but the ILIAS 8 "sendfile" command, we assume
+            # our authentication expired.
+            if not is_video:
+                async with self.session.get(url, allow_redirects=False) as resp:
+                    # Redirect to anything except a "sendfile" means we weren't authenticated
+                    if hdrs.LOCATION in resp.headers:
+                        if "&cmd=sendfile" not in resp.headers[hdrs.LOCATION]:
+                            return False
+                        # Directly follow the redirect to not make a second, unnecessary request
+                        next_url = resp.headers[hdrs.LOCATION]
+
+            # Let's try this again and follow redirects
+            return await fetch_follow_redirects(next_url)
+
+        async def fetch_follow_redirects(file_url: str) -> bool:
+            async with self.session.get(file_url) as resp:
+                # We wanted a video but got HTML => Forbidden, auth expired. Logging in won't really
+                # solve that depending on the setup, but it is better than nothing.
                 if is_video and "html" in resp.content_type:
                     return False
 
