@@ -15,9 +15,10 @@ from ...auth import Authenticator
 from ...config import Config
 from ...logging import ProgressBar, log
 from ...output_dir import FileSink, Redownload
-from ...utils import _iorepeat, fmt_path, soupify, url_set_query_param
+from ...utils import fmt_path, soupify, url_set_query_param
 from ..crawler import CrawlError, CrawlToken, CrawlWarning, DownloadToken, anoncritical
 from ..http_crawler import HttpCrawler, HttpCrawlerSection
+from .async_helper import _iorepeat
 from .file_templates import Links, learning_module_template
 from .ilias_html_cleaner import clean, insert_base_markup
 from .kit_ilias_html import (IliasElementType, IliasForumThread, IliasLearningModulePage, IliasPage,
