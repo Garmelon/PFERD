@@ -48,6 +48,10 @@ class IliasPageElement:
         regexes = [
             r"eid=(?P<id>[0-9a-z\-]+)",
             r"file_(?P<id>\d+)",
+            r"copa_(?P<id>\d+)",
+            r"fold_(?P<id>\d+)",
+            r"frm_(?P<id>\d+)",
+            r"exc_(?P<id>\d+)",
             r"ref_id=(?P<id>\d+)",
             r"target=[a-z]+_(?P<id>\d+)",
             r"mm_(?P<id>\d+)"
@@ -996,6 +1000,19 @@ class IliasPage:
 
         if "baseClass=ilSAHSPresentationGUI" in parsed_url.query:
             return IliasElementType.SCORM_LEARNING_MODULE
+
+        # other universities might have content type specified in URL path
+        if "_file_" in parsed_url.path:
+            return IliasElementType.FILE
+
+        if "_fold_" in parsed_url.path or "_copa_" in parsed_url.path:
+            return IliasElementType.FOLDER
+
+        if "_frm_" in parsed_url.path:
+            return IliasElementType.FORUM
+
+        if "_exc_" in parsed_url.path:
+            return IliasElementType.EXERCISE
 
         # Booking and Meeting can not be detected based on the link. They do have a ref_id though, so
         # try to guess it from the image.
