@@ -1,120 +1,37 @@
 import argparse
 import configparser
-from pathlib import Path
 
-from ..crawl.ilias.file_templates import Links
 from ..logging import log
-from .parser import (CRAWLER_PARSER, SUBPARSERS, BooleanOptionalAction, ParserLoadError, load_crawler,
-                     show_value_error)
+from .common_ilias_args import configure_common_group_args, load_common
+from .parser import CRAWLER_PARSER, SUBPARSERS, load_crawler
+
+COMMAND_NAME = "kit-ilias-web"
 
 SUBPARSER = SUBPARSERS.add_parser(
-    "kit-ilias-web",
+    COMMAND_NAME,
     parents=[CRAWLER_PARSER],
 )
 
 GROUP = SUBPARSER.add_argument_group(
-    title="kit-ilias-web crawler arguments",
-    description="arguments for the 'kit-ilias-web' crawler",
+    title=f"{COMMAND_NAME} crawler arguments",
+    description=f"arguments for the '{COMMAND_NAME}' crawler",
 )
-GROUP.add_argument(
-    "target",
-    type=str,
-    metavar="TARGET",
-    help="course id, 'desktop', or ILIAS URL to crawl"
-)
-GROUP.add_argument(
-    "output",
-    type=Path,
-    metavar="OUTPUT",
-    help="output directory"
-)
-GROUP.add_argument(
-    "--username", "-u",
-    type=str,
-    metavar="USERNAME",
-    help="user name for authentication"
-)
-GROUP.add_argument(
-    "--keyring",
-    action=BooleanOptionalAction,
-    help="use the system keyring to store and retrieve passwords"
-)
-GROUP.add_argument(
-    "--credential-file",
-    type=Path,
-    metavar="PATH",
-    help="read username and password from a credential file"
-)
-GROUP.add_argument(
-    "--links",
-    type=show_value_error(Links.from_string),
-    metavar="OPTION",
-    help="how to represent external links"
-)
-GROUP.add_argument(
-    "--link-redirect-delay",
-    type=int,
-    metavar="SECONDS",
-    help="time before 'fancy' links redirect to to their target (-1 to disable)"
-)
-GROUP.add_argument(
-    "--videos",
-    action=BooleanOptionalAction,
-    help="crawl and download videos"
-)
-GROUP.add_argument(
-    "--forums",
-    action=BooleanOptionalAction,
-    help="crawl and download forum posts"
-)
-GROUP.add_argument(
-    "--http-timeout", "-t",
-    type=float,
-    metavar="SECONDS",
-    help="timeout for all HTTP requests"
-)
+
+configure_common_group_args(GROUP)
 
 
 def load(
         args: argparse.Namespace,
         parser: configparser.ConfigParser,
 ) -> None:
-    log.explain("Creating config for command 'kit-ilias-web'")
+    log.explain(f"Creating config for command '{COMMAND_NAME}'")
 
     parser["crawl:ilias"] = {}
     section = parser["crawl:ilias"]
     load_crawler(args, section)
 
-    section["type"] = "kit-ilias-web"
-    section["target"] = str(args.target)
-    section["output_dir"] = str(args.output)
-    section["auth"] = "auth:ilias"
-    if args.links is not None:
-        section["links"] = str(args.links.value)
-    if args.link_redirect_delay is not None:
-        section["link_redirect_delay"] = str(args.link_redirect_delay)
-    if args.videos is not None:
-        section["videos"] = "yes" if args.videos else "no"
-    if args.forums is not None:
-        section["forums"] = "yes" if args.forums else "no"
-    if args.http_timeout is not None:
-        section["http_timeout"] = str(args.http_timeout)
-
-    parser["auth:ilias"] = {}
-    auth_section = parser["auth:ilias"]
-    if args.credential_file is not None:
-        if args.username is not None:
-            raise ParserLoadError("--credential-file and --username can't be used together")
-        if args.keyring:
-            raise ParserLoadError("--credential-file and --keyring can't be used together")
-        auth_section["type"] = "credential-file"
-        auth_section["path"] = str(args.credential_file)
-    elif args.keyring:
-        auth_section["type"] = "keyring"
-    else:
-        auth_section["type"] = "simple"
-    if args.username is not None:
-        auth_section["username"] = args.username
+    section["type"] = COMMAND_NAME
+    load_common(section, args, parser)
 
 
 SUBPARSER.set_defaults(command=load)
