@@ -22,9 +22,13 @@ ambiguous situations.
 
 ## Unreleased
 
+## 3.5.1 - 2024-04-09
+
+### Added
+- Support for ILIAS 8
+
 ### Fixed
 - Video name deduplication
-- Compatibility with ILIAS 8
 
 ## 3.5.0 - 2023-09-13
 
