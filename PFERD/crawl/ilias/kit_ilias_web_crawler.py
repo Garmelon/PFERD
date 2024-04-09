@@ -228,7 +228,7 @@ instance's greatest bottleneck.
         await self._crawl_url(root_url, expected_id=course_id)
 
     async def _crawl_desktop(self) -> None:
-        appendix = r"ILIAS\PersonalDesktop\PDMainBarProvider|mm_pd_sel_items"
+        appendix = r"ILIAS\Repository\Provider\RepositoryMainBarProvider|mm_pd_sel_items"
         appendix = appendix.encode("ASCII").hex()
         await self._crawl_url(self._base_url + "/gs_content.php?item=" + appendix)
 

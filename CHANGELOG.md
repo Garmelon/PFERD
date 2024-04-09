@@ -22,6 +22,9 @@ ambiguous situations.
 
 ## Unreleased
 
+### Fixed
+- Crawling of personal desktop with ILIAS 8
+
 ## 3.5.1 - 2024-04-09
 
 ### Added
