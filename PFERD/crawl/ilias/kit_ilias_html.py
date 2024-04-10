@@ -1074,6 +1074,14 @@ class IliasPage:
         if soup.find("a", attrs={"href": lambda x: x and "block_type=pditems" in x}):
             return True
 
+        # Empty personal desktop has zero (0) markers. Match on the text...
+        if alert := soup.select_one(".alert-info"):
+            text = alert.getText().lower()
+            if "you have not yet selected any favourites" in text:
+                return True
+            if "sie haben aktuell noch keine favoriten ausgewählt" in text:
+                return True
+
         # Video listing embeds do not have complete ILIAS html. Try to match them by
         # their video listing table
         video_table = soup.find(
