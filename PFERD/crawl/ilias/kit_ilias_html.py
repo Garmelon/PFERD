@@ -378,6 +378,10 @@ class IliasPage:
             name = _sanitize_path_name(link.text.strip())
             url = self._abs_url_from_link(link)
 
+            if "cmd=manage" in url and "cmdClass=ilPDSelectedItemsBlockGUI" in url:
+                # Configure button/link does not have anything interesting
+                continue
+
             type = self._find_type_from_link(name, link, url)
             if not type:
                 _unexpected_html_warning()
