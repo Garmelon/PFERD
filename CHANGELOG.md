@@ -22,6 +22,8 @@ ambiguous situations.
 
 ## Unreleased
 
+## 3.5.2 - 2024-04-14
+
 ### Fixed
 - Crawling of personal desktop with ILIAS 8
 - Crawling of empty personal desktops
