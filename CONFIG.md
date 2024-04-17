@@ -146,7 +146,7 @@ crawler simulate a slower, network-based crawler.
 
 This crawler crawls a KIT-IPD page by url. The root page can be crawled from
 outside the KIT network so you will be informed about any new/deleted files,
-but downloading files requires you to be within. Adding a slow delay between
+but downloading files requires you to be within. Adding a short delay between
 requests is likely a good idea.
 
 - `target`: URL to a KIT-IPD page
