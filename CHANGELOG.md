@@ -22,6 +22,9 @@ ambiguous situations.
 
 ## Unreleased
 
+### Fixed
+- Normalization of meeting names in cards
+
 ## 3.5.2 - 2024-04-14
 
 ### Fixed

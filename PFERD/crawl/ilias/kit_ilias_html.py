@@ -61,6 +61,47 @@ class IliasPageElement:
         log.warn(f"Didn't find identity for {self.name} - {self.url}. Please report this.")
         return self.url
 
+    @staticmethod
+    def create_new(
+        typ: IliasElementType,
+        url: str,
+        name: str,
+        mtime: Optional[datetime] = None,
+        description: Optional[str] = None
+    ) -> 'IliasPageElement':
+        if typ == IliasElementType.MEETING:
+            normalized = _sanitize_path_name(IliasPageElement._normalize_meeting_name(name))
+            log.explain(f"Normalized meeting name from {name!r} to {normalized!r}")
+            name = normalized
+        return IliasPageElement(typ, url, name, mtime, description)
+
+    @staticmethod
+    def _normalize_meeting_name(meeting_name: str) -> str:
+        """
+        Normalizes meeting names, which have a relative time as their first part,
+        to their date in ISO format.
+        """
+
+        # This checks whether we can reach a `:` without passing a `-`
+        if re.search(r"^[^-]+: ", meeting_name):
+            # Meeting name only contains date: "05. Jan 2000:"
+            split_delimiter = ":"
+        else:
+            # Meeting name contains date and start/end times: "05. Jan 2000, 16:00 - 17:30:"
+            split_delimiter = ", "
+
+        # We have a meeting day without time
+        date_portion_str = meeting_name.split(split_delimiter)[0]
+        date_portion = demangle_date(date_portion_str)
+
+        # We failed to parse the date, bail out
+        if not date_portion:
+            return meeting_name
+
+        # Replace the first section with the absolute date
+        rest_of_name = split_delimiter.join(meeting_name.split(split_delimiter)[1:])
+        return datetime.strftime(date_portion, "%Y-%m-%d") + split_delimiter + rest_of_name
+
 
 @dataclass
 class IliasDownloadForumData:
@@ -130,7 +171,7 @@ class IliasPage:
             attrs={"href": lambda x: x and "cmdClass=ilinfoscreengui" in x}
         )
         if tab is not None:
-            return IliasPageElement(
+            return IliasPageElement.create_new(
                 IliasElementType.INFO_TAB,
                 self._abs_url_from_link(tab),
                 "infos"
@@ -295,7 +336,7 @@ class IliasPage:
         if not element:
             return None
         link = self._abs_url_from_link(element)
-        return IliasPageElement(IliasElementType.FOLDER, link, "show all meetings")
+        return IliasPageElement.create_new(IliasElementType.FOLDER, link, "show all meetings")
 
     def _is_content_tab_selected(self) -> bool:
         return self._select_content_page_url() is None
@@ -315,7 +356,7 @@ class IliasPage:
         link = tab.find("a")
         if link:
             link = self._abs_url_from_link(link)
-            return IliasPageElement(IliasElementType.FOLDER, link, "select content page")
+            return IliasPageElement.create_new(IliasElementType.FOLDER, link, "select content page")
 
         _unexpected_html_warning()
         log.warn_contd(f"Could not find content tab URL on {self._page_url!r}.")
@@ -345,14 +386,16 @@ class IliasPage:
         # and just fetch the lone video url!
         if len(streams) == 1:
             video_url = streams[0]["sources"]["mp4"][0]["src"]
-            return [IliasPageElement(IliasElementType.OPENCAST_VIDEO, video_url, self._source_name)]
+            return [
+                IliasPageElement.create_new(IliasElementType.OPENCAST_VIDEO, video_url, self._source_name)
+            ]
 
         log.explain(f"Found multiple videos for stream at {self._source_name}")
         items = []
         for stream in sorted(streams, key=lambda stream: stream["content"]):
             full_name = f"{self._source_name.replace('.mp4', '')} ({stream['content']}).mp4"
             video_url = stream["sources"]["mp4"][0]["src"]
-            items.append(IliasPageElement(IliasElementType.OPENCAST_VIDEO, video_url, full_name))
+            items.append(IliasPageElement.create_new(IliasElementType.OPENCAST_VIDEO, video_url, full_name))
 
         return items
 
@@ -367,7 +410,7 @@ class IliasPage:
 
         link = self._abs_url_from_link(correct_link)
 
-        return IliasPageElement(IliasElementType.FORUM, link, "show all forum threads")
+        return IliasPageElement.create_new(IliasElementType.FORUM, link, "show all forum threads")
 
     def _find_personal_desktop_entries(self) -> List[IliasPageElement]:
         items: List[IliasPageElement] = []
@@ -394,7 +437,7 @@ class IliasPage:
                 url = re.sub(r"(target=file_\d+)", r"\1_download", url)
                 log.explain("Rewired file URL to include download part")
 
-            items.append(IliasPageElement(type, url, name))
+            items.append(IliasPageElement.create_new(type, url, name))
 
         return items
 
@@ -412,7 +455,7 @@ class IliasPage:
                 log.warn_contd(f"Found unknown content page item {name!r} with url {url!r}")
                 continue
 
-            items.append(IliasPageElement(IliasElementType.FILE, url, name))
+            items.append(IliasPageElement.create_new(IliasElementType.FILE, url, name))
 
         return items
 
@@ -425,7 +468,7 @@ class IliasPage:
                 continue
             if "cmd=sendfile" not in link["href"]:
                 continue
-            items.append(IliasPageElement(
+            items.append(IliasPageElement.create_new(
                 IliasElementType.FILE,
                 self._abs_url_from_link(link),
                 _sanitize_path_name(link.getText())
@@ -453,7 +496,9 @@ class IliasPage:
             query_params = {"limit": "800", "cmd": "asyncGetTableGUI", "cmdMode": "asynch"}
             url = url_set_query_params(url, query_params)
             log.explain("Found ILIAS video frame page, fetching actual content next")
-            return [IliasPageElement(IliasElementType.OPENCAST_VIDEO_FOLDER_MAYBE_PAGINATED, url, "")]
+            return [
+                IliasPageElement.create_new(IliasElementType.OPENCAST_VIDEO_FOLDER_MAYBE_PAGINATED, url, "")
+            ]
 
         is_paginated = self._soup.find(id=re.compile(r"tab_page_sel.+")) is not None
 
@@ -482,7 +527,7 @@ class IliasPage:
         url = url_set_query_params(self._page_url, query_params)
 
         log.explain("Disabled pagination, retrying folder as a new entry")
-        return [IliasPageElement(IliasElementType.OPENCAST_VIDEO_FOLDER, url, "")]
+        return [IliasPageElement.create_new(IliasElementType.OPENCAST_VIDEO_FOLDER, url, "")]
 
     def _find_opencast_video_entries_no_paging(self) -> List[IliasPageElement]:
         """
@@ -527,7 +572,7 @@ class IliasPage:
         video_url = self._abs_url_from_link(link)
 
         log.explain(f"Found video {video_name!r} at {video_url}")
-        return IliasPageElement(
+        return IliasPageElement.create_new(
             IliasElementType.OPENCAST_VIDEO_PLAYER, video_url, video_name, modification_time
         )
 
@@ -563,7 +608,7 @@ class IliasPage:
             if date is None:
                 log.warn(f"Date parsing failed for exercise entry {name!r}")
 
-            results.append(IliasPageElement(
+            results.append(IliasPageElement.create_new(
                 IliasElementType.FILE,
                 self._abs_url_from_link(link),
                 name,
@@ -600,7 +645,7 @@ class IliasPage:
                 url = self._abs_url_from_link(file_link)
 
                 log.explain(f"Found exercise entry {file_name!r}")
-                results.append(IliasPageElement(
+                results.append(IliasPageElement.create_new(
                     IliasElementType.FILE,
                     url,
                     container_name + "/" + file_name,
@@ -625,7 +670,7 @@ class IliasPage:
                 file_name = _sanitize_path_name(label_container.getText().strip())
                 url = self._abs_url_from_link(listing)
                 log.explain(f"Found exercise detail {file_name!r} at {url}")
-                results.append(IliasPageElement(
+                results.append(IliasPageElement.create_new(
                     IliasElementType.EXERCISE_FILES,
                     url,
                     container_name + "/" + file_name,
@@ -660,16 +705,13 @@ class IliasPage:
 
             if not element_type:
                 continue
-            if element_type == IliasElementType.MEETING:
-                normalized = _sanitize_path_name(self._normalize_meeting_name(element_name))
-                log.explain(f"Normalized meeting name from {element_name!r} to {normalized!r}")
-                element_name = normalized
             elif element_type == IliasElementType.FILE:
                 result.append(self._file_to_element(element_name, abs_url, link))
                 continue
 
             log.explain(f"Found {element_name!r}")
-            result.append(IliasPageElement(element_type, abs_url, element_name, description=description))
+            result.append(IliasPageElement.create_new(
+                element_type, abs_url, element_name, description=description))
 
         result += self._find_cards()
         result += self._find_mediacast_videos()
@@ -692,8 +734,8 @@ class IliasPage:
                 log.warn_contd(f"No <video> element found for mediacast video '{element_name}'")
                 continue
 
-            videos.append(IliasPageElement(
-                type=IliasElementType.MEDIACAST_VIDEO,
+            videos.append(IliasPageElement.create_new(
+                typ=IliasElementType.MEDIACAST_VIDEO,
                 url=self._abs_url_from_relative(video_element.get("src")),
                 name=element_name,
                 mtime=self._find_mediacast_video_mtime(elem.findParent(name="td"))
@@ -815,7 +857,7 @@ class IliasPage:
         full_path = name + "." + file_type
 
         log.explain(f"Found file {full_path!r}")
-        return IliasPageElement(IliasElementType.FILE, url, full_path, modification_date)
+        return IliasPageElement.create_new(IliasElementType.FILE, url, full_path, modification_date)
 
     def _find_cards(self) -> List[IliasPageElement]:
         result: List[IliasPageElement] = []
@@ -832,7 +874,7 @@ class IliasPage:
                 log.warn_contd(f"Could not extract type for {title}")
                 continue
 
-            result.append(IliasPageElement(type, url, name))
+            result.append(IliasPageElement.create_new(type, url, name))
 
         card_button_tiles: List[Tag] = self._soup.select(".card-title button")
 
@@ -861,7 +903,7 @@ class IliasPage:
                 log.warn_contd(f"Could not extract type for {button}")
                 continue
 
-            result.append(IliasPageElement(type, url, name, description=description))
+            result.append(IliasPageElement.create_new(type, url, name, description=description))
 
         return result
 
@@ -1037,33 +1079,6 @@ class IliasPage:
             return IliasElementType.SCORM_LEARNING_MODULE
 
         return IliasElementType.FOLDER
-
-    @staticmethod
-    def _normalize_meeting_name(meeting_name: str) -> str:
-        """
-        Normalizes meeting names, which have a relative time as their first part,
-        to their date in ISO format.
-        """
-
-        # This checks whether we can reach a `:` without passing a `-`
-        if re.search(r"^[^-]+: ", meeting_name):
-            # Meeting name only contains date: "05. Jan 2000:"
-            split_delimiter = ":"
-        else:
-            # Meeting name contains date and start/end times: "05. Jan 2000, 16:00 - 17:30:"
-            split_delimiter = ", "
-
-        # We have a meeting day without time
-        date_portion_str = meeting_name.split(split_delimiter)[0]
-        date_portion = demangle_date(date_portion_str)
-
-        # We failed to parse the date, bail out
-        if not date_portion:
-            return meeting_name
-
-        # Replace the first section with the absolute date
-        rest_of_name = split_delimiter.join(meeting_name.split(split_delimiter)[1:])
-        return datetime.strftime(date_portion, "%Y-%m-%d") + split_delimiter + rest_of_name
 
     @staticmethod
     def is_logged_in(soup: BeautifulSoup) -> bool:
