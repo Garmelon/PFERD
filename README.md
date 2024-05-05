@@ -152,13 +152,13 @@ target = 1337420
 
 PFERD was originally developed for the KIT ILIAS instance, so you might have to adapt some parts of the code for full compatibility with your instance.
 
-To run PFERD against any instance using the integrated ILIAS authentication, simply add the `--base-url` and `--client-id` flags to the CLI command, e.g.
+To run PFERD against any instance using the integrated ILIAS authentication, add the `--base-url` and `--client-id` flags to the CLI command, e.g.
 
 ```
 $ pferd ilias-web --base-url https://ilias.my-university.example --client-id My_University desktop <output_directory>
 ```
 
-To use a config file for the given instance, just extend the example above as follows:
+To use a config file for the given instance, extend the example above as follows:
 
 ```ini
 [DEFAULT]
@@ -196,4 +196,4 @@ No problem, your university might also just work fine. To retrieve the values re
 {{ base_url }}/login.php?client_id={{ client_id }}&cmd=force_login&lang=
 ```
 
-From this URL, you can simply extract your required values. Feel free to open a PR to add your configuration to the table above. This will help people find out if their ILIAS instance is supported too.
+From this URL, you can extract your required values. Feel free to open a PR to add your configuration to the table above. This will help people find out if their ILIAS instance is supported too.
