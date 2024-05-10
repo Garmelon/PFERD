@@ -18,7 +18,7 @@ GROUP = SUBPARSER.add_argument_group(
 )
 
 GROUP.add_argument(
-    "--ilias-url",
+    "--base-url",
     type=str,
     metavar="BASE_URL",
     help="The base url of the ilias instance"
