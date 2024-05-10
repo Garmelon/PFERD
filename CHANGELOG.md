@@ -22,6 +22,9 @@ ambiguous situations.
 
 ## Unreleased
 
+### Added
+- Generic `ilias-web` crawler and `ilias-web` CLI command
+
 ### Fixed
 - Normalization of meeting names in cards
 
