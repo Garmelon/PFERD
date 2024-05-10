@@ -22,6 +22,14 @@ class KitShibbolethBackgroundLoginSuccessful():
 
 
 class KitIliasWebCrawlerSection(IliasWebCrawlerSection):
+    def base_url(self) -> str:
+        return _ILIAS_URL
+
+    def client_id(self) -> str:
+        # KIT ILIAS uses the Shibboleth service for authentication. There's no
+        # use for a client id.
+        return "unused"
+
     def tfa_auth(self, authenticators: Dict[str, Authenticator]) -> Optional[Authenticator]:
         value: Optional[str] = self.s.get("tfa_auth")
         if value is None:
