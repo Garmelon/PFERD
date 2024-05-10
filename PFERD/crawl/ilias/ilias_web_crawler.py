@@ -27,31 +27,20 @@ from .kit_ilias_html import (IliasElementType, IliasForumThread, IliasLearningMo
 TargetType = Union[str, int]
 
 
-class IliasConfig():
-    def __init__(self, base_url: str, client_id: str):
-        self._base_url = base_url
-        self._client_id = client_id
-
-    @property
-    def base_url(self) -> str:
-        return self._base_url
-
-    @property
-    def client_id(self) -> str:
-        return self._client_id
-
-
 class IliasWebCrawlerSection(HttpCrawlerSection):
-    def conf(self) -> IliasConfig:
+    def base_url(self) -> str:
         base_url = self.s.get("base_url")
         if not base_url:
             self.missing_value("base_url")
 
+        return base_url
+
+    def client_id(self) -> str:
         client_id = self.s.get("client_id")
         if not client_id:
             self.missing_value("client_id")
 
-        return IliasConfig(base_url, client_id)
+        return client_id
 
     def target(self) -> TargetType:
         target = self.s.get("target")
@@ -64,8 +53,8 @@ class IliasWebCrawlerSection(HttpCrawlerSection):
         if target == "desktop":
             # Full personal desktop
             return target
-        if target.startswith(self.conf().base_url):
-            # ILIAS URL
+        if target.startswith(self.base_url()):
+            # URL
             return target
 
         self.invalid_value("target", target, "Should be <course id | desktop | kit ilias URL>")
@@ -165,7 +154,8 @@ instance's greatest bottleneck.
             """.strip())
 
         self._auth = auth
-        self._conf = section.conf()
+        self._base_url = section.base_url()
+        self._client_id = section.client_id()
 
         self._target = section.target()
         self._link_file_redirect_delay = section.link_redirect_delay()
@@ -188,7 +178,8 @@ instance's greatest bottleneck.
     async def _crawl_course(self, course_id: int) -> None:
         # Start crawling at the given course
         root_url = url_set_query_param(
-            self._conf.base_url + "/goto.php", "target", f"crs_{course_id}"
+            urljoin(self._base_url, "/goto.php"),
+            "target", f"crs_{course_id}",
         )
 
         await self._crawl_url(root_url, expected_id=course_id)
@@ -196,7 +187,10 @@ instance's greatest bottleneck.
     async def _crawl_desktop(self) -> None:
         appendix = r"ILIAS\Repository\Provider\RepositoryMainBarProvider|mm_pd_sel_items"
         appendix = appendix.encode("ASCII").hex()
-        await self._crawl_url(self._conf.base_url + "/gs_content.php?item=" + appendix)
+        await self._crawl_url(url_set_query_param(
+            urljoin(self._base_url, "/gs_content.php"),
+            "item=", appendix,
+        ))
 
     async def _crawl_url(self, url: str, expected_id: Optional[int] = None) -> None:
         maybe_cl = await self.crawl(PurePath("."))
@@ -869,8 +863,8 @@ instance's greatest bottleneck.
                 continue
             if elem.name == "img":
                 if src := elem.attrs.get("src", None):
-                    url = urljoin(self._conf.base_url, src)
-                    if not url.startswith(self._conf.base_url):
+                    url = urljoin(self._base_url, src)
+                    if not url.startswith(self._base_url):
                         continue
                     log.explain(f"Internalizing {url!r}")
                     img = await self._get_authenticated(url)
@@ -955,10 +949,10 @@ instance's greatest bottleneck.
     async def _authenticate(self) -> None:
         # fill the session with the correct cookies
         params = {
-            "client_id": self._conf.client_id,
+            "client_id": self._client_id,
             "cmd": "force_login",
         }
-        async with self.session.get(f"{self._conf.base_url}/login.php", params=params) as request:
+        async with self.session.get(urljoin(self._base_url, "/login.php"), params=params) as request:
             login_page = soupify(await request.read())
 
         login_form = login_page.find("form", attrs={"name": "formlogin"})
@@ -978,12 +972,12 @@ instance's greatest bottleneck.
         }
 
         # do the actual login
-        async with self.session.post(f"{self._conf.base_url}/{login_url}", data=login_data) as request:
+        async with self.session.post(urljoin(self._base_url, login_url), data=login_data) as request:
             soup = soupify(await request.read())
             if not self._is_logged_in(soup):
                 self._auth.invalidate_credentials()
 
-    @ staticmethod
+    @staticmethod
     def _is_logged_in(soup: BeautifulSoup) -> bool:
         # Normal ILIAS pages
         mainbar: Optional[Tag] = soup.find(class_="il-maincontrols-metabar")
