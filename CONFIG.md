@@ -4,11 +4,11 @@ A config file consists of sections. A section begins with a `[section]` header,
 which is followed by a list of `key = value` pairs. Comments must be on their
 own line and start with `#`. Multiline values must be indented beyond their key.
 Boolean values can be `yes` or `no`. For more details and some examples on the
-format, see the [configparser documentation][1] ([interpolation][2] is
-disabled).
+format, see the [configparser documentation][cp-file]
+([interpolation][cp-interp] is disabled).
 
-[1]: <https://docs.python.org/3/library/configparser.html#supported-ini-file-structure> "Supported INI File Structure"
-[2]: <https://docs.python.org/3/library/configparser.html#interpolation-of-values> "Interpolation of values"
+[cp-file]: <https://docs.python.org/3/library/configparser.html#supported-ini-file-structure> "Supported INI File Structure"
+[cp-interp]: <https://docs.python.org/3/library/configparser.html#interpolation-of-values> "Interpolation of values"
 
 ## The `DEFAULT` section
 
@@ -154,6 +154,52 @@ requests is likely a good idea.
   matches, the given link is downloaded as a file. This is used to extract
   files from KIT-IPD pages. (Default: `^.*?[^/]+\.(pdf|zip|c|cpp|java)$`)
 
+### The `ilias-web` crawler
+
+This crawler crawls a generic ILIAS instance.
+
+Inspired by [this ILIAS downloader][ilias-dl], the following configurations should work
+out of the box for the corresponding universities:
+
+[ilias-dl]: https://github.com/V3lop5/ilias-downloader/blob/main/configs "ilias-downloader configs"
+
+| University    | `base_url`                           | `client_id`   |
+|---------------|--------------------------------------|---------------|
+| FH Aachen     | https://www.ili.fh-aachen.de         | elearning     |
+| Uni Köln      | https://www.ilias.uni-koeln.de/ilias | uk            |
+| Uni Konstanz  | https://ilias.uni-konstanz.de        | ILIASKONSTANZ |
+| Uni Stuttgart | https://ilias3.uni-stuttgart.de      | Uni_Stuttgart |
+
+If your university isn't listed, try navigating to your instance's login page.
+Assuming no custom login service is used, the URL will look something like this:
+
+```jinja
+{{ base_url }}/login.php?client_id={{ client_id }}&cmd=force_login&lang=
+```
+
+If the values work, feel free to submit a PR and add them to the table above.
+
+- `base_url`: The URL where the ILIAS instance is located. (Required)
+- `client_id`: An ID used for authentication. (Required)
+- `target`: The ILIAS element to crawl. (Required)
+    - `desktop`: Crawl your personal desktop
+    - `<course id>`: Crawl the course with the given id
+    - `<url>`: Crawl a given element by URL (preferably the permanent URL linked
+      at the bottom of its ILIAS page)
+- `auth`: Name of auth section to use for login. (Required)
+- `links`: How to represent external links. (Default: `fancy`)
+    - `ignore`: Don't download links.
+    - `plaintext`: A text file containing only the URL.
+    - `fancy`: A HTML file looking like the ILIAS link element.
+    - `internet-shortcut`: An internet shortcut file (`.url` file).
+- `link_redirect_delay`: Time (in seconds) until `fancy` link files will
+  redirect to the actual URL. Set to a negative value to disable the automatic
+  redirect. (Default: `-1`)
+- `videos`: Whether to download videos. (Default: `no`)
+- `forums`: Whether to download forum threads. (Default: `no`)
+- `http_timeout`: The timeout (in seconds) for all HTTP requests. (Default:
+  `20.0`)
+
 ### The `kit-ilias-web` crawler
 
 This crawler crawls the KIT ILIAS instance.
@@ -232,10 +278,10 @@ is stored in the keyring.
 
 ### The `pass` authenticator
 
-This authenticator queries the [`pass` password manager][3] for a username and
-password. It tries to be mostly compatible with [browserpass][4] and
-[passff][5], so see those links for an overview of the format. If PFERD fails
-to load your password, you can use the `--explain` flag to see why.
+This authenticator queries the [`pass` password manager][pass] for a username
+and password. It tries to be mostly compatible with [browserpass][browserpass]
+and [passff][passff], so see those links for an overview of the format. If PFERD
+fails to load your password, you can use the `--explain` flag to see why.
 
 - `passname`: The name of the password to use (Required)
 - `username_prefixes`: A comma-separated list of username line prefixes
@@ -243,9 +289,9 @@ to load your password, you can use the `--explain` flag to see why.
 - `password_prefixes`: A comma-separated list of password line prefixes
   (Default: `password,pass,secret`)
 
-[3]: <https://www.passwordstore.org/> "Pass: The Standard Unix Password Manager"
-[4]: <https://github.com/browserpass/browserpass-extension#organizing-password-store> "Organizing password store"
-[5]: <https://github.com/passff/passff#multi-line-format> "Multi-line format"
+[pass]: <https://www.passwordstore.org/> "Pass: The Standard Unix Password Manager"
+[browserpass]: <https://github.com/browserpass/browserpass-extension#organizing-password-store> "Organizing password store"
+[passff]: <https://github.com/passff/passff#multi-line-format> "Multi-line format"
 
 ### The `tfa` authenticator
 

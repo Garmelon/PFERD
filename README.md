@@ -56,7 +56,16 @@ Also, you can download most ILIAS pages directly like this:
 $ pferd kit-ilias-web <url> <output_directory>
 ```
 
-[You want to use another ILIAS instance? Read here!](#other-ilias-instances)
+PFERD supports other ILIAS instances as well, using the `ilias-web` crawler (see
+the [config section on `ilias-web`](CONFIG.md#the-ilias-web-crawler) for more
+detail on the `base-url` and `client-id` parameters):
+
+```
+$ pferd ilias-web \
+    --base-url https://ilias.my-university.example \
+    --client-id My_University desktop \
+    <output_directory>
+```
 
 However, the CLI only lets you download a single thing at a time, and the
 resulting command can grow long quite quickly. Because of this, PFERD can also
@@ -147,53 +156,3 @@ type = kit-ilias-web
 auth = auth:ilias
 target = 1337420
 ```
-
-## Other ILIAS instances
-
-PFERD was originally developed for the KIT ILIAS instance, so you might have to adapt some parts of the code for full compatibility with your instance.
-
-To run PFERD against any instance using the integrated ILIAS authentication, add the `--base-url` and `--client-id` flags to the CLI command, e.g.
-
-```
-$ pferd ilias-web --base-url https://ilias.my-university.example --client-id My_University desktop <output_directory>
-```
-
-To use a config file for the given instance, extend the example above as follows:
-
-```ini
-[DEFAULT]
-# instance related settings
-base_url = https://ilias.my-university.example
-client_id = My_University
-type = ilias-web
-
-# same as described above
-[auth:ilias]
-...
-
-[crawl:Foo]
-auth = auth:ilias
-target = 1337420
-```
-
-## Example configuration
-
-Inspired by [this ILIAS downloader](https://github.com/V3lop5/ilias-downloader/blob/main/configs), the following configurations should work out of the box for the corresponding universities:
-
-| University    | `base_url`                           | `client_id`   |
-|---------------|--------------------------------------|---------------|
-| FH Aachen     | https://www.ili.fh-aachen.de         | elearning     |
-| Uni Koeln     | https://www.ilias.uni-koeln.de/ilias | uk            |
-| Uni Konstanz  | https://ilias.uni-konstanz.de        | ILIASKONSTANZ |
-| Uni Stuttgart | https://ilias3.uni-stuttgart.de      | Uni_Stuttgart |
-
-
-### My university isn't listed
-
-No problem, your university might also just work fine. To retrieve the values required for your instance, navigate to the corresponding login page. You should be redirected to
-
-```jinja
-{{ base_url }}/login.php?client_id={{ client_id }}&cmd=force_login&lang=
-```
-
-From this URL, you can extract your required values. Feel free to open a PR to add your configuration to the table above. This will help people find out if their ILIAS instance is supported too.
