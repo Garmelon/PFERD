@@ -2,5 +2,5 @@
 
 set -e
 
-autopep8 --recursive --in-place PFERD
-isort PFERD
+autopep8 .
+isort .

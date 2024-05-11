@@ -1,6 +1,9 @@
 name: build-and-release
 
-on: push
+on:
+  push:
+    branches: [master]
+  pull_request:
 
 defaults:
   run:
@@ -13,13 +16,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest, macos-13, macos-latest]
         python: ["3.9"]
     steps:
+      - uses: actions/checkout@v4
 
-      - uses: actions/checkout@v3
-
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
 
@@ -34,7 +36,12 @@ jobs:
         run: ./scripts/setup --no-pip
 
       - name: Run checks
-        run: ./scripts/check
+        run: |
+          ./scripts/check
+          ./scripts/format
+
+      - name: Assert no changes
+        run: git diff --exit-code
 
       - name: Build
         run: ./scripts/build
@@ -65,10 +72,11 @@ jobs:
         run: |
           mv pferd-ubuntu-latest pferd-linux
           mv pferd-windows-latest pferd-windows.exe
+          mv pferd-macos-13 pferd-mac-x86_64
           mv pferd-macos-latest pferd-mac
 
       - name: Create release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -76,3 +84,4 @@ jobs:
             pferd-linux
             pferd-windows.exe
             pferd-mac
+            pferd-mac-x86_64
