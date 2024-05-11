@@ -2,9 +2,9 @@ from typing import Optional, Tuple
 
 import keyring
 
+from .. import __name__ as NAME
 from ..logging import log
 from ..utils import agetpass, ainput
-from ..version import NAME
 from .authenticator import Authenticator, AuthError, AuthSection
 
 
