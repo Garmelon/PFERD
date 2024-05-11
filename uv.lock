@@ -645,6 +645,7 @@ wheels = [
 
 [[package]]
 name = "pferd"
+version = "3.9.0"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },

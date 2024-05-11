@@ -41,13 +41,15 @@ def extract_changes(lines):
 
 
 def update_version(version):
-    with open("PFERD/version.py") as f:
+    with open("pyproject.toml") as f:
         text = f.read()
 
-    text = re.sub(r'VERSION = ".*"', f'VERSION = "{version}"', text)
+    text = re.sub(r'version = ".*"', f'version = "{version}"', text)
 
-    with open("PFERD/version.py", "w") as f:
+    with open("pyproject.toml", "w") as f:
         f.write(text)
+
+    run(["uv", "sync"])
 
 
 def update_changelog(lines, version, date):
@@ -73,7 +75,7 @@ def update_changelog(lines, version, date):
 
 
 def commit_changes(version):
-    run(["git", "add", "CHANGELOG.md", "PFERD/version.py"])
+    run(["git", "add", "CHANGELOG.md", "pyproject.toml", "uv.lock"])
     run(["git", "commit", "-m", f"Bump version to {version}"])
 
 

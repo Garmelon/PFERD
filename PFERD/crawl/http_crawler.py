@@ -10,11 +10,12 @@ import certifi
 from aiohttp.client import ClientTimeout
 from bs4 import Tag
 
+from .. import __name__ as NAME
+from .. import __version__ as VERSION
 from ..auth import Authenticator
 from ..config import Config
 from ..logging import log
 from ..utils import fmt_real_path, sanitize_path_name
-from ..version import NAME, VERSION
 from .crawler import Crawler, CrawlerSection
 
 ETAGS_CUSTOM_REPORT_VALUE_KEY = "etags"

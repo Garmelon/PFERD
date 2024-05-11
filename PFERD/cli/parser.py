@@ -5,8 +5,9 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any, Optional
 
+from .. import __name__ as NAME
+from .. import __version__ as VERSION
 from ..output_dir import OnConflict, Redownload
-from ..version import NAME, VERSION
 
 
 class ParserLoadError(Exception):
