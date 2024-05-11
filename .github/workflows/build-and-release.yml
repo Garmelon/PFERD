@@ -49,7 +49,7 @@ jobs:
         run: mv dist/pferd* dist/pferd-${{ matrix.os }}
 
       - name: Upload binary
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Binaries
           path: dist/pferd-${{ matrix.os }}
@@ -61,7 +61,7 @@ jobs:
     steps:
 
       - name: Download binaries
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: Binaries
 
