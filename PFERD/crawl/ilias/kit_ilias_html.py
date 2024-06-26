@@ -349,6 +349,9 @@ class IliasPage:
         might_be_info = self._soup.find("form", attrs={"name": lambda x: x == "formInfoScreen"}) is not None
         return self._page_type == IliasElementType.INFO_TAB and might_be_info
 
+    def _is_course_overview_page(self) -> bool:
+        return "baseClass=ilmembershipoverviewgui" in self._page_url
+
     def _select_content_page_url(self) -> Optional[IliasPageElement]:
         tab = self._soup.find(
             id="tab_view_content",
@@ -686,8 +689,13 @@ class IliasPage:
     def _find_normal_entries(self) -> List[IliasPageElement]:
         result: List[IliasPageElement] = []
 
+        links: List[Tag] = []
         # Fetch all links and throw them to the general interpreter
-        links: List[Tag] = self._soup.select("a.il_ContainerItemTitle")
+        if self._is_course_overview_page():
+            log.explain("Page is a course overview page, adjusting link selector")
+            links.extend(self._soup.select(".il-item-title > a"))
+        else:
+            links.extend(self._soup.select("a.il_ContainerItemTitle"))
 
         for link in links:
             abs_url = self._abs_url_from_link(link)

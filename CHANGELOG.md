@@ -24,6 +24,8 @@ ambiguous situations.
 
 ### Added
 - Generic `ilias-web` crawler and `ilias-web` CLI command
+- Support for the course overview page. Using this URL as a target might cause
+  duplication warnings, as subgroups are listed separately.
 
 ### Fixed
 - Normalization of meeting names in cards
