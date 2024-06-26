@@ -7,8 +7,18 @@
 # importing itself, we get a few linting warnings, which we're disabling as
 # well.
 
-from . import command_local  # noqa: F401 imported but unused
-from . import command_ilias_web  # noqa: F401 imported but unused
-from . import command_kit_ilias_web  # noqa: F401 imported but unused
-from . import command_kit_ipd  # noqa: F401 imported but unused
-from .parser import PARSER, ParserLoadError, load_default_section  # noqa: F401 imported but unused
+from . import command_local
+from . import command_ilias_web
+from . import command_kit_ilias_web
+from . import command_kit_ipd
+from .parser import PARSER, ParserLoadError, load_default_section
+
+__all__ = [
+    "command_local",
+    "command_ilias_web",
+    "command_kit_ilias_web",
+    "command_kit_ipd",
+    "PARSER",
+    "ParserLoadError",
+    "load_default_section"
+]

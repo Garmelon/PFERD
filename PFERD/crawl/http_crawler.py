@@ -8,11 +8,12 @@ import aiohttp
 import certifi
 from aiohttp.client import ClientTimeout
 
+from .. import __name__ as NAME
+from .. import __version__ as VERSION
 from ..auth import Authenticator
 from ..config import Config
 from ..logging import log
 from ..utils import fmt_real_path
-from ..version import NAME, VERSION
 from .crawler import Crawler, CrawlerSection
 
 
