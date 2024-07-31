@@ -182,10 +182,14 @@ If the values work, feel free to submit a PR and add them to the table above.
 - `base_url`: The URL where the ILIAS instance is located. (Required)
 - `client_id`: An ID used for authentication. (Required)
 - `target`: The ILIAS element to crawl. (Required)
-    - `desktop`: Crawl your personal desktop
+    - `desktop`: Crawl your personal desktop / dashboard
     - `<course id>`: Crawl the course with the given id
     - `<url>`: Crawl a given element by URL (preferably the permanent URL linked
-      at the bottom of its ILIAS page)
+      at the bottom of its ILIAS page).  
+      This also supports the "My Courses" overview page to download *all*
+      courses. Note that this might produce confusing local directory layouts
+      and duplication warnings if you are a member of an ILIAS group. The
+      `desktop` target is generally preferable.
 - `auth`: Name of auth section to use for login. (Required)
 - `links`: How to represent external links. (Default: `fancy`)
     - `ignore`: Don't download links.
