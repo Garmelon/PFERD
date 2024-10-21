@@ -394,7 +394,8 @@ matches `SOURCE`, the output path is created using `TARGET` as template.
 be referred to as `{g<n>}` (e.g. `{g3}`). `{g0}` refers to the original path.
 If capturing group *n*'s contents are a valid integer, the integer value is
 available as `{i<n>}` (e.g. `{i3}`). If capturing group *n*'s contents are a
-valid float, the float value is available as `{f<n>}` (e.g. `{f3}`). If a
+valid float, the float value is available as `{f<n>}` (e.g. `{f3}`). Named capture
+groups (e.g. `(?P<name>)`) are available by their name (e.g. `{name}`). If a
 capturing group is not present (e.g. when matching the string `cd` with the
 regex `(ab)?cd`), the corresponding variables are not defined.
 

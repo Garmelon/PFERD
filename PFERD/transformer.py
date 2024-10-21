@@ -110,6 +110,10 @@ class ExactReTf(Transformation):
             except ValueError:
                 pass
 
+        named_groups: Dict[str, str] = match.groupdict()
+        for name, capture in named_groups.items():
+            locals_dir[name] = capture
+
         result = eval(f"f{right!r}", {}, locals_dir)
         return Transformed(PurePath(result))
 
