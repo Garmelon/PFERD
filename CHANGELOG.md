@@ -27,6 +27,7 @@ ambiguous situations.
 - Support for the course overview page. Using this URL as a target might cause
   duplication warnings, as subgroups are listed separately.
 - Support for named capture groups in regex transforms
+- Crawl custom item groups as folders
 
 ### Fixed
 - Normalization of meeting names in cards

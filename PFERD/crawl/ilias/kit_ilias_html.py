@@ -817,11 +817,14 @@ class IliasPage:
             # ILIAS has proper accordions and weird blocks that look like normal headings,
             # but some JS later transforms them into an accordion.
 
-            # This is for these weird JS-y blocks
+            # This is for these weird JS-y blocks and custom item groups
             if "ilContainerItemsContainer" in parent.get("class"):
+                data_store_url = parent.parent.get("data-store-url", "").lower()
+                is_custom_item_group = "baseclass=ilcontainerblockpropertiesstoragegui" in data_store_url \
+                                       and "cont_block_id=" in data_store_url
                 # I am currently under the impression that *only* those JS blocks have an
                 # ilNoDisplay class.
-                if "ilNoDisplay" not in parent.get("class"):
+                if not is_custom_item_group and "ilNoDisplay" not in parent.get("class"):
                     continue
                 prev: Tag = parent.findPreviousSibling("div")
                 if "ilContainerBlockHeader" in prev.get("class"):
