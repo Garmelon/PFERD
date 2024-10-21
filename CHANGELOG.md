@@ -30,6 +30,7 @@ ambiguous situations.
 
 ### Fixed
 - Normalization of meeting names in cards
+- Sanitization of slashes in exercise container names
 
 ## 3.5.2 - 2024-04-14
 

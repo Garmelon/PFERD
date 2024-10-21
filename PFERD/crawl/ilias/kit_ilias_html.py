@@ -71,12 +71,17 @@ class IliasPageElement:
         url: str,
         name: str,
         mtime: Optional[datetime] = None,
-        description: Optional[str] = None
+        description: Optional[str] = None,
+        skip_sanitize: bool = False
     ) -> 'IliasPageElement':
         if typ == IliasElementType.MEETING:
-            normalized = _sanitize_path_name(IliasPageElement._normalize_meeting_name(name))
+            normalized = IliasPageElement._normalize_meeting_name(name)
             log.explain(f"Normalized meeting name from {name!r} to {normalized!r}")
             name = normalized
+
+        if not skip_sanitize:
+            name = _sanitize_path_name(name)
+
         return IliasPageElement(typ, url, name, mtime, description)
 
     @staticmethod
@@ -648,15 +653,15 @@ class IliasPage:
                 # Two divs, side by side. Left is the name, right is the link ==> get left
                 # sibling
                 file_name = file_link.parent.findPrevious(name="div").getText().strip()
-                file_name = _sanitize_path_name(file_name)
                 url = self._abs_url_from_link(file_link)
 
                 log.explain(f"Found exercise entry {file_name!r}")
                 results.append(IliasPageElement.create_new(
                     IliasElementType.FILE,
                     url,
-                    container_name + "/" + file_name,
-                    None  # We do not have any timestamp
+                    _sanitize_path_name(container_name) + "/" + _sanitize_path_name(file_name),
+                    mtime=None,  # We do not have any timestamp
+                    skip_sanitize=True
                 ))
 
             # Find all links to file listings (e.g. "Submitted Files" for groups)
@@ -674,14 +679,15 @@ class IliasPage:
                 label_container: Tag = parent_container.find(
                     attrs={"class": lambda x: x and "control-label" in x}
                 )
-                file_name = _sanitize_path_name(label_container.getText().strip())
+                file_name = label_container.getText().strip()
                 url = self._abs_url_from_link(listing)
                 log.explain(f"Found exercise detail {file_name!r} at {url}")
                 results.append(IliasPageElement.create_new(
                     IliasElementType.EXERCISE_FILES,
                     url,
-                    container_name + "/" + file_name,
-                    None  # we do not have any timestamp
+                    _sanitize_path_name(container_name) + "/" + _sanitize_path_name(file_name),
+                    None,  # we do not have any timestamp
+                    skip_sanitize=True
                 ))
 
         return results
@@ -699,7 +705,8 @@ class IliasPage:
 
         for link in links:
             abs_url = self._abs_url_from_link(link)
-            parents = self._find_upwards_folder_hierarchy(link)
+            # Make sure parents are sanitized. We do not want accidental parents
+            parents = [_sanitize_path_name(x) for x in self._find_upwards_folder_hierarchy(link)]
 
             if parents:
                 element_name = "/".join(parents) + "/" + _sanitize_path_name(link.getText())
@@ -723,7 +730,12 @@ class IliasPage:
 
             log.explain(f"Found {element_name!r}")
             result.append(IliasPageElement.create_new(
-                element_type, abs_url, element_name, description=description))
+                element_type,
+                abs_url,
+                element_name,
+                description=description,
+                skip_sanitize=True
+            ))
 
         result += self._find_cards()
         result += self._find_mediacast_videos()
@@ -869,7 +881,9 @@ class IliasPage:
         full_path = name + "." + file_type
 
         log.explain(f"Found file {full_path!r}")
-        return IliasPageElement.create_new(IliasElementType.FILE, url, full_path, modification_date)
+        return IliasPageElement.create_new(
+            IliasElementType.FILE, url, full_path, modification_date, skip_sanitize=True
+        )
 
     def _find_cards(self) -> List[IliasPageElement]:
         result: List[IliasPageElement] = []

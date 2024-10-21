@@ -328,6 +328,9 @@ instance's greatest bottleneck.
             )
         self._visited_urls[element.url] = parent_path
 
+        # element.name might contain `/` if the crawler created nested elements,
+        # so we can not sanitize it here. We trust in the output dir to thwart worst-case
+        # directory escape attacks.
         element_path = PurePath(parent_path, element.name)
 
         if element.type in _VIDEO_ELEMENTS:
