@@ -4,8 +4,9 @@ from argparse import ArgumentTypeError
 from pathlib import Path
 from typing import Any, Callable, List, Optional, Sequence, Union
 
+from .. import __name__ as NAME
+from .. import __version__ as VERSION
 from ..output_dir import OnConflict, Redownload
-from ..version import NAME, VERSION
 
 
 class ParserLoadError(Exception):

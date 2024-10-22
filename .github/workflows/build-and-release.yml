@@ -41,7 +41,9 @@ jobs:
         run: git diff --exit-code
 
       - name: Build
-        run: ./scripts/build
+        run: |
+          ./scripts/build
+          ./dist/pferd${{ matrix.os == 'windows-latest' && '.exe' || '' }} --version
 
       - name: Rename binary
         # Glob in source location because on windows pyinstaller creates a file

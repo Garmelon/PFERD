@@ -2,4 +2,4 @@
 
 set -e
 
-pyinstaller --onefile pferd.py
+pyinstaller --onefile --copy-metadata PFERD pferd.py
