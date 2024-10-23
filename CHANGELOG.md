@@ -22,6 +22,8 @@ ambiguous situations.
 
 ## Unreleased
 
+## 3.6.0 - 2024-10-23
+
 ### Added
 - Generic `ilias-web` crawler and `ilias-web` CLI command
 - Support for the course overview page. Using this URL as a target might cause
