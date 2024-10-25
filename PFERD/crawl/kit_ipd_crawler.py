@@ -178,18 +178,19 @@ class KitIpdCrawler(HttpCrawler):
             if resp.status != 200:
                 return None, None
 
-            etag = resp.headers.get("ETag")
-            last_modified = resp.headers.get("Last-Modified")
+            etag_header = resp.headers.get("ETag")
+            last_modified_header = resp.headers.get("Last-Modified")
 
-            try:
-                # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Last-Modified#directives
-                datetime_format = "%a, %d %b %Y %H:%M:%S GMT"
-                last_modified = datetime.strptime(last_modified, datetime_format)
-            except ValueError:
-                # last_modified remains None
-                pass
+            if last_modified_header:
+                try:
+                    # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Last-Modified#directives
+                    datetime_format = "%a, %d %b %Y %H:%M:%S GMT"
+                    last_modified = datetime.strptime(last_modified_header, datetime_format)
+                except ValueError:
+                    # last_modified remains None
+                    pass
 
-            return etag, last_modified
+            return etag_header, last_modified
 
     async def get_page(self) -> Tuple[BeautifulSoup, str]:
         async with self.session.get(self._url) as request:
