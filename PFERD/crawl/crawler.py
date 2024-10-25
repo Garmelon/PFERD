@@ -293,6 +293,8 @@ class Crawler(ABC):
     async def download(
             self,
             path: PurePath,
+            *,
+            etag: Optional[str] = None,
             mtime: Optional[datetime] = None,
             redownload: Optional[Redownload] = None,
             on_conflict: Optional[OnConflict] = None,
@@ -307,7 +309,14 @@ class Crawler(ABC):
             log.status("[bold bright_black]", "Ignored", fmt_path(path))
             return None
 
-        fs_token = await self._output_dir.download(path, transformed_path, mtime, redownload, on_conflict)
+        fs_token = await self._output_dir.download(
+            path,
+            transformed_path,
+            etag=etag,
+            mtime=mtime,
+            redownload=redownload,
+            on_conflict=on_conflict
+        )
         if fs_token is None:
             log.explain("Answer: No")
             return None

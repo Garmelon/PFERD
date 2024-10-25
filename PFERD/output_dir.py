@@ -18,6 +18,7 @@ from .utils import ReusableAsyncContextManager, fmt_path, fmt_real_path, prompt_
 SUFFIX_CHARS = string.ascii_lowercase + string.digits
 SUFFIX_LENGTH = 6
 TRIES = 5
+ETAG_KEY_PATTERN = "etag-{}"
 
 
 class OutputDirError(Exception):
@@ -57,6 +58,7 @@ class OnConflict(Enum):
 
 @dataclass
 class Heuristics:
+    etag: Optional[str]
     mtime: Optional[datetime]
 
 
@@ -193,6 +195,7 @@ class OutputDirectory:
 
     def _should_download(
             self,
+            path: PurePath,
             local_path: Path,
             heuristics: Heuristics,
             redownload: Redownload,
@@ -233,8 +236,20 @@ class OutputDirectory:
 
         remote_newer = None
 
+        # ETag should be a more reliable indicator than mtime, so we check it first
+        if heuristics.etag:
+            local_etag: Optional[str] = None
+            if self.prev_report:
+                local_etag = self.prev_report.get_custom_value(ETAG_KEY_PATTERN.format(path))
+            if local_etag:
+                remote_newer = local_etag != heuristics.etag
+                if remote_newer:
+                    log.explain("Remote file's entity tag differs")
+                else:
+                    log.explain("Remote file's entity tag is the same")
+
         # Python on Windows crashes when faced with timestamps around the unix epoch
-        if heuristics.mtime and (os.name != "nt" or heuristics.mtime.year > 1970):
+        if remote_newer is None and heuristics.mtime and (os.name != "nt" or heuristics.mtime.year > 1970):
             mtime = heuristics.mtime
             remote_newer = mtime.timestamp() > stat.st_mtime
             if remote_newer:
@@ -366,6 +381,8 @@ class OutputDirectory:
             self,
             remote_path: PurePath,
             path: PurePath,
+            *,
+            etag: Optional[str] = None,
             mtime: Optional[datetime] = None,
             redownload: Optional[Redownload] = None,
             on_conflict: Optional[OnConflict] = None,
@@ -375,14 +392,14 @@ class OutputDirectory:
         MarkConflictError.
         """
 
-        heuristics = Heuristics(mtime)
+        heuristics = Heuristics(etag, mtime)
         redownload = self._redownload if redownload is None else redownload
         on_conflict = self._on_conflict if on_conflict is None else on_conflict
         local_path = self.resolve(path)
 
         self._report.mark(path)
 
-        if not self._should_download(local_path, heuristics, redownload, on_conflict):
+        if not self._should_download(path, local_path, heuristics, redownload, on_conflict):
             return None
 
         # Detect and solve local-dir-remote-file conflict

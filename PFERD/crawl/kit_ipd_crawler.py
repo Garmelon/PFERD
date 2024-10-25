@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup, Tag
 
 from ..config import Config
 from ..logging import ProgressBar, log
-from ..output_dir import FileSink
+from ..output_dir import ETAG_KEY_PATTERN, FileSink
 from ..utils import soupify
 from .crawler import CrawlError
 from .http_crawler import HttpCrawler, HttpCrawlerSection
@@ -92,13 +92,19 @@ class KitIpdCrawler(HttpCrawler):
 
     async def _download_file(self, parent: PurePath, file: KitIpdFile) -> None:
         element_path = parent / file.name
-        mtime = await self._request_last_modified(file)
-        maybe_dl = await self.download(element_path, mtime=mtime)
+        etag, mtime = await self._request_file_version(file)
+        maybe_dl = await self.download(element_path, etag=etag, mtime=mtime)
         if not maybe_dl:
+            # keep storing the known file's etag
+            if self._output_dir.prev_report:
+                etag_key = ETAG_KEY_PATTERN.format(element_path)
+                prev_etag = self._output_dir.prev_report.get_custom_value(etag_key)
+                if prev_etag:
+                    self._output_dir.report.add_custom_value(etag_key, prev_etag)
             return
 
         async with maybe_dl as (bar, sink):
-            await self._stream_from_url(file.url, sink, bar)
+            await self._stream_from_url(file.url, element_path, sink, bar)
 
     async def _fetch_items(self) -> Set[Union[KitIpdFile, KitIpdFolder]]:
         page, url = await self.get_page()
@@ -148,7 +154,7 @@ class KitIpdCrawler(HttpCrawler):
     def _abs_url_from_link(self, url: str, link_tag: Tag) -> str:
         return urljoin(url, link_tag.get("href"))
 
-    async def _stream_from_url(self, url: str, sink: FileSink, bar: ProgressBar) -> None:
+    async def _stream_from_url(self, url: str, path: PurePath, sink: FileSink, bar: ProgressBar) -> None:
         async with self.session.get(url, allow_redirects=False) as resp:
             if resp.status == 403:
                 raise CrawlError("Received a 403. Are you within the KIT network/VPN?")
@@ -161,25 +167,29 @@ class KitIpdCrawler(HttpCrawler):
 
             sink.done()
 
-    async def _request_last_modified(self, file: KitIpdFile) -> Optional[datetime]:
+            self._output_dir.report.add_custom_value(ETAG_KEY_PATTERN.format(path), resp.headers.get("ETag"))
+
+    async def _request_file_version(self, file: KitIpdFile) -> Tuple[Optional[str], Optional[datetime]]:
         """
-        Request the Last-Modified header of a file via a HEAD request.
-        If no modification date can be obtained, return None.
+        Request the ETag and Last-Modified headers of a file via a HEAD request.
+        If no etag / modification date can be obtained, the according value will be None.
         """
         async with self.session.head(file.url) as resp:
             if resp.status != 200:
-                return None
+                return None, None
 
-            last_modified_header = resp.headers.get("Last-Modified")
-            if not last_modified_header:
-                return None
+            etag = resp.headers.get("ETag")
+            last_modified = resp.headers.get("Last-Modified")
 
             try:
                 # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Last-Modified#directives
                 datetime_format = "%a, %d %b %Y %H:%M:%S GMT"
-                return datetime.strptime(last_modified_header, datetime_format)
+                last_modified = datetime.strptime(last_modified, datetime_format)
             except ValueError:
-                return None
+                # last_modified remains None
+                pass
+
+            return etag, last_modified
 
     async def get_page(self) -> Tuple[BeautifulSoup, str]:
         async with self.session.get(self._url) as request:
