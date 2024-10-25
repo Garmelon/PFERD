@@ -1,6 +1,7 @@
 import os
 import re
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import PurePath
 from typing import Awaitable, List, Optional, Pattern, Set, Tuple, Union
 from urllib.parse import urljoin
@@ -91,7 +92,8 @@ class KitIpdCrawler(HttpCrawler):
 
     async def _download_file(self, parent: PurePath, file: KitIpdFile) -> None:
         element_path = parent / file.name
-        maybe_dl = await self.download(element_path)
+        mtime = await self._request_last_modified(file)
+        maybe_dl = await self.download(element_path, mtime=mtime)
         if not maybe_dl:
             return
 
@@ -158,6 +160,26 @@ class KitIpdCrawler(HttpCrawler):
                 bar.advance(len(data))
 
             sink.done()
+
+    async def _request_last_modified(self, file: KitIpdFile) -> Optional[datetime]:
+        """
+        Request the Last-Modified header of a file via a HEAD request.
+        If no modification date can be obtained, return None.
+        """
+        async with self.session.head(file.url) as resp:
+            if resp.status != 200:
+                return None
+
+            last_modified_header = resp.headers.get("Last-Modified")
+            if not last_modified_header:
+                return None
+
+            try:
+                # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Last-Modified#directives
+                datetime_format = "%a, %d %b %Y %H:%M:%S GMT"
+                return datetime.strptime(last_modified_header, datetime_format)
+            except ValueError:
+                return None
 
     async def get_page(self) -> Tuple[BeautifulSoup, str]:
         async with self.session.get(self._url) as request:
