@@ -322,7 +322,7 @@ class IliasPage:
         return False
 
     def _is_personal_desktop(self) -> bool:
-        return self._soup.find("a", attrs={"href": lambda x: x and "block_type=pditems" in x})
+        return "baseclass=ildashboardgui" in self._page_url.lower() and "&cmd=show" in self._page_url.lower()
 
     def _is_content_page(self) -> bool:
         if link := self.get_permalink():
@@ -427,9 +427,14 @@ class IliasPage:
     def _find_personal_desktop_entries(self) -> List[IliasPageElement]:
         items: List[IliasPageElement] = []
 
-        titles: List[Tag] = self._soup.select(".il-item-title")
+        titles: List[Tag] = self._soup.select("#block_pditems_0 .il-item-title")
         for title in titles:
             link = title.find("a")
+
+            if not link:
+                log.explain(f"Skipping offline item: {title.getText().strip()!r}")
+                continue
+
             name = _sanitize_path_name(link.text.strip())
             url = self._abs_url_from_link(link)
 

@@ -22,6 +22,9 @@ ambiguous situations.
 
 ## Unreleased
 
+### Fixed
+- Personal desktop/dashboard/favorites crawling
+
 ## 3.6.0 - 2024-10-23
 
 ### Added

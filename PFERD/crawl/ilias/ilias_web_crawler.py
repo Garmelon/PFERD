@@ -185,12 +185,9 @@ instance's greatest bottleneck.
         await self._crawl_url(root_url, expected_id=course_id)
 
     async def _crawl_desktop(self) -> None:
-        appendix = r"ILIAS\Repository\Provider\RepositoryMainBarProvider|mm_pd_sel_items"
-        appendix = appendix.encode("ASCII").hex()
-        await self._crawl_url(url_set_query_param(
-            urljoin(self._base_url, "/gs_content.php"),
-            "item=", appendix,
-        ))
+        await self._crawl_url(
+            urljoin(self._base_url, "/ilias.php?baseClass=ilDashboardGUI&cmd=show")
+        )
 
     async def _crawl_url(self, url: str, expected_id: Optional[int] = None) -> None:
         maybe_cl = await self.crawl(PurePath("."))
