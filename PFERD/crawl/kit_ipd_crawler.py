@@ -10,10 +10,12 @@ from bs4 import BeautifulSoup, Tag
 
 from ..config import Config
 from ..logging import ProgressBar, log
-from ..output_dir import ETAG_KEY_PATTERN, FileSink
+from ..output_dir import FileSink
 from ..utils import soupify
 from .crawler import CrawlError
 from .http_crawler import HttpCrawler, HttpCrawlerSection
+
+ETAGS_CUSTOM_REPORT_VALUE_KEY = "etags"
 
 
 class KitIpdCrawlerSection(HttpCrawlerSection):
@@ -92,15 +94,16 @@ class KitIpdCrawler(HttpCrawler):
 
     async def _download_file(self, parent: PurePath, file: KitIpdFile) -> None:
         element_path = parent / file.name
+
         etag, mtime = await self._request_file_version(file)
-        maybe_dl = await self.download(element_path, etag=etag, mtime=mtime)
+        prev_etag = self._get_previous_etag_from_report(element_path)
+        etag_differs = None if prev_etag is None else prev_etag != etag
+
+        maybe_dl = await self.download(element_path, etag_differs=etag_differs, mtime=mtime)
         if not maybe_dl:
             # keep storing the known file's etag
-            if self._output_dir.prev_report:
-                etag_key = ETAG_KEY_PATTERN.format(element_path)
-                prev_etag = self._output_dir.prev_report.get_custom_value(etag_key)
-                if prev_etag:
-                    self._output_dir.report.add_custom_value(etag_key, prev_etag)
+            if prev_etag:
+                self._add_etag_to_report(element_path, prev_etag)
             return
 
         async with maybe_dl as (bar, sink):
@@ -167,7 +170,22 @@ class KitIpdCrawler(HttpCrawler):
 
             sink.done()
 
-            self._output_dir.report.add_custom_value(ETAG_KEY_PATTERN.format(path), resp.headers.get("ETag"))
+            self._add_etag_to_report(path, resp.headers.get("ETag"))
+
+    def _get_previous_etag_from_report(self, path: PurePath) -> Optional[str]:
+        if not self._output_dir.prev_report:
+            return None
+
+        etags = self._output_dir.prev_report.get_custom_value(ETAGS_CUSTOM_REPORT_VALUE_KEY) or {}
+        return etags.get(str(path))
+
+    def _add_etag_to_report(self, path: PurePath, etag: Optional[str]) -> None:
+        if not etag:
+            return
+
+        etags = self._output_dir.report.get_custom_value(ETAGS_CUSTOM_REPORT_VALUE_KEY) or {}
+        etags[str(path)] = etag
+        self._output_dir.report.add_custom_value(ETAGS_CUSTOM_REPORT_VALUE_KEY, etags)
 
     async def _request_file_version(self, file: KitIpdFile) -> Tuple[Optional[str], Optional[datetime]]:
         """

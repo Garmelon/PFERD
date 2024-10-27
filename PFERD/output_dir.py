@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from pathlib import Path, PurePath
-from typing import BinaryIO, Iterator, Optional, Tuple
+from typing import BinaryIO, ClassVar, Iterator, Optional, Tuple
 
 from .logging import log
 from .report import Report, ReportLoadError
@@ -18,7 +18,6 @@ from .utils import ReusableAsyncContextManager, fmt_path, fmt_real_path, prompt_
 SUFFIX_CHARS = string.ascii_lowercase + string.digits
 SUFFIX_LENGTH = 6
 TRIES = 5
-ETAG_KEY_PATTERN = "etag-{}"
 
 
 class OutputDirError(Exception):
@@ -58,7 +57,7 @@ class OnConflict(Enum):
 
 @dataclass
 class Heuristics:
-    etag: Optional[str]
+    etag_differs: Optional[bool]
     mtime: Optional[datetime]
 
 
@@ -195,7 +194,6 @@ class OutputDirectory:
 
     def _should_download(
             self,
-            path: PurePath,
             local_path: Path,
             heuristics: Heuristics,
             redownload: Redownload,
@@ -237,16 +235,12 @@ class OutputDirectory:
         remote_newer = None
 
         # ETag should be a more reliable indicator than mtime, so we check it first
-        if heuristics.etag:
-            local_etag: Optional[str] = None
-            if self.prev_report:
-                local_etag = self.prev_report.get_custom_value(ETAG_KEY_PATTERN.format(path))
-            if local_etag:
-                remote_newer = local_etag != heuristics.etag
-                if remote_newer:
-                    log.explain("Remote file's entity tag differs")
-                else:
-                    log.explain("Remote file's entity tag is the same")
+        if heuristics.etag_differs is not None:
+            remote_newer = heuristics.etag_differs
+            if remote_newer:
+                log.explain("Remote file's entity tag differs")
+            else:
+                log.explain("Remote file's entity tag is the same")
 
         # Python on Windows crashes when faced with timestamps around the unix epoch
         if remote_newer is None and heuristics.mtime and (os.name != "nt" or heuristics.mtime.year > 1970):
@@ -382,7 +376,7 @@ class OutputDirectory:
             remote_path: PurePath,
             path: PurePath,
             *,
-            etag: Optional[str] = None,
+            etag_differs: Optional[bool] = None,
             mtime: Optional[datetime] = None,
             redownload: Optional[Redownload] = None,
             on_conflict: Optional[OnConflict] = None,
@@ -392,14 +386,14 @@ class OutputDirectory:
         MarkConflictError.
         """
 
-        heuristics = Heuristics(etag, mtime)
+        heuristics = Heuristics(etag_differs, mtime)
         redownload = self._redownload if redownload is None else redownload
         on_conflict = self._on_conflict if on_conflict is None else on_conflict
         local_path = self.resolve(path)
 
         self._report.mark(path)
 
-        if not self._should_download(path, local_path, heuristics, redownload, on_conflict):
+        if not self._should_download(local_path, heuristics, redownload, on_conflict):
             return None
 
         # Detect and solve local-dir-remote-file conflict

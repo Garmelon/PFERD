@@ -294,7 +294,7 @@ class Crawler(ABC):
             self,
             path: PurePath,
             *,
-            etag: Optional[str] = None,
+            etag_differs: Optional[bool] = None,
             mtime: Optional[datetime] = None,
             redownload: Optional[Redownload] = None,
             on_conflict: Optional[OnConflict] = None,
@@ -312,7 +312,7 @@ class Crawler(ABC):
         fs_token = await self._output_dir.download(
             path,
             transformed_path,
-            etag=etag,
+            etag_differs=etag_differs,
             mtime=mtime,
             redownload=redownload,
             on_conflict=on_conflict
