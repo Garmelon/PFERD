@@ -1,6 +1,7 @@
 import os
 import re
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import PurePath
 from typing import Awaitable, List, Optional, Pattern, Set, Tuple, Union
 from urllib.parse import urljoin
@@ -75,8 +76,11 @@ class KitIpdCrawler(HttpCrawler):
                 if isinstance(item, KitIpdFolder):
                     tasks.append(self._crawl_folder(item))
                 else:
+                    # do this here to at least be sequential and not parallel (rate limiting is hard, as the
+                    # crawl abstraction does not hold for these requests)
+                    etag, mtime = await self._request_resource_version(item.url)
                     # Orphan files are placed in the root folder
-                    tasks.append(self._download_file(PurePath("."), item))
+                    tasks.append(self._download_file(PurePath("."), item, etag, mtime))
 
         await self.gather(tasks)
 
@@ -85,14 +89,24 @@ class KitIpdCrawler(HttpCrawler):
         if not await self.crawl(path):
             return
 
-        tasks = [self._download_file(path, file) for file in folder.files]
+        tasks = []
+        for file in folder.files:
+            # do this here to at least be sequential and not parallel (rate limiting is hard, as the crawl
+            # abstraction does not hold for these requests)
+            etag, mtime = await self._request_resource_version(file.url)
+            tasks.append(self._download_file(path, file, etag, mtime))
 
         await self.gather(tasks)
 
-    async def _download_file(self, parent: PurePath, file: KitIpdFile) -> None:
+    async def _download_file(
+        self,
+        parent: PurePath,
+        file: KitIpdFile,
+        etag: Optional[str],
+        mtime: Optional[datetime]
+    ) -> None:
         element_path = parent / file.name
 
-        etag, mtime = await self._request_resource_version(file.url)
         prev_etag = self._get_previous_etag_from_report(element_path)
         etag_differs = None if prev_etag is None else prev_etag != etag
 
