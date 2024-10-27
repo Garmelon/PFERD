@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from pathlib import Path, PurePath
-from typing import BinaryIO, ClassVar, Iterator, Optional, Tuple
+from typing import BinaryIO, Iterator, Optional, Tuple
 
 from .logging import log
 from .report import Report, ReportLoadError
