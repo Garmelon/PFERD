@@ -1,7 +1,6 @@
 import os
 import re
 from dataclasses import dataclass
-from datetime import datetime
 from pathlib import PurePath
 from typing import Awaitable, List, Optional, Pattern, Set, Tuple, Union
 from urllib.parse import urljoin
@@ -14,8 +13,6 @@ from ..output_dir import FileSink
 from ..utils import soupify
 from .crawler import CrawlError
 from .http_crawler import HttpCrawler, HttpCrawlerSection
-
-ETAGS_CUSTOM_REPORT_VALUE_KEY = "etags"
 
 
 class KitIpdCrawlerSection(HttpCrawlerSection):
@@ -95,7 +92,7 @@ class KitIpdCrawler(HttpCrawler):
     async def _download_file(self, parent: PurePath, file: KitIpdFile) -> None:
         element_path = parent / file.name
 
-        etag, mtime = await self._request_file_version(file)
+        etag, mtime = await self._request_resource_version(file.url)
         prev_etag = self._get_previous_etag_from_report(element_path)
         etag_differs = None if prev_etag is None else prev_etag != etag
 
@@ -171,44 +168,6 @@ class KitIpdCrawler(HttpCrawler):
             sink.done()
 
             self._add_etag_to_report(path, resp.headers.get("ETag"))
-
-    def _get_previous_etag_from_report(self, path: PurePath) -> Optional[str]:
-        if not self._output_dir.prev_report:
-            return None
-
-        etags = self._output_dir.prev_report.get_custom_value(ETAGS_CUSTOM_REPORT_VALUE_KEY) or {}
-        return etags.get(str(path))
-
-    def _add_etag_to_report(self, path: PurePath, etag: Optional[str]) -> None:
-        if not etag:
-            return
-
-        etags = self._output_dir.report.get_custom_value(ETAGS_CUSTOM_REPORT_VALUE_KEY) or {}
-        etags[str(path)] = etag
-        self._output_dir.report.add_custom_value(ETAGS_CUSTOM_REPORT_VALUE_KEY, etags)
-
-    async def _request_file_version(self, file: KitIpdFile) -> Tuple[Optional[str], Optional[datetime]]:
-        """
-        Request the ETag and Last-Modified headers of a file via a HEAD request.
-        If no etag / modification date can be obtained, the according value will be None.
-        """
-        async with self.session.head(file.url) as resp:
-            if resp.status != 200:
-                return None, None
-
-            etag_header = resp.headers.get("ETag")
-            last_modified_header = resp.headers.get("Last-Modified")
-
-            if last_modified_header:
-                try:
-                    # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Last-Modified#directives
-                    datetime_format = "%a, %d %b %Y %H:%M:%S GMT"
-                    last_modified = datetime.strptime(last_modified_header, datetime_format)
-                except ValueError:
-                    # last_modified remains None
-                    pass
-
-            return etag_header, last_modified
 
     async def get_page(self) -> Tuple[BeautifulSoup, str]:
         async with self.session.get(self._url) as request:
