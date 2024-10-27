@@ -1,8 +1,9 @@
 import asyncio
 import http.cookies
 import ssl
+from datetime import datetime
 from pathlib import Path, PurePath
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import aiohttp
 import certifi
@@ -14,6 +15,8 @@ from ..logging import log
 from ..utils import fmt_real_path
 from ..version import NAME, VERSION
 from .crawler import Crawler, CrawlerSection
+
+ETAGS_CUSTOM_REPORT_VALUE_KEY = "etags"
 
 
 class HttpCrawlerSection(CrawlerSection):
@@ -168,6 +171,53 @@ class HttpCrawler(Crawler):
         except Exception as e:
             log.warn(f"Failed to save cookies to {fmt_real_path(self._cookie_jar_path)}")
             log.warn(str(e))
+
+    def _get_previous_etag_from_report(self, path: PurePath) -> Optional[str]:
+        """
+        If available, retrieves the entity tag for a given path which was stored in the previous report.
+        """
+        if not self._output_dir.prev_report:
+            return None
+
+        etags = self._output_dir.prev_report.get_custom_value(ETAGS_CUSTOM_REPORT_VALUE_KEY) or {}
+        return etags.get(str(path))
+
+    def _add_etag_to_report(self, path: PurePath, etag: Optional[str]) -> None:
+        """
+        Adds an entity tag for a given path to the report's custom values.
+        """
+        if not etag:
+            return
+
+        etags = self._output_dir.report.get_custom_value(ETAGS_CUSTOM_REPORT_VALUE_KEY) or {}
+        etags[str(path)] = etag
+        self._output_dir.report.add_custom_value(ETAGS_CUSTOM_REPORT_VALUE_KEY, etags)
+
+    async def _request_resource_version(self, resource_url: str) -> Tuple[Optional[str], Optional[datetime]]:
+        """
+        Requests the ETag and Last-Modified headers of a resource via a HEAD request.
+        If no entity tag / modification date can be obtained, the according value will be None.
+        """
+        try:
+            async with self.session.head(resource_url) as resp:
+                if resp.status != 200:
+                    return None, None
+
+                etag_header = resp.headers.get("ETag")
+                last_modified_header = resp.headers.get("Last-Modified")
+
+                if last_modified_header:
+                    try:
+                        # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Last-Modified#directives
+                        datetime_format = "%a, %d %b %Y %H:%M:%S GMT"
+                        last_modified = datetime.strptime(last_modified_header, datetime_format)
+                    except ValueError:
+                        # last_modified remains None
+                        pass
+
+                return etag_header, last_modified
+        except aiohttp.ClientError:
+            return None, None
 
     async def run(self) -> None:
         self._request_count = 0

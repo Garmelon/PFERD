@@ -57,6 +57,7 @@ class OnConflict(Enum):
 
 @dataclass
 class Heuristics:
+    etag_differs: Optional[bool]
     mtime: Optional[datetime]
 
 
@@ -233,8 +234,16 @@ class OutputDirectory:
 
         remote_newer = None
 
+        # ETag should be a more reliable indicator than mtime, so we check it first
+        if heuristics.etag_differs is not None:
+            remote_newer = heuristics.etag_differs
+            if remote_newer:
+                log.explain("Remote file's entity tag differs")
+            else:
+                log.explain("Remote file's entity tag is the same")
+
         # Python on Windows crashes when faced with timestamps around the unix epoch
-        if heuristics.mtime and (os.name != "nt" or heuristics.mtime.year > 1970):
+        if remote_newer is None and heuristics.mtime and (os.name != "nt" or heuristics.mtime.year > 1970):
             mtime = heuristics.mtime
             remote_newer = mtime.timestamp() > stat.st_mtime
             if remote_newer:
@@ -366,6 +375,8 @@ class OutputDirectory:
             self,
             remote_path: PurePath,
             path: PurePath,
+            *,
+            etag_differs: Optional[bool] = None,
             mtime: Optional[datetime] = None,
             redownload: Optional[Redownload] = None,
             on_conflict: Optional[OnConflict] = None,
@@ -375,7 +386,7 @@ class OutputDirectory:
         MarkConflictError.
         """
 
-        heuristics = Heuristics(mtime)
+        heuristics = Heuristics(etag_differs, mtime)
         redownload = self._redownload if redownload is None else redownload
         on_conflict = self._on_conflict if on_conflict is None else on_conflict
         local_path = self.resolve(path)

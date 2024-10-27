@@ -1,6 +1,7 @@
 import os
 import re
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import PurePath
 from typing import Awaitable, List, Optional, Pattern, Set, Tuple, Union
 from urllib.parse import urljoin
@@ -75,8 +76,11 @@ class KitIpdCrawler(HttpCrawler):
                 if isinstance(item, KitIpdFolder):
                     tasks.append(self._crawl_folder(item))
                 else:
+                    # do this here to at least be sequential and not parallel (rate limiting is hard, as the
+                    # crawl abstraction does not hold for these requests)
+                    etag, mtime = await self._request_resource_version(item.url)
                     # Orphan files are placed in the root folder
-                    tasks.append(self._download_file(PurePath("."), item))
+                    tasks.append(self._download_file(PurePath("."), item, etag, mtime))
 
         await self.gather(tasks)
 
@@ -85,18 +89,36 @@ class KitIpdCrawler(HttpCrawler):
         if not await self.crawl(path):
             return
 
-        tasks = [self._download_file(path, file) for file in folder.files]
+        tasks = []
+        for file in folder.files:
+            # do this here to at least be sequential and not parallel (rate limiting is hard, as the crawl
+            # abstraction does not hold for these requests)
+            etag, mtime = await self._request_resource_version(file.url)
+            tasks.append(self._download_file(path, file, etag, mtime))
 
         await self.gather(tasks)
 
-    async def _download_file(self, parent: PurePath, file: KitIpdFile) -> None:
+    async def _download_file(
+        self,
+        parent: PurePath,
+        file: KitIpdFile,
+        etag: Optional[str],
+        mtime: Optional[datetime]
+    ) -> None:
         element_path = parent / file.name
-        maybe_dl = await self.download(element_path)
+
+        prev_etag = self._get_previous_etag_from_report(element_path)
+        etag_differs = None if prev_etag is None else prev_etag != etag
+
+        maybe_dl = await self.download(element_path, etag_differs=etag_differs, mtime=mtime)
         if not maybe_dl:
+            # keep storing the known file's etag
+            if prev_etag:
+                self._add_etag_to_report(element_path, prev_etag)
             return
 
         async with maybe_dl as (bar, sink):
-            await self._stream_from_url(file.url, sink, bar)
+            await self._stream_from_url(file.url, element_path, sink, bar)
 
     async def _fetch_items(self) -> Set[Union[KitIpdFile, KitIpdFolder]]:
         page, url = await self.get_page()
@@ -146,7 +168,7 @@ class KitIpdCrawler(HttpCrawler):
     def _abs_url_from_link(self, url: str, link_tag: Tag) -> str:
         return urljoin(url, link_tag.get("href"))
 
-    async def _stream_from_url(self, url: str, sink: FileSink, bar: ProgressBar) -> None:
+    async def _stream_from_url(self, url: str, path: PurePath, sink: FileSink, bar: ProgressBar) -> None:
         async with self.session.get(url, allow_redirects=False) as resp:
             if resp.status == 403:
                 raise CrawlError("Received a 403. Are you within the KIT network/VPN?")
@@ -158,6 +180,8 @@ class KitIpdCrawler(HttpCrawler):
                 bar.advance(len(data))
 
             sink.done()
+
+            self._add_etag_to_report(path, resp.headers.get("ETag"))
 
     async def get_page(self) -> Tuple[BeautifulSoup, str]:
         async with self.session.get(self._url) as request:
