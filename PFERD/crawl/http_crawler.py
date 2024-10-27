@@ -198,23 +198,26 @@ class HttpCrawler(Crawler):
         Requests the ETag and Last-Modified headers of a resource via a HEAD request.
         If no entity tag / modification date can be obtained, the according value will be None.
         """
-        async with self.session.head(resource_url) as resp:
-            if resp.status != 200:
-                return None, None
+        try:
+            async with self.session.head(resource_url) as resp:
+                if resp.status != 200:
+                    return None, None
 
-            etag_header = resp.headers.get("ETag")
-            last_modified_header = resp.headers.get("Last-Modified")
+                etag_header = resp.headers.get("ETag")
+                last_modified_header = resp.headers.get("Last-Modified")
 
-            if last_modified_header:
-                try:
-                    # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Last-Modified#directives
-                    datetime_format = "%a, %d %b %Y %H:%M:%S GMT"
-                    last_modified = datetime.strptime(last_modified_header, datetime_format)
-                except ValueError:
-                    # last_modified remains None
-                    pass
+                if last_modified_header:
+                    try:
+                        # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Last-Modified#directives
+                        datetime_format = "%a, %d %b %Y %H:%M:%S GMT"
+                        last_modified = datetime.strptime(last_modified_header, datetime_format)
+                    except ValueError:
+                        # last_modified remains None
+                        pass
 
-            return etag_header, last_modified
+                return etag_header, last_modified
+        except aiohttp.ClientError:
+            return None, None
 
     async def run(self) -> None:
         self._request_count = 0
