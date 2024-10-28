@@ -85,6 +85,11 @@ def clean(soup: BeautifulSoup) -> BeautifulSoup:
         if isinstance(type(children[0]), Comment):
             dummy.decompose()
 
+    # Delete video figures, as they can not be internalized anyway
+    for video in soup.select(".ilc_media_cont_MediaContainerHighlighted .ilPageVideo"):
+        if figure := video.find_parent("figure"):
+            figure.decompose()
+
     for hrule_imposter in soup.find_all(class_="ilc_section_Separator"):
         hrule_imposter.insert(0, soup.new_tag("hr"))
 

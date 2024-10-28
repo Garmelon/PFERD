@@ -22,6 +22,9 @@ ambiguous situations.
 
 ## Unreleased
 
+### Changed
+- Remove videos from description pages
+
 ### Fixed
 - Personal desktop/dashboard/favorites crawling
 - Crawling of nested courses
