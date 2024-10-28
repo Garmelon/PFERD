@@ -476,6 +476,7 @@ instance's greatest bottleneck.
 
         async with dl as (bar, sink):
             description = clean(insert_base_markup(description))
+            description = await self.internalize_images(description)
             sink.file.write(description.prettify().encode("utf-8"))
             sink.done()
 
