@@ -22,6 +22,9 @@ ambiguous situations.
 
 ## Unreleased
 
+### Added
+- Support for MOB videos in page descriptions
+
 ### Changed
 - Remove videos from description pages
 

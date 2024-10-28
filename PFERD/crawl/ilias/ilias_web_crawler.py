@@ -389,6 +389,8 @@ instance's greatest bottleneck.
             return await self._handle_opencast_video(element, element_path)
         elif element.type == IliasElementType.MEDIACAST_VIDEO:
             return await self._handle_file(element, element_path)
+        elif element.type == IliasElementType.MOB_VIDEO:
+            return await self._handle_file(element, element_path, is_video=True)
         elif element.type in _DIRECTORY_PAGES:
             return await self._handle_ilias_page(element.url, element, element_path)
         else:
@@ -631,18 +633,19 @@ instance's greatest bottleneck.
         self,
         element: IliasPageElement,
         element_path: PurePath,
+        is_video: bool = False,
     ) -> Optional[Coroutine[Any, Any, None]]:
         maybe_dl = await self.download(element_path, mtime=element.mtime)
         if not maybe_dl:
             return None
-        return self._download_file(element, maybe_dl)
+        return self._download_file(element, maybe_dl, is_video)
 
     @_iorepeat(3, "downloading file")
     @anoncritical
-    async def _download_file(self, element: IliasPageElement, dl: DownloadToken) -> None:
+    async def _download_file(self, element: IliasPageElement, dl: DownloadToken, is_video: bool) -> None:
         assert dl  # The function is only reached when dl is not None
         async with dl as (bar, sink):
-            await self._stream_from_url(element.url, sink, bar, is_video=False)
+            await self._stream_from_url(element.url, sink, bar, is_video)
 
     async def _stream_from_url(self, url: str, sink: FileSink, bar: ProgressBar, is_video: bool) -> None:
         async def try_stream() -> bool:
@@ -671,6 +674,13 @@ instance's greatest bottleneck.
                 if is_video and "html" in resp.content_type:
                     return False
 
+                # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Range
+                if content_range := resp.headers.get(hdrs.CONTENT_RANGE, default=None):
+                    parts = content_range.split("/")
+                    if len(parts) == 2 and parts[1].isdigit():
+                        bar.set_total(int(parts[1]))
+
+                # Prefer the content length header
                 if resp.content_length:
                     bar.set_total(resp.content_length)
 

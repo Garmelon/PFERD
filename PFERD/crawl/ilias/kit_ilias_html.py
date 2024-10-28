@@ -28,6 +28,7 @@ class IliasElementType(Enum):
     MEDIACAST_VIDEO = "mediacast_video"
     MEDIACAST_VIDEO_FOLDER = "mediacast_video_folder"
     MEETING = "meeting"
+    MOB_VIDEO = "mob_video"
     OPENCAST_VIDEO = "opencast_video"
     OPENCAST_VIDEO_FOLDER = "opencast_video_folder"
     OPENCAST_VIDEO_FOLDER_MAYBE_PAGINATED = "opencast_video_folder_maybe_paginated"
@@ -745,6 +746,7 @@ class IliasPage:
 
         result += self._find_cards()
         result += self._find_mediacast_videos()
+        result += self._find_mob_videos()
 
         return result
 
@@ -769,6 +771,37 @@ class IliasPage:
                 url=self._abs_url_from_relative(video_element.get("src")),
                 name=element_name,
                 mtime=self._find_mediacast_video_mtime(elem.findParent(name="td"))
+            ))
+
+        return videos
+
+    def _find_mob_videos(self) -> List[IliasPageElement]:
+        videos: List[IliasPageElement] = []
+
+        for figure in self._soup.select("figure.ilc_media_cont_MediaContainerHighlighted"):
+            title = figure.select_one("figcaption").getText().strip() + ".mp4"
+            video_element = figure.select_one("video")
+            if not video_element:
+                _unexpected_html_warning()
+                log.warn_contd(f"No <video> element found for mob video '{title}'")
+                continue
+
+            url = None
+            for source in video_element.select("source"):
+                if source.get("type", "") == "video/mp4":
+                    url = source.get("src")
+                    break
+
+            if url is None:
+                _unexpected_html_warning()
+                log.warn_contd(f"No <source> element found for mob video '{title}'")
+                continue
+
+            videos.append(IliasPageElement.create_new(
+                typ=IliasElementType.MOB_VIDEO,
+                url=self._abs_url_from_relative(url),
+                name=_sanitize_path_name(title),
+                mtime=None
             ))
 
         return videos
