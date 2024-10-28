@@ -25,6 +25,7 @@ ambiguous situations.
 ### Fixed
 - Personal desktop/dashboard/favorites crawling
 - Crawling of nested courses
+- Downloading of links with no target URL
 
 ## 3.6.0 - 2024-10-23
 

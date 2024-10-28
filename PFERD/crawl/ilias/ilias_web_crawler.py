@@ -491,17 +491,26 @@ instance's greatest bottleneck.
             self._write_link_content(link_template, element.url, element.name, element.description, sink)
 
     async def _resolve_link_target(self, export_url: str) -> str:
-        async with self.session.get(export_url, allow_redirects=False) as resp:
-            # No redirect means we were authenticated
-            if hdrs.LOCATION not in resp.headers:
-                return soupify(await resp.read()).select_one("a").get("href").strip()
+        async def impl() -> Optional[str]:
+            async with self.session.get(export_url, allow_redirects=False) as resp:
+                # No redirect means we were authenticated
+                if hdrs.LOCATION not in resp.headers:
+                    return soupify(await resp.read()).select_one("a").get("href").strip()
+                # We are either unauthenticated or the link is not active
+                new_url = resp.headers[hdrs.LOCATION].lower()
+                if "baseclass=illinkresourcehandlergui" in new_url and "cmd=infoscreen" in new_url:
+                    return ""
+                return None
+
+        target = await impl()
+        if target is not None:
+            return target
 
         await self._authenticate()
 
-        async with self.session.get(export_url, allow_redirects=False) as resp:
-            # No redirect means we were authenticated
-            if hdrs.LOCATION not in resp.headers:
-                return soupify(await resp.read()).select_one("a").get("href").strip()
+        target = await impl()
+        if target is not None:
+            return target
 
         raise CrawlError("resolve_link_target failed even after authenticating")
 
