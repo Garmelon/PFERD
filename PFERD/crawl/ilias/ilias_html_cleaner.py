@@ -12,6 +12,13 @@ _STYLE_TAG_CONTENT = """
       font-weight: bold;
     }
 
+    .row-flex {
+      display: flex;
+    }
+    .row-flex-wrap {
+      flex-wrap: wrap;
+    }
+
     .accordion-head {
       background-color: #f5f7fa;
       padding: 0.5rem 0;
