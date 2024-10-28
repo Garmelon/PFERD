@@ -81,23 +81,24 @@ class IliasWebCrawlerSection(HttpCrawlerSection):
 
 
 _DIRECTORY_PAGES: Set[IliasElementType] = {
+    IliasElementType.COURSE,
     IliasElementType.EXERCISE,
     IliasElementType.EXERCISE_FILES,
     IliasElementType.FOLDER,
     IliasElementType.INFO_TAB,
-    IliasElementType.MEETING,
     IliasElementType.MEDIACAST_VIDEO_FOLDER,
+    IliasElementType.MEETING,
     IliasElementType.OPENCAST_VIDEO_FOLDER,
     IliasElementType.OPENCAST_VIDEO_FOLDER_MAYBE_PAGINATED,
 }
 
 _VIDEO_ELEMENTS: Set[IliasElementType] = {
-    IliasElementType.MEDIACAST_VIDEO_FOLDER,
     IliasElementType.MEDIACAST_VIDEO,
+    IliasElementType.MEDIACAST_VIDEO_FOLDER,
     IliasElementType.OPENCAST_VIDEO,
-    IliasElementType.OPENCAST_VIDEO_PLAYER,
     IliasElementType.OPENCAST_VIDEO_FOLDER,
     IliasElementType.OPENCAST_VIDEO_FOLDER_MAYBE_PAGINATED,
+    IliasElementType.OPENCAST_VIDEO_PLAYER,
 }
 
 

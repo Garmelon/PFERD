@@ -24,6 +24,7 @@ ambiguous situations.
 
 ### Fixed
 - Personal desktop/dashboard/favorites crawling
+- Crawling of nested courses
 
 ## 3.6.0 - 2024-10-23
 

@@ -15,25 +15,26 @@ TargetType = Union[str, int]
 
 
 class IliasElementType(Enum):
+    BOOKING = "booking"
+    COURSE = "course"
     EXERCISE = "exercise"
     EXERCISE_FILES = "exercise_files"  # own submitted files
-    TEST = "test"  # an online test. Will be ignored currently.
     FILE = "file"
     FOLDER = "folder"
     FORUM = "forum"
-    LINK = "link"
     INFO_TAB = "info_tab"
     LEARNING_MODULE = "learning_module"
-    BOOKING = "booking"
-    MEETING = "meeting"
-    SURVEY = "survey"
-    SCORM_LEARNING_MODULE = "scorm_learning_module"
-    MEDIACAST_VIDEO_FOLDER = "mediacast_video_folder"
+    LINK = "link"
     MEDIACAST_VIDEO = "mediacast_video"
+    MEDIACAST_VIDEO_FOLDER = "mediacast_video_folder"
+    MEETING = "meeting"
     OPENCAST_VIDEO = "opencast_video"
-    OPENCAST_VIDEO_PLAYER = "opencast_video_player"
     OPENCAST_VIDEO_FOLDER = "opencast_video_folder"
     OPENCAST_VIDEO_FOLDER_MAYBE_PAGINATED = "opencast_video_folder_maybe_paginated"
+    OPENCAST_VIDEO_PLAYER = "opencast_video_player"
+    SCORM_LEARNING_MODULE = "scorm_learning_module"
+    SURVEY = "survey"
+    TEST = "test"  # an online test. Will be ignored currently.
 
 
 @dataclass
@@ -968,6 +969,8 @@ class IliasPage:
             return IliasElementType.LINK
         if "book" in icon["class"]:
             return IliasElementType.BOOKING
+        if "crsr" in icon["class"]:
+            return IliasElementType.COURSE
         if "frm" in icon["class"]:
             return IliasElementType.FORUM
         if "sess" in icon["class"]:
