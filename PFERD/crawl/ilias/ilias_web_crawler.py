@@ -179,7 +179,7 @@ instance's greatest bottleneck.
     async def _crawl_course(self, course_id: int) -> None:
         # Start crawling at the given course
         root_url = url_set_query_param(
-            urljoin(self._base_url, "/goto.php"),
+            self._base_url + "/goto.php",
             "target", f"crs_{course_id}",
         )
 
