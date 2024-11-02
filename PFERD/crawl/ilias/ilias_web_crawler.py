@@ -45,7 +45,7 @@ class IliasWebCrawlerSection(HttpCrawlerSection):
 
         return base_url
 
-    def login(self) -> Union[ShibbolethLoginType, LocalLoginType]:
+    def login(self) -> Union[Literal["shibboleth"], LocalLoginType]:
         login_type = self.s.get("login_type")
         if not login_type:
             self.missing_value("login_type")
