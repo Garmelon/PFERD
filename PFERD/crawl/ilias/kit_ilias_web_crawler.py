@@ -8,8 +8,7 @@ from .shibboleth_login import ShibbolethLogin
 
 TargetType = Union[str, int]
 
-# _ILIAS_URL = "https://ilias.studium.kit.edu"
-_ILIAS_URL = "https://ovidius.uni-tuebingen.de/ilias3"
+_ILIAS_URL = "https://ilias.studium.kit.edu"
 
 
 class KitShibbolethBackgroundLoginSuccessful:

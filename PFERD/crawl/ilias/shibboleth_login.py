@@ -51,7 +51,6 @@ class ShibbolethLogin:
             form = soup.find(
                 "form", {"method": "post"})
             action = form["action"]
-            log.print(f"action: {action}")
 
             # Equivalent: Enter credentials in
             # https://idp.scc.kit.edu/idp/profile/SAML2/Redirect/SSO
