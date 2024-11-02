@@ -163,12 +163,13 @@ out of the box for the corresponding universities:
 
 [ilias-dl]: https://github.com/V3lop5/ilias-downloader/blob/main/configs "ilias-downloader configs"
 
-| University    | `base_url`                           | `client_id`   |
-|---------------|--------------------------------------|---------------|
-| FH Aachen     | https://www.ili.fh-aachen.de         | elearning     |
-| Uni Köln      | https://www.ilias.uni-koeln.de/ilias | uk            |
-| Uni Konstanz  | https://ilias.uni-konstanz.de        | ILIASKONSTANZ |
-| Uni Stuttgart | https://ilias3.uni-stuttgart.de      | Uni_Stuttgart |
+| University    | `base_url`                              | `login_type` | `client_id`   |
+|---------------|-----------------------------------------|--------------|---------------|
+| FH Aachen     | https://www.ili.fh-aachen.de            | local        | elearning     |
+| Uni Köln      | https://www.ilias.uni-koeln.de/ilias    | local        | uk            |
+| Uni Konstanz  | https://ilias.uni-konstanz.de           | local        | ILIASKONSTANZ |
+| Uni Stuttgart | https://ilias3.uni-stuttgart.de         | local        | Uni_Stuttgart |
+| Uni Tübingen  | https://ovidius.uni-tuebingen.de/ilias3 | shibboleth   | None          |
 
 If your university isn't listed, try navigating to your instance's login page.
 Assuming no custom login service is used, the URL will look something like this:
@@ -180,7 +181,10 @@ Assuming no custom login service is used, the URL will look something like this:
 If the values work, feel free to submit a PR and add them to the table above.
 
 - `base_url`: The URL where the ILIAS instance is located. (Required)
-- `client_id`: An ID used for authentication. (Required)
+- `login_type`: How you authenticate. (Required)
+    - `local`: Use `client_id` for authentication.
+    - `shibboleth`: Use shibboleth for authentication.
+- `client_id`: An ID used for `local` authentication.
 - `target`: The ILIAS element to crawl. (Required)
     - `desktop`: Crawl your personal desktop / dashboard
     - `<course id>`: Crawl the course with the given id
@@ -191,6 +195,8 @@ If the values work, feel free to submit a PR and add them to the table above.
       and duplication warnings if you are a member of an ILIAS group. The
       `desktop` target is generally preferable.
 - `auth`: Name of auth section to use for login. (Required)
+- `tfa_auth`: Name of auth section to use for two-factor authentication. Only
+  uses the auth section's password. (Default: Anonymous `tfa` authenticator)
 - `links`: How to represent external links. (Default: `fancy`)
     - `ignore`: Don't download links.
     - `plaintext`: A text file containing only the URL.
