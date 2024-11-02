@@ -169,7 +169,7 @@ out of the box for the corresponding universities:
 | Uni Köln      | https://www.ilias.uni-koeln.de/ilias    | local        | uk            |
 | Uni Konstanz  | https://ilias.uni-konstanz.de           | local        | ILIASKONSTANZ |
 | Uni Stuttgart | https://ilias3.uni-stuttgart.de         | local        | Uni_Stuttgart |
-| Uni Tübingen  | https://ovidius.uni-tuebingen.de/ilias3 | shibboleth   | None          |
+| Uni Tübingen  | https://ovidius.uni-tuebingen.de/ilias3 | shibboleth   |               |
 
 If your university isn't listed, try navigating to your instance's login page.
 Assuming no custom login service is used, the URL will look something like this:
@@ -184,7 +184,8 @@ If the values work, feel free to submit a PR and add them to the table above.
 - `login_type`: How you authenticate. (Required)
     - `local`: Use `client_id` for authentication.
     - `shibboleth`: Use shibboleth for authentication.
-- `client_id`: An ID used for `local` authentication.
+- `client_id`: An ID used for authentication if `client_type` is `local`.
+               Is ignored if `client_type` is `shibboleth`.
 - `target`: The ILIAS element to crawl. (Required)
     - `desktop`: Crawl your personal desktop / dashboard
     - `<course id>`: Crawl the course with the given id
