@@ -193,8 +193,7 @@ instance's greatest bottleneck.
         if isinstance(self._login_type, LocalLoginType):
             self._client_id = self._login_type.client_id
         else:
-            self._shibboleth_login = ShibbolethLogin(
-                self._base_url, self._auth, self._tfa_auth)
+            self._shibboleth_login = ShibbolethLogin(self._base_url, self._auth, self._tfa_auth)
 
         self._target = section.target()
         self._link_file_redirect_delay = section.link_redirect_delay()
