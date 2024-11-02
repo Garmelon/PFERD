@@ -23,8 +23,18 @@ from .file_templates import Links, learning_module_template
 from .ilias_html_cleaner import clean, insert_base_markup
 from .kit_ilias_html import (IliasElementType, IliasForumThread, IliasLearningModulePage, IliasPage,
                              IliasPageElement, _sanitize_path_name, parse_ilias_forum_export)
+from .shibboleth_login import ShibbolethLogin
 
 TargetType = Union[str, int]
+
+
+class ShibbolethLoginType():
+    pass
+
+
+class LocalLoginType():
+    def __init__(self, client_id: str):
+        self.client_id = client_id
 
 
 class IliasWebCrawlerSection(HttpCrawlerSection):
@@ -35,12 +45,32 @@ class IliasWebCrawlerSection(HttpCrawlerSection):
 
         return base_url
 
-    def client_id(self) -> str:
-        client_id = self.s.get("client_id")
-        if not client_id:
-            self.missing_value("client_id")
+    def login(self) -> Union[ShibbolethLoginType, LocalLoginType]:
+        login_type = self.s.get("login_type")
+        if not login_type:
+            self.missing_value("login_type")
+        if login_type == "shibboleth":
+            return ShibbolethLoginType()
+        elif login_type == "local":
+            client_id = self.s.get("client_id")
+            if not client_id:
+                self.missing_value("client_id")
+            return LocalLoginType(client_id)
 
-        return client_id
+        self.invalid_value("login_type", login_type,
+                           "Should be <shibboleth | local>")
+
+    def tfa_auth(
+        self, authenticators: Dict[str, Authenticator]
+    ) -> Optional[Authenticator]:
+        value: Optional[str] = self.s.get("tfa_auth")
+        if value is None:
+            return None
+        auth = authenticators.get(value)
+        if auth is None:
+            self.invalid_value("tfa_auth", value,
+                               "No such auth section exists")
+        return auth
 
     def target(self) -> TargetType:
         target = self.s.get("target")
@@ -57,7 +87,8 @@ class IliasWebCrawlerSection(HttpCrawlerSection):
             # URL
             return target
 
-        self.invalid_value("target", target, "Should be <course id | desktop | kit ilias URL>")
+        self.invalid_value(
+            "target", target, "Should be <course id | desktop | kit ilias URL>")
 
     def links(self) -> Links:
         type_str: Optional[str] = self.s.get("links")
@@ -156,7 +187,14 @@ instance's greatest bottleneck.
 
         self._auth = auth
         self._base_url = section.base_url()
-        self._client_id = section.client_id()
+        self._tfa_auth = section.tfa_auth(authenticators)
+
+        self._login_type = section.login()
+        if isinstance(self._login_type, LocalLoginType):
+            self._client_id = self._login_type.client_id
+        else:
+            self._shibboleth_login = ShibbolethLogin(
+                self._base_url, self._auth, self._tfa_auth)
 
         self._target = section.target()
         self._link_file_redirect_delay = section.link_redirect_delay()
@@ -167,7 +205,8 @@ instance's greatest bottleneck.
 
     async def _run(self) -> None:
         if isinstance(self._target, int):
-            log.explain_topic(f"Inferred crawl target: Course with id {self._target}")
+            log.explain_topic(
+                f"Inferred crawl target: Course with id {self._target}")
             await self._crawl_course(self._target)
         elif self._target == "desktop":
             log.explain_topic("Inferred crawl target: Personal desktop")
@@ -230,7 +269,8 @@ instance's greatest bottleneck.
 
                 while next_stage_url:
                     soup = await self._get_page(next_stage_url)
-                    log.explain_topic(f"Parsing HTML page for {fmt_path(cl.path)}")
+                    log.explain_topic(f"Parsing HTML page for {
+                                      fmt_path(cl.path)}")
                     log.explain(f"URL: {next_stage_url}")
 
                     # If we expect to find a root course, enforce it
@@ -366,7 +406,8 @@ instance's greatest bottleneck.
             return None
         else:
             log.explain("Answer: Yes")
-        element_path = element_path.with_name(element_path.name + link_extension)
+        element_path = element_path.with_name(
+            element_path.name + link_extension)
 
         maybe_dl = await self.download(element_path, mtime=element.mtime)
         if not maybe_dl:
@@ -378,9 +419,11 @@ instance's greatest bottleneck.
     @_iorepeat(3, "resolving link")
     async def _download_link(self, element: IliasPageElement, link_template: str, dl: DownloadToken) -> None:
         async with dl as (bar, sink):
-            export_url = element.url.replace("cmd=calldirectlink", "cmd=exportHTML")
+            export_url = element.url.replace(
+                "cmd=calldirectlink", "cmd=exportHTML")
             real_url = await self._resolve_link_target(export_url)
-            self._write_link_content(link_template, real_url, element.name, element.description, sink)
+            self._write_link_content(
+                link_template, real_url, element.name, element.description, sink)
 
     def _write_link_content(
         self,
@@ -394,7 +437,8 @@ instance's greatest bottleneck.
         content = content.replace("{{link}}", url)
         content = content.replace("{{name}}", name)
         content = content.replace("{{description}}", str(description))
-        content = content.replace("{{redirect_delay}}", str(self._link_file_redirect_delay))
+        content = content.replace(
+            "{{redirect_delay}}", str(self._link_file_redirect_delay))
         sink.file.write(content.encode("utf-8"))
         sink.done()
 
@@ -403,7 +447,8 @@ instance's greatest bottleneck.
         element: IliasPageElement,
         element_path: PurePath,
     ) -> Optional[Coroutine[Any, Any, None]]:
-        log.explain_topic(f"Decision: Crawl Booking Link {fmt_path(element_path)}")
+        log.explain_topic(f"Decision: Crawl Booking Link {
+                          fmt_path(element_path)}")
         log.explain(f"Links type is {self._links}")
 
         link_template_maybe = self._links.template()
@@ -413,7 +458,8 @@ instance's greatest bottleneck.
             return None
         else:
             log.explain("Answer: Yes")
-        element_path = element_path.with_name(element_path.name + link_extension)
+        element_path = element_path.with_name(
+            element_path.name + link_extension)
 
         maybe_dl = await self.download(element_path, mtime=element.mtime)
         if not maybe_dl:
@@ -446,7 +492,8 @@ instance's greatest bottleneck.
         dl: DownloadToken,
     ) -> None:
         async with dl as (bar, sink):
-            self._write_link_content(link_template, element.url, element.name, element.description, sink)
+            self._write_link_content(
+                link_template, element.url, element.name, element.description, sink)
 
     async def _resolve_link_target(self, export_url: str) -> str:
         async def impl() -> Optional[str]:
@@ -470,7 +517,8 @@ instance's greatest bottleneck.
         if target is not None:
             return target
 
-        raise CrawlError("resolve_link_target failed even after authenticating")
+        raise CrawlError(
+            "resolve_link_target failed even after authenticating")
 
     async def _handle_opencast_video(
         self,
@@ -481,7 +529,8 @@ instance's greatest bottleneck.
         if self.prev_report:
             self.report.add_custom_value(
                 _get_video_cache_key(element),
-                self.prev_report.get_custom_value(_get_video_cache_key(element))
+                self.prev_report.get_custom_value(
+                    _get_video_cache_key(element))
             )
 
         # A video might contain other videos, so let's "crawl" the video first
@@ -502,7 +551,8 @@ instance's greatest bottleneck.
             # Mark all existing videos as known to ensure they do not get deleted during cleanup.
             # We "downloaded" them, just without actually making a network request as we assumed
             # they did not change.
-            contained = self._previous_contained_opencast_videos(element, maybe_dl.path)
+            contained = self._previous_contained_opencast_videos(
+                element, maybe_dl.path)
             if len(contained) > 1:
                 # Only do this if we threw away the original dl token,
                 # to not download single-stream videos twice
@@ -518,31 +568,38 @@ instance's greatest bottleneck.
     ) -> List[PurePath]:
         if not self.prev_report:
             return []
-        custom_value = self.prev_report.get_custom_value(_get_video_cache_key(element))
+        custom_value = self.prev_report.get_custom_value(
+            _get_video_cache_key(element))
         if not custom_value:
             return []
         cached_value = cast(dict[str, Any], custom_value)
         if "known_paths" not in cached_value or "own_path" not in cached_value:
-            log.explain(f"'known_paths' or 'own_path' missing from cached value: {cached_value}")
+            log.explain(f"'known_paths' or 'own_path' missing from cached value: {
+                        cached_value}")
             return []
         transformed_own_path = self._transformer.transform(element_path)
         if cached_value["own_path"] != str(transformed_own_path):
             log.explain(
-                f"own_path '{transformed_own_path}' does not match cached value: '{cached_value['own_path']}"
+                f"own_path '{transformed_own_path}' does not match cached value: '{
+                    cached_value['own_path']}"
             )
             return []
         return [PurePath(name) for name in cached_value["known_paths"]]
 
     def _all_opencast_videos_locally_present(self, element: IliasPageElement, element_path: PurePath) -> bool:
-        log.explain_topic(f"Checking local cache for video {fmt_path(element_path)}")
+        log.explain_topic(f"Checking local cache for video {
+                          fmt_path(element_path)}")
         if contained_videos := self._previous_contained_opencast_videos(element, element_path):
             log.explain(
-                f"The following contained videos are known: {','.join(map(fmt_path, contained_videos))}"
+                f"The following contained videos are known: {
+                    ','.join(map(fmt_path, contained_videos))}"
             )
             if all(self._output_dir.resolve(path).exists() for path in contained_videos):
-                log.explain("Found all known videos locally, skipping enumeration request")
+                log.explain(
+                    "Found all known videos locally, skipping enumeration request")
                 return True
-            log.explain("Missing at least one video, continuing with requests!")
+            log.explain(
+                "Missing at least one video, continuing with requests!")
         else:
             log.explain("No local cache present")
         return False
@@ -553,7 +610,8 @@ instance's greatest bottleneck.
         def add_to_report(paths: list[str]) -> None:
             self.report.add_custom_value(
                 _get_video_cache_key(element),
-                {"known_paths": paths, "own_path": str(self._transformer.transform(dl.path))}
+                {"known_paths": paths, "own_path": str(
+                    self._transformer.transform(dl.path))}
             )
 
         async with dl as (bar, sink):
@@ -580,8 +638,10 @@ instance's greatest bottleneck.
             if not maybe_dl:
                 continue
             async with maybe_dl as (bar, sink):
-                log.explain(f"Streaming video from real url {stream_element.url}")
-                contained_video_paths.append(str(self._transformer.transform(maybe_dl.path)))
+                log.explain(f"Streaming video from real url {
+                            stream_element.url}")
+                contained_video_paths.append(
+                    str(self._transformer.transform(maybe_dl.path)))
                 await self._stream_from_url(stream_element.url, sink, bar, is_video=True)
 
         add_to_report(contained_video_paths)
@@ -701,7 +761,8 @@ instance's greatest bottleneck.
 
         tasks: List[Awaitable[None]] = []
         for elem in elements:
-            tasks.append(asyncio.create_task(self._download_forum_thread(cl.path, elem)))
+            tasks.append(asyncio.create_task(
+                self._download_forum_thread(cl.path, elem)))
 
         # And execute them
         await self.gather(tasks)
@@ -742,7 +803,8 @@ instance's greatest bottleneck.
         elements: List[IliasLearningModulePage] = []
 
         async with cl:
-            log.explain_topic(f"Parsing initial HTML page for {fmt_path(cl.path)}")
+            log.explain_topic(f"Parsing initial HTML page for {
+                              fmt_path(cl.path)}")
             log.explain(f"URL: {element.url}")
             soup = await self._get_page(element.url)
             page = IliasPage(soup, element.url, element)
@@ -762,9 +824,11 @@ instance's greatest bottleneck.
         tasks: List[Awaitable[None]] = []
         for index, elem in enumerate(elements):
             prev_url = elements[index - 1].title if index > 0 else None
-            next_url = elements[index + 1].title if index < len(elements) - 1 else None
+            next_url = elements[index +
+                                1].title if index < len(elements) - 1 else None
             tasks.append(asyncio.create_task(
-                self._download_learning_module_page(cl.path, elem, prev_url, next_url)
+                self._download_learning_module_page(
+                    cl.path, elem, prev_url, next_url)
             ))
 
         # And execute them
@@ -785,7 +849,8 @@ instance's greatest bottleneck.
         next_element_url: Optional[str] = start_url
         counter = 0
         while next_element_url:
-            log.explain_topic(f"Parsing HTML page for {fmt_path(path)} ({dir}-{counter})")
+            log.explain_topic(f"Parsing HTML page for {
+                              fmt_path(path)} ({dir}-{counter})")
             log.explain(f"URL: {next_element_url}")
             soup = await self._get_page(next_element_url)
             page = IliasPage(soup, next_element_url, parent_element)
@@ -817,13 +882,15 @@ instance's greatest bottleneck.
             return
 
         if prev:
-            prev_p = self._transformer.transform(parent_path / (_sanitize_path_name(prev) + ".html"))
+            prev_p = self._transformer.transform(
+                parent_path / (_sanitize_path_name(prev) + ".html"))
             if prev_p:
                 prev = os.path.relpath(prev_p, my_path.parent)
             else:
                 prev = None
         if next:
-            next_p = self._transformer.transform(parent_path / (_sanitize_path_name(next) + ".html"))
+            next_p = self._transformer.transform(
+                parent_path / (_sanitize_path_name(next) + ".html"))
             if next_p:
                 next = os.path.relpath(next_p, my_path.parent)
             else:
@@ -832,7 +899,8 @@ instance's greatest bottleneck.
         async with maybe_dl as (bar, sink):
             content = element.content
             content = await self.internalize_images(content)
-            sink.file.write(learning_module_template(content, maybe_dl.path.name, prev, next).encode("utf-8"))
+            sink.file.write(learning_module_template(
+                content, maybe_dl.path.name, prev, next).encode("utf-8"))
             sink.done()
 
     async def internalize_images(self, tag: Tag) -> Tag:
@@ -850,7 +918,8 @@ instance's greatest bottleneck.
                         continue
                     log.explain(f"Internalizing {url!r}")
                     img = await self._get_authenticated(url)
-                    elem.attrs["src"] = "data:;base64," + base64.b64encode(img).decode()
+                    elem.attrs["src"] = "data:;base64," + \
+                        base64.b64encode(img).decode()
             if elem.name == "iframe" and elem.attrs.get("src", "").startswith("//"):
                 # For unknown reasons the protocol seems to be stripped.
                 elem.attrs["src"] = "https:" + elem.attrs["src"]
@@ -880,7 +949,8 @@ instance's greatest bottleneck.
             soup = soupify(await request.read())
             if IliasPage.is_logged_in(soup):
                 return self._verify_page(soup, url, root_page_allowed)
-        raise CrawlError(f"get_page failed even after authenticating on {url!r}")
+        raise CrawlError(
+            f"get_page failed even after authenticating on {url!r}")
 
     @staticmethod
     def _verify_page(soup: BeautifulSoup, url: str, root_page_allowed: bool) -> BeautifulSoup:
@@ -939,41 +1009,47 @@ instance's greatest bottleneck.
     @_iorepeat(3, "Login", failure_is_error=True)
     async def _authenticate(self) -> None:
         # fill the session with the correct cookies
-        params = {
-            "client_id": self._client_id,
-            "cmd": "force_login",
-        }
-        async with self.session.get(urljoin(self._base_url, "/login.php"), params=params) as request:
-            login_page = soupify(await request.read())
+        if isinstance(self._login_type, ShibbolethLoginType):
+            await self._shibboleth_login.login(self.session)
+        else:
+            params = {
+                "client_id": self._client_id,
+                "cmd": "force_login",
+            }
+            async with self.session.get(urljoin(self._base_url, "/login.php"), params=params) as request:
+                login_page = soupify(await request.read())
 
-        login_form = login_page.find("form", attrs={"name": "formlogin"})
-        if login_form is None:
-            raise CrawlError("Could not find the login form! Specified client id might be invalid.")
+            login_form = login_page.find("form", attrs={"name": "formlogin"})
+            if login_form is None:
+                raise CrawlError(
+                    "Could not find the login form! Specified client id might be invalid.")
 
-        login_url = login_form.attrs.get("action")
-        if login_url is None:
-            raise CrawlError("Could not find the action URL in the login form!")
+            login_url = login_form.attrs.get("action")
+            if login_url is None:
+                raise CrawlError(
+                    "Could not find the action URL in the login form!")
 
-        username, password = await self._auth.credentials()
+            username, password = await self._auth.credentials()
 
-        login_data = {
-            "username": username,
-            "password": password,
-            "cmd[doStandardAuthentication]": "Login",
-        }
+            login_data = {
+                "username": username,
+                "password": password,
+                "cmd[doStandardAuthentication]": "Login",
+            }
 
-        # do the actual login
-        async with self.session.post(urljoin(self._base_url, login_url), data=login_data) as request:
-            soup = soupify(await request.read())
-            if not self._is_logged_in(soup):
-                self._auth.invalidate_credentials()
+            # do the actual login
+            async with self.session.post(urljoin(self._base_url, login_url), data=login_data) as request:
+                soup = soupify(await request.read())
+                if not self._is_logged_in(soup):
+                    self._auth.invalidate_credentials()
 
     @staticmethod
     def _is_logged_in(soup: BeautifulSoup) -> bool:
         # Normal ILIAS pages
         mainbar: Optional[Tag] = soup.find(class_="il-maincontrols-metabar")
         if mainbar is not None:
-            login_button = mainbar.find(attrs={"href": lambda x: x and "login.php" in x})
+            login_button = mainbar.find(
+                attrs={"href": lambda x: x and "login.php" in x})
             shib_login = soup.find(id="button_shib_login")
             return not login_button and not shib_login
 

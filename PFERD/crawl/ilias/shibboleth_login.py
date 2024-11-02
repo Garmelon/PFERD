@@ -1,16 +1,13 @@
 from typing import Any, Optional
 
 import aiohttp
+import yarl
 from bs4 import BeautifulSoup
 
 from ...auth import Authenticator, TfaAuthenticator
 from ...logging import log
 from ...utils import soupify
 from ..crawler import CrawlError
-
-
-class ShibbolethBackgroundLoginSuccessful:
-    pass
 
 
 class ShibbolethLogin:
@@ -59,7 +56,6 @@ class ShibbolethLogin:
             # Equivalent: Enter credentials in
             # https://idp.scc.kit.edu/idp/profile/SAML2/Redirect/SSO
             url = str(shib_url.origin()) + action
-            log.print(f"{url=}")
             username, password = await self._auth.credentials()
             data = {
                 "_eventId_proceed": "",
@@ -77,7 +73,7 @@ class ShibbolethLogin:
                 )
 
             if self._tfa_required(soup):
-                soup = await self._authenticate_tfa(sess, soup)
+                soup = await self._authenticate_tfa(sess, soup, shib_url)
 
             if not self._login_successful(soup):
                 self._auth.invalidate_credentials()
@@ -94,7 +90,7 @@ class ShibbolethLogin:
         await sess.post(url, data=data)
 
     async def _authenticate_tfa(
-        self, session: aiohttp.ClientSession, soup: BeautifulSoup
+        self, session: aiohttp.ClientSession, soup: BeautifulSoup, shib_url: yarl.URL
     ) -> BeautifulSoup:
         if not self._tfa_auth:
             self._tfa_auth = TfaAuthenticator("ilias-anon-tfa")
@@ -105,16 +101,17 @@ class ShibbolethLogin:
         # credentials rather than after asking.
         form = soup.find("form", {"method": "post"})
         action = form["action"]
-        csrf_token = form.find("input", {"name": "csrf_token"})["value"]
 
         # Equivalent: Enter token in
         # https://idp.scc.kit.edu/idp/profile/SAML2/Redirect/SSO
-        url = "https://idp.scc.kit.edu" + action
+        url = str(shib_url.origin()) + action
+        username, password = await self._auth.credentials()
         data = {
             "_eventId_proceed": "",
             "j_tokenNumber": tfa_token,
-            "csrf_token": csrf_token,
         }
+        if crsf_token_input := form.find("input", {"name": "csrf_token"}):
+            data["crsf_token"] = crsf_token_input["value"]
         return await _post(session, url, data)
 
     @staticmethod
