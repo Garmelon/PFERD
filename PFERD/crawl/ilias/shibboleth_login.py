@@ -48,8 +48,7 @@ class ShibbolethLogin:
         while not self._login_successful(soup):
             # Searching the form here so that this fails before asking for
             # credentials rather than after asking.
-            form = soup.find(
-                "form", {"method": "post"})
+            form = soup.find("form", {"method": "post"})
             action = form["action"]
 
             # Equivalent: Enter credentials in
