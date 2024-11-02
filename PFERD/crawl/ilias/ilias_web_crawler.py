@@ -191,79 +191,28 @@ instance's greatest bottleneck.
         )
 
     async def _crawl_url(self, url: str, expected_id: Optional[int] = None) -> None:
-        maybe_cl = await self.crawl(PurePath("."))
-        if not maybe_cl:
-            return
-        cl = maybe_cl  # Not mypy's fault, but explained here: https://github.com/python/mypy/issues/2608
-
-        elements: List[IliasPageElement] = []
-        # A list as variable redefinitions are not propagated to outer scopes
-        description: List[BeautifulSoup] = []
-
-        @_iorepeat(3, "crawling url")
-        async def gather_elements() -> None:
-            elements.clear()
-            async with cl:
-                next_stage_url: Optional[str] = url
-                current_parent = None
-
-                # Duplicated code, but the root page is special - we want to avoid fetching it twice!
-                while next_stage_url:
-                    soup = await self._get_page(next_stage_url, root_page_allowed=True)
-
-                    if current_parent is None and expected_id is not None:
-                        perma_link = IliasPage.get_soup_permalink(soup)
-                        if not perma_link or "crs_" not in perma_link:
-                            raise CrawlError("Invalid course id? Didn't find anything looking like a course")
-
-                    log.explain_topic(f"Parsing HTML page for {fmt_path(cl.path)}")
-                    log.explain(f"URL: {next_stage_url}")
-                    page = IliasPage(soup, next_stage_url, current_parent)
-                    if next_element := page.get_next_stage_element():
-                        current_parent = next_element
-                        next_stage_url = next_element.url
-                    else:
-                        next_stage_url = None
-
-                elements.extend(page.get_child_elements())
-                if info_tab := page.get_info_tab():
-                    elements.append(info_tab)
-                if description_string := page.get_description():
-                    description.append(description_string)
-
-        # Fill up our task list with the found elements
-        await gather_elements()
-
-        if description:
-            await self._download_description(PurePath("."), description[0])
-
-        elements.sort(key=lambda e: e.id())
-
-        tasks: List[Awaitable[None]] = []
-        for element in elements:
-            if handle := await self._handle_ilias_element(PurePath("."), element):
-                tasks.append(asyncio.create_task(handle))
-
-        # And execute them
-        await self.gather(tasks)
+        if awaitable := await self._handle_ilias_page(url, None, PurePath("."), expected_id):
+            await awaitable
 
     async def _handle_ilias_page(
         self,
         url: str,
-        parent: IliasPageElement,
+        parent: Optional[IliasPageElement],
         path: PurePath,
+        expected_course_id: Optional[int] = None,
     ) -> Optional[Coroutine[Any, Any, None]]:
         maybe_cl = await self.crawl(path)
         if not maybe_cl:
             return None
-        return self._crawl_ilias_page(url, parent, maybe_cl)
+        return self._crawl_ilias_page(url, parent, maybe_cl, expected_course_id)
 
     @anoncritical
     async def _crawl_ilias_page(
         self,
         url: str,
-        parent: IliasPageElement,
+        parent: Optional[IliasPageElement],
         cl: CrawlToken,
+        expected_course_id: Optional[int] = None,
     ) -> None:
         elements: List[IliasPageElement] = []
         # A list as variable redefinitions are not propagated to outer scopes
@@ -280,6 +229,15 @@ instance's greatest bottleneck.
                     soup = await self._get_page(next_stage_url)
                     log.explain_topic(f"Parsing HTML page for {fmt_path(cl.path)}")
                     log.explain(f"URL: {next_stage_url}")
+
+                    # If we expect to find a root course, enforce it
+                    if current_parent is None and expected_course_id is not None:
+                        perma_link = IliasPage.get_soup_permalink(soup)
+                        if not perma_link or "crs_" not in perma_link:
+                            raise CrawlError("Invalid course id? Didn't find anything looking like a course")
+                        if str(expected_course_id) not in perma_link:
+                            raise CrawlError(f"Expected course id {expected_course_id} but got {perma_link}")
+
                     page = IliasPage(soup, next_stage_url, current_parent)
                     if next_element := page.get_next_stage_element():
                         current_parent = next_element
