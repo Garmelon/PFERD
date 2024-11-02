@@ -197,20 +197,23 @@ instance's greatest bottleneck.
     async def _handle_ilias_page(
         self,
         url: str,
-        parent: Optional[IliasPageElement],
+        current_element: Optional[IliasPageElement],
         path: PurePath,
         expected_course_id: Optional[int] = None,
     ) -> Optional[Coroutine[Any, Any, None]]:
         maybe_cl = await self.crawl(path)
         if not maybe_cl:
             return None
-        return self._crawl_ilias_page(url, parent, maybe_cl, expected_course_id)
+        if current_element:
+            self._ensure_not_seen(current_element, path)
+
+        return self._crawl_ilias_page(url, current_element, maybe_cl, expected_course_id)
 
     @anoncritical
     async def _crawl_ilias_page(
         self,
         url: str,
-        parent: Optional[IliasPageElement],
+        current_element: Optional[IliasPageElement],
         cl: CrawlToken,
         expected_course_id: Optional[int] = None,
     ) -> None:
@@ -223,7 +226,7 @@ instance's greatest bottleneck.
             elements.clear()
             async with cl:
                 next_stage_url: Optional[str] = url
-                current_parent = parent
+                current_parent = current_element
 
                 while next_stage_url:
                     soup = await self._get_page(next_stage_url)
@@ -276,14 +279,6 @@ instance's greatest bottleneck.
         parent_path: PurePath,
         element: IliasPageElement,
     ) -> Optional[Coroutine[Any, Any, None]]:
-        if element.url in self._visited_urls:
-            raise CrawlWarning(
-                f"Found second path to element {element.name!r} at {element.url!r}. "
-                + f"First path: {fmt_path(self._visited_urls[element.url])}. "
-                + f"Second path: {fmt_path(parent_path)}."
-            )
-        self._visited_urls[element.url] = parent_path
-
         # element.name might contain `/` if the crawler created nested elements,
         # so we can not sanitize it here. We trust in the output dir to thwart worst-case
         # directory escape attacks.
@@ -424,6 +419,8 @@ instance's greatest bottleneck.
         if not maybe_dl:
             return None
 
+        self._ensure_not_seen(element, element_path)
+
         return self._download_booking(element, link_template_maybe, maybe_dl)
 
     @anoncritical
@@ -497,6 +494,8 @@ instance's greatest bottleneck.
         # If we do not want to crawl it (user filter), we can move on
         if not maybe_dl:
             return None
+
+        self._ensure_not_seen(element, element_path)
 
         # If we have every file from the cached mapping already, we can ignore this and bail
         if self._all_opencast_videos_locally_present(element, maybe_dl.path):
@@ -596,6 +595,8 @@ instance's greatest bottleneck.
         maybe_dl = await self.download(element_path, mtime=element.mtime)
         if not maybe_dl:
             return None
+        self._ensure_not_seen(element, element_path)
+
         return self._download_file(element, maybe_dl, is_video)
 
     @_iorepeat(3, "downloading file")
@@ -731,6 +732,8 @@ instance's greatest bottleneck.
         maybe_cl = await self.crawl(element_path)
         if not maybe_cl:
             return None
+        self._ensure_not_seen(element, element_path)
+
         return self._crawl_learning_module(element, maybe_cl)
 
     @_iorepeat(3, "crawling learning module")
@@ -852,6 +855,15 @@ instance's greatest bottleneck.
                 # For unknown reasons the protocol seems to be stripped.
                 elem.attrs["src"] = "https:" + elem.attrs["src"]
         return tag
+
+    def _ensure_not_seen(self, element: IliasPageElement, parent_path: PurePath) -> None:
+        if element.url in self._visited_urls:
+            raise CrawlWarning(
+                f"Found second path to element {element.name!r} at {element.url!r}. "
+                + f"First path: {fmt_path(self._visited_urls[element.url])}. "
+                + f"Second path: {fmt_path(parent_path)}."
+            )
+        self._visited_urls[element.url] = parent_path
 
     async def _get_page(self, url: str, root_page_allowed: bool = False) -> BeautifulSoup:
         auth_id = await self._current_auth_id()

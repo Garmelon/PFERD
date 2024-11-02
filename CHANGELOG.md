@@ -27,6 +27,8 @@ ambiguous situations.
 
 ### Changed
 - Remove videos from description pages
+- Perform ILIAS cycle detection after processing the transform to allow
+  ignoring duplicated elements
 
 ### Fixed
 - Personal desktop/dashboard/favorites crawling
