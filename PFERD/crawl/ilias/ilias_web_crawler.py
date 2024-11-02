@@ -269,8 +269,7 @@ instance's greatest bottleneck.
 
                 while next_stage_url:
                     soup = await self._get_page(next_stage_url)
-                    log.explain_topic(f"Parsing HTML page for {
-                                      fmt_path(cl.path)}")
+                    log.explain_topic(f"Parsing HTML page for {fmt_path(cl.path)}")
                     log.explain(f"URL: {next_stage_url}")
 
                     # If we expect to find a root course, enforce it
@@ -447,8 +446,7 @@ instance's greatest bottleneck.
         element: IliasPageElement,
         element_path: PurePath,
     ) -> Optional[Coroutine[Any, Any, None]]:
-        log.explain_topic(f"Decision: Crawl Booking Link {
-                          fmt_path(element_path)}")
+        log.explain_topic(f"Decision: Crawl Booking Link {fmt_path(element_path)}")
         log.explain(f"Links type is {self._links}")
 
         link_template_maybe = self._links.template()
@@ -574,25 +572,21 @@ instance's greatest bottleneck.
             return []
         cached_value = cast(dict[str, Any], custom_value)
         if "known_paths" not in cached_value or "own_path" not in cached_value:
-            log.explain(f"'known_paths' or 'own_path' missing from cached value: {
-                        cached_value}")
+            log.explain(f"'known_paths' or 'own_path' missing from cached value: {cached_value}")
             return []
         transformed_own_path = self._transformer.transform(element_path)
         if cached_value["own_path"] != str(transformed_own_path):
             log.explain(
-                f"own_path '{transformed_own_path}' does not match cached value: '{
-                    cached_value['own_path']}"
+                f"own_path '{transformed_own_path}' does not match cached value: '{cached_value['own_path']}"
             )
             return []
         return [PurePath(name) for name in cached_value["known_paths"]]
 
     def _all_opencast_videos_locally_present(self, element: IliasPageElement, element_path: PurePath) -> bool:
-        log.explain_topic(f"Checking local cache for video {
-                          fmt_path(element_path)}")
+        log.explain_topic(f"Checking local cache for video {fmt_path(element_path)}")
         if contained_videos := self._previous_contained_opencast_videos(element, element_path):
             log.explain(
-                f"The following contained videos are known: {
-                    ','.join(map(fmt_path, contained_videos))}"
+                f"The following contained videos are known: {','.join(map(fmt_path, contained_videos))}"
             )
             if all(self._output_dir.resolve(path).exists() for path in contained_videos):
                 log.explain(
@@ -638,8 +632,7 @@ instance's greatest bottleneck.
             if not maybe_dl:
                 continue
             async with maybe_dl as (bar, sink):
-                log.explain(f"Streaming video from real url {
-                            stream_element.url}")
+                log.explain(f"Streaming video from real url {stream_element.url}")
                 contained_video_paths.append(
                     str(self._transformer.transform(maybe_dl.path)))
                 await self._stream_from_url(stream_element.url, sink, bar, is_video=True)
@@ -803,8 +796,7 @@ instance's greatest bottleneck.
         elements: List[IliasLearningModulePage] = []
 
         async with cl:
-            log.explain_topic(f"Parsing initial HTML page for {
-                              fmt_path(cl.path)}")
+            log.explain_topic(f"Parsing initial HTML page for {fmt_path(cl.path)}")
             log.explain(f"URL: {element.url}")
             soup = await self._get_page(element.url)
             page = IliasPage(soup, element.url, element)
@@ -849,8 +841,7 @@ instance's greatest bottleneck.
         next_element_url: Optional[str] = start_url
         counter = 0
         while next_element_url:
-            log.explain_topic(f"Parsing HTML page for {
-                              fmt_path(path)} ({dir}-{counter})")
+            log.explain_topic(f"Parsing HTML page for {fmt_path(path)} ({dir}-{counter})")
             log.explain(f"URL: {next_element_url}")
             soup = await self._get_page(next_element_url)
             page = IliasPage(soup, next_element_url, parent_element)
