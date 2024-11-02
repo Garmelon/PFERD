@@ -16,7 +16,7 @@ class ShibbolethLogin:
     """
 
     def __init__(
-        self, ilias_url, authenticator: Authenticator, tfa_authenticator: Optional[Authenticator]
+        self, ilias_url: str, authenticator: Authenticator, tfa_authenticator: Optional[Authenticator]
     ) -> None:
         self._ilias_url = ilias_url
         self._auth = authenticator

@@ -1,11 +1,7 @@
-from typing import Any, Dict, Optional, Union
+from typing import Dict, Union
 
-
-from ...auth import Authenticator, TfaAuthenticator
+from ...auth import Authenticator
 from ...config import Config
-from ...logging import log
-from ...utils import soupify
-from ..crawler import CrawlError, CrawlWarning
 from .async_helper import _iorepeat
 from .ilias_web_crawler import IliasWebCrawler, IliasWebCrawlerSection, ShibbolethLoginType
 from .shibboleth_login import ShibbolethLogin
