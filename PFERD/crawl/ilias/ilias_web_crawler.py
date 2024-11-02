@@ -28,10 +28,6 @@ from .shibboleth_login import ShibbolethLogin
 TargetType = Union[str, int]
 
 
-class ShibbolethLoginType():
-    pass
-
-
 class LoginTypeLocal:
     def __init__(self, client_id: str):
         self.client_id = client_id
@@ -45,17 +41,17 @@ class IliasWebCrawlerSection(HttpCrawlerSection):
 
         return base_url
 
-    def login(self) -> Union[Literal["shibboleth"], LocalLoginType]:
+    def login(self) -> Union[Literal["shibboleth"], LoginTypeLocal]:
         login_type = self.s.get("login_type")
         if not login_type:
             self.missing_value("login_type")
         if login_type == "shibboleth":
-            return ShibbolethLoginType()
+            return "shibboleth"
         elif login_type == "local":
             client_id = self.s.get("client_id")
             if not client_id:
                 self.missing_value("client_id")
-            return LocalLoginType(client_id)
+            return LoginTypeLocal(client_id)
 
         self.invalid_value("login_type", login_type,
                            "Should be <shibboleth | local>")
@@ -190,7 +186,7 @@ instance's greatest bottleneck.
         self._tfa_auth = section.tfa_auth(authenticators)
 
         self._login_type = section.login()
-        if isinstance(self._login_type, LocalLoginType):
+        if isinstance(self._login_type, LoginTypeLocal):
             self._client_id = self._login_type.client_id
         else:
             self._shibboleth_login = ShibbolethLogin(self._base_url, self._auth, self._tfa_auth)
@@ -999,7 +995,7 @@ instance's greatest bottleneck.
     @_iorepeat(3, "Login", failure_is_error=True)
     async def _authenticate(self) -> None:
         # fill the session with the correct cookies
-        if isinstance(self._login_type, ShibbolethLoginType):
+        if self._login_type == "shibboleth":
             await self._shibboleth_login.login(self.session)
         else:
             params = {

@@ -1,12 +1,10 @@
-from typing import Dict, Union
+from typing import Dict, Literal
 
 from ...auth import Authenticator
 from ...config import Config
 from .async_helper import _iorepeat
-from .ilias_web_crawler import IliasWebCrawler, IliasWebCrawlerSection, ShibbolethLoginType
+from .ilias_web_crawler import IliasWebCrawler, IliasWebCrawlerSection
 from .shibboleth_login import ShibbolethLogin
-
-TargetType = Union[str, int]
 
 _ILIAS_URL = "https://ilias.studium.kit.edu"
 
@@ -19,8 +17,8 @@ class KitIliasWebCrawlerSection(IliasWebCrawlerSection):
     def base_url(self) -> str:
         return _ILIAS_URL
 
-    def login(self) -> ShibbolethLoginType:
-        return ShibbolethLoginType()
+    def login(self) -> Literal["shibboleth"]:
+        return "shibboleth"
 
 
 class KitIliasWebCrawler(IliasWebCrawler):
