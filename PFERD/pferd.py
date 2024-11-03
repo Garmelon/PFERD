@@ -1,4 +1,4 @@
-from pathlib import Path
+from pathlib import Path, PurePath
 from typing import Dict, List, Optional
 
 from rich.markup import escape
@@ -168,19 +168,23 @@ class Pferd:
             log.report("")
             log.report(f"[bold bright_cyan]Report[/] for {escape(name)}")
 
+            def fmt_path_link(relative_path: PurePath) -> str:
+                link = f"file://{crawler.output_dir.resolve(relative_path).absolute()}"
+                return f"[link={link}]{fmt_path(relative_path)}[/link]"
+
             something_changed = False
             for path in sorted(crawler.report.added_files):
                 something_changed = True
-                log.report(f"  [bold bright_green]Added[/] {fmt_path(path)}")
+                log.report(f"  [bold bright_green]Added[/] {fmt_path_link(path)}")
             for path in sorted(crawler.report.changed_files):
                 something_changed = True
-                log.report(f"  [bold bright_yellow]Changed[/] {fmt_path(path)}")
+                log.report(f"  [bold bright_yellow]Changed[/] {fmt_path_link(path)}")
             for path in sorted(crawler.report.deleted_files):
                 something_changed = True
                 log.report(f"  [bold bright_magenta]Deleted[/] {fmt_path(path)}")
             for path in sorted(crawler.report.not_deleted_files):
                 something_changed = True
-                log.report_not_deleted(f"  [bold bright_magenta]Not deleted[/] {fmt_path(path)}")
+                log.report_not_deleted(f"  [bold bright_magenta]Not deleted[/] {fmt_path_link(path)}")
 
             for warning in crawler.report.encountered_warnings:
                 something_changed = True

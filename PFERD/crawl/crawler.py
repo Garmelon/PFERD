@@ -258,6 +258,10 @@ class Crawler(ABC):
     def prev_report(self) -> Optional[Report]:
         return self._output_dir.prev_report
 
+    @property
+    def output_dir(self) -> OutputDirectory:
+        return self._output_dir
+
     @staticmethod
     async def gather(awaitables: Sequence[Awaitable[Any]]) -> List[Any]:
         """
