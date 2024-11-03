@@ -92,6 +92,9 @@ common to all crawlers:
   load for the crawl target. (Default: `0.0`)
 - `windows_paths`: Whether PFERD should find alternative names for paths that
   are invalid on Windows. (Default: `yes` on Windows, `no` otherwise)
+- `aliases`: List of strings that are considered as an alias when invoking with
+  the `--crawler` or `-C` flag. If there is more than one crawl section with
+  the same aliases all are selected. Thereby, you can group different crawlers.
 
 Some crawlers may also require credentials for authentication. To configure how
 the crawler obtains its credentials, the `auth` option is used. It is set to the
@@ -106,6 +109,7 @@ username = foo
 password = bar
 
 [crawl:something]
+aliases = [sth, some]
 type = some-complex-crawler
 auth = auth:example
 on_conflict = no-delete
