@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import aiohttp
 import certifi
 from aiohttp.client import ClientTimeout
+from bs4 import Tag
 
 from ..auth import Authenticator
 from ..config import Config
@@ -171,6 +172,31 @@ class HttpCrawler(Crawler):
         except Exception as e:
             log.warn(f"Failed to save cookies to {fmt_real_path(self._cookie_jar_path)}")
             log.warn(str(e))
+
+    @staticmethod
+    def get_folder_structure_from_heading_hierarchy(file_link: Tag, drop_h1: bool = False) -> PurePath:
+        """
+        Retrieves the hierarchy of headings associated with the give file link and constructs a folder
+        structure from them.
+
+        <h1> level headings usually only appear once and serve as the page title, so they would introduce
+        redundant nesting. To avoid this, <h1> headings are ignored via the drop_h1 parameter.
+        """
+
+        def find_associated_headings(tag: Tag, level: int) -> PurePath:
+            if level == 0 or (level == 1 and drop_h1):
+                return PurePath()
+
+            level_heading = tag.find_previous(name=f"h{level}")
+
+            if level_heading is None:
+                return find_associated_headings(tag, level - 1)
+
+            folder_name = level_heading.getText().strip()
+            return find_associated_headings(level_heading, level - 1) / folder_name
+
+        # start at level <h3> because paragraph-level headings are usually too granular for folder names
+        return find_associated_headings(file_link, 3)
 
     def _get_previous_etag_from_report(self, path: PurePath) -> Optional[str]:
         """
