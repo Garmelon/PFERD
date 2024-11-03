@@ -1,5 +1,6 @@
 from pathlib import Path, PurePath
 from typing import Dict, List, Optional
+from urllib.parse import quote
 
 from rich.markup import escape
 
@@ -169,7 +170,8 @@ class Pferd:
             log.report(f"[bold bright_cyan]Report[/] for {escape(name)}")
 
             def fmt_path_link(relative_path: PurePath) -> str:
-                link = f"file://{crawler.output_dir.resolve(relative_path).absolute()}"
+                # We need to URL-encode the path because it might contain spaces or special characters
+                link = f"file://{quote(str(crawler.output_dir.resolve(relative_path).absolute()))}"
                 return f"[link={link}]{fmt_path(relative_path)}[/link]"
 
             something_changed = False

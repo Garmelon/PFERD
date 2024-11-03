@@ -24,6 +24,7 @@ ambiguous situations.
 
 ### Added
 - Support for MOB videos in page descriptions
+- Clickable links in the report to directly open new/modified/not-deleted files
 
 ### Changed
 - Remove videos from description pages
