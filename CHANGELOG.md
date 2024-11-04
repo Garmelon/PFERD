@@ -29,6 +29,7 @@ ambiguous situations.
 - Remove videos from description pages
 - Perform ILIAS cycle detection after processing the transform to allow
   ignoring duplicated elements
+- Parse headings (h1-h3) as folders in kit-ipd crawler
 
 ### Fixed
 - Personal desktop/dashboard/favorites crawling
