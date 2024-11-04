@@ -47,7 +47,7 @@ class IliasWebCrawlerSection(HttpCrawlerSection):
             self.missing_value("login_type")
         if login_type == "shibboleth":
             return "shibboleth"
-        elif login_type == "local":
+        if login_type == "local":
             client_id = self.s.get("client_id")
             if not client_id:
                 self.missing_value("client_id")

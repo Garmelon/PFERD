@@ -184,8 +184,8 @@ If the values work, feel free to submit a PR and add them to the table above.
 - `login_type`: How you authenticate. (Required)
     - `local`: Use `client_id` for authentication.
     - `shibboleth`: Use shibboleth for authentication.
-- `client_id`: An ID used for authentication if `client_type` is `local`.
-               Is ignored if `client_type` is `shibboleth`.
+- `client_id`: An ID used for authentication if `login_type` is `local`. Is
+  ignored if `login_type` is `shibboleth`.
 - `target`: The ILIAS element to crawl. (Required)
     - `desktop`: Crawl your personal desktop / dashboard
     - `<course id>`: Crawl the course with the given id
