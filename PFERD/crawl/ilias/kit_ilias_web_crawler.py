@@ -2,7 +2,6 @@ from typing import Dict, Literal
 
 from ...auth import Authenticator
 from ...config import Config
-from .async_helper import _iorepeat
 from .ilias_web_crawler import IliasWebCrawler, IliasWebCrawlerSection
 from .shibboleth_login import ShibbolethLogin
 
@@ -36,9 +35,3 @@ class KitIliasWebCrawler(IliasWebCrawler):
             self._auth,
             section.tfa_auth(authenticators),
         )
-
-    # We repeat this as the login method in shibboleth doesn't handle I/O errors.
-    # Shibboleth is quite reliable as well, the repeat is likely not critical here.
-    @_iorepeat(3, "Login", failure_is_error=True)
-    async def _authenticate(self) -> None:
-        await self._shibboleth_login.login(self.session)
