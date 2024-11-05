@@ -262,7 +262,12 @@ class HttpCrawler(Crawler):
                     connect=self._http_timeout,
                     sock_connect=self._http_timeout,
                     sock_read=self._http_timeout,
-                )
+                ),
+                # See https://github.com/aio-libs/aiohttp/issues/6626
+                # Without this aiohttp will mangle the redirect header from Shibboleth, invalidating the
+                # passed signature. Shibboleth will not accept the broken signature and authentication will
+                # fail.
+                requote_redirect_url=False
         ) as session:
             self.session = session
             try:

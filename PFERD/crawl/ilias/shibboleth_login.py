@@ -61,7 +61,7 @@ class ShibbolethLogin:
                 "j_password": password,
             }
             if crsf_token_input := form.find("input", {"name": "csrf_token"}):
-                data["crsf_token"] = crsf_token_input["value"]
+                data["csrf_token"] = crsf_token_input["value"]
             soup = await _post(sess, url, data)
 
             if soup.find(id="attributeRelease"):
