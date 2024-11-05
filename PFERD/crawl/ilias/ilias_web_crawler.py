@@ -966,8 +966,6 @@ instance's greatest bottleneck.
                 return await request.read()
         raise CrawlError("get_authenticated failed even after authenticating")
 
-    # ToDo: Is iorepeat still required?
-    @_iorepeat(3, "Login", failure_is_error=True)
     async def _authenticate(self) -> None:
         # fill the session with the correct cookies
         if self._login_type == "shibboleth":
