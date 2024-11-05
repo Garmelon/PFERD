@@ -25,9 +25,10 @@ def _iorepeat(attempts: int, name: str, failure_is_error: bool = False) -> Calla
                 except asyncio.exceptions.TimeoutError as e:  # explicit http timeouts in HttpCrawler
                     last_exception = e
                 log.explain_topic(f"Retrying operation {name}. Retries left: {attempts - 1 - round}")
+                log.explain(f"Last exception: {last_exception!r}")
 
             if last_exception:
-                message = f"Error in I/O Operation: {last_exception}"
+                message = f"Error in I/O Operation: {last_exception!r}"
                 if failure_is_error:
                     raise CrawlError(message) from last_exception
                 else:
