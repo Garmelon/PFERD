@@ -38,6 +38,7 @@ ambiguous situations.
 - Crawling of nested courses
 - Downloading of links with no target URL
 - Handle row flex on description pages
+- Add `<!DOCTYPE html>` heading to forum threads to fix mime type detection
 
 ## 3.6.0 - 2024-10-23
 

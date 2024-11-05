@@ -750,7 +750,8 @@ instance's greatest bottleneck.
             return
 
         async with maybe_dl as (bar, sink):
-            content = element.title_tag.prettify()
+            content = "<!DOCTYPE html>\n"
+            content += element.title_tag.prettify()
             content += element.content_tag.prettify()
             sink.file.write(content.encode("utf-8"))
             sink.done()
