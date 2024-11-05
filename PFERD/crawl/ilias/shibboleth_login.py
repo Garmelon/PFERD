@@ -60,8 +60,8 @@ class ShibbolethLogin:
                 "j_username": username,
                 "j_password": password,
             }
-            if crsf_token_input := form.find("input", {"name": "csrf_token"}):
-                data["csrf_token"] = crsf_token_input["value"]
+            if csrf_token_input := form.find("input", {"name": "csrf_token"}):
+                data["csrf_token"] = csrf_token_input["value"]
             soup = await _post(sess, url, data)
 
             if soup.find(id="attributeRelease"):
@@ -108,8 +108,8 @@ class ShibbolethLogin:
             "_eventId_proceed": "",
             "j_tokenNumber": tfa_token,
         }
-        if crsf_token_input := form.find("input", {"name": "csrf_token"}):
-            data["crsf_token"] = crsf_token_input["value"]
+        if csrf_token_input := form.find("input", {"name": "csrf_token"}):
+            data["csrf_token"] = csrf_token_input["value"]
         return await _post(session, url, data)
 
     @staticmethod
