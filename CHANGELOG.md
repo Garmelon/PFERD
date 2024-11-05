@@ -25,6 +25,7 @@ ambiguous situations.
 ### Added
 - Support for MOB videos in page descriptions
 - Clickable links in the report to directly open new/modified/not-deleted files
+- Support for non KIT shibboleth login
 
 ### Changed
 - Remove videos from description pages
