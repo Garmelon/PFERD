@@ -490,11 +490,12 @@ instance's greatest bottleneck.
                     return ""
                 return None
 
+        auth_id = await self._current_auth_id()
         target = await impl()
         if target is not None:
             return target
 
-        await self._authenticate()
+        await self.authenticate(auth_id)
 
         target = await impl()
         if target is not None:
