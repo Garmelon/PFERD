@@ -998,6 +998,8 @@ class IliasPage:
             return IliasElementType.OPENCAST_VIDEO_FOLDER_MAYBE_PAGINATED
         if "exc" in icon["class"]:
             return IliasElementType.EXERCISE
+        if "grp" in icon["class"]:
+            return IliasElementType.FOLDER
         if "webr" in icon["class"]:
             return IliasElementType.LINK
         if "book" in icon["class"]:

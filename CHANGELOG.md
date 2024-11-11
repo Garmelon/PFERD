@@ -39,6 +39,7 @@ ambiguous situations.
 - Downloading of links with no target URL
 - Handle row flex on description pages
 - Add `<!DOCTYPE html>` heading to forum threads to fix mime type detection
+- Handle groups in cards
 
 ## 3.6.0 - 2024-10-23
 
