@@ -22,6 +22,8 @@ ambiguous situations.
 
 ## Unreleased
 
+## 3.7.0 - 2024-11-13
+
 ### Added
 - Support for MOB videos in page descriptions
 - Clickable links in the report to directly open new/modified/not-deleted files
