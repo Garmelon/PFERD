@@ -22,6 +22,9 @@ ambiguous situations.
 
 ## Unreleased
 
+## Fixed
+- File links in report on Windows
+
 ## 3.7.0 - 2024-11-13
 
 ### Added
