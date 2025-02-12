@@ -59,6 +59,7 @@ class ShibbolethLogin:
                 "_eventId_proceed": "",
                 "j_username": username,
                 "j_password": password,
+                "fudis_web_authn_assertion_input": "",
             }
             if csrf_token_input := form.find("input", {"name": "csrf_token"}):
                 data["csrf_token"] = csrf_token_input["value"]
@@ -106,7 +107,7 @@ class ShibbolethLogin:
         username, password = await self._auth.credentials()
         data = {
             "_eventId_proceed": "",
-            "j_tokenNumber": tfa_token,
+            "fudis_otp_input": tfa_token,
         }
         if csrf_token_input := form.find("input", {"name": "csrf_token"}):
             data["csrf_token"] = csrf_token_input["value"]
@@ -120,7 +121,7 @@ class ShibbolethLogin:
 
     @staticmethod
     def _tfa_required(soup: BeautifulSoup) -> bool:
-        return soup.find(id="j_tokenNumber") is not None
+        return soup.find(id="fudiscr-form") is not None
 
 
 async def _post(session: aiohttp.ClientSession, url: str, data: Any) -> BeautifulSoup:

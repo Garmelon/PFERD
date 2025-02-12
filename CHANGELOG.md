@@ -24,6 +24,7 @@ ambiguous situations.
 
 ## Fixed
 - File links in report on Windows
+- TOTP authentication in KIT Shibboleth
 
 ## 3.7.0 - 2024-11-13
 
