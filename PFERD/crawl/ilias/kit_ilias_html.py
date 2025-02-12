@@ -3,7 +3,7 @@ import re
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from enum import Enum
-from typing import Dict, List, Optional, Union, cast
+from typing import Dict, Optional, Union, cast
 from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup, Tag
@@ -117,7 +117,7 @@ class IliasPageElement:
 @dataclass
 class IliasDownloadForumData:
     url: str
-    form_data: Dict[str, Union[str, List[str]]]
+    form_data: Dict[str, Union[str, list[str]]]
     empty: bool
 
 
@@ -151,7 +151,7 @@ class IliasPage:
             return "goto.php?target=root_" in permalink
         return False
 
-    def get_child_elements(self) -> List[IliasPageElement]:
+    def get_child_elements(self) -> list[IliasPageElement]:
         """
         Return all child page elements you can find here.
         """
@@ -177,10 +177,10 @@ class IliasPage:
         return self._find_normal_entries()
 
     def get_info_tab(self) -> Optional[IliasPageElement]:
-        tab: Optional[Tag] = self._soup.find(
+        tab: Optional[Tag] = cast(Optional[Tag], self._soup.find(
             name="a",
-            attrs={"href": lambda x: x and "cmdClass=ilinfoscreengui" in x}
-        )
+            attrs={"href": lambda x: x is not None and "cmdClass=ilinfoscreengui" in x}
+        ))
         if tab is not None:
             return IliasPageElement.create_new(
                 IliasElementType.INFO_TAB,
@@ -193,7 +193,7 @@ class IliasPage:
         def is_interesting_class(name: str) -> bool:
             return name in ["ilCOPageSection", "ilc_Paragraph", "ilc_va_ihcap_VAccordIHeadCap"]
 
-        paragraphs: List[Tag] = self._soup.findAll(class_=is_interesting_class)
+        paragraphs: list[Tag] = cast(list[Tag], self._soup.find_all(class_=is_interesting_class))
         if not paragraphs:
             return None
 
@@ -217,8 +217,8 @@ class IliasPage:
     def get_learning_module_data(self) -> Optional[IliasLearningModulePage]:
         if not self._is_learning_module_page():
             return None
-        content = self._soup.select_one("#ilLMPageContent")
-        title = self._soup.select_one(".ilc_page_title_PageTitle").getText().strip()
+        content = cast(Tag, self._soup.select_one("#ilLMPageContent"))
+        title = cast(Tag, self._soup.select_one(".ilc_page_title_PageTitle")).get_text().strip()
         return IliasLearningModulePage(
             title=title,
             content=content,
@@ -243,15 +243,18 @@ class IliasPage:
         return None
 
     def get_download_forum_data(self) -> Optional[IliasDownloadForumData]:
-        form = self._soup.find("form", attrs={"action": lambda x: x and "fallbackCmd=showThreads" in x})
+        form = cast(Optional[Tag], self._soup.find(
+            "form",
+            attrs={"action": lambda x: x is not None and "fallbackCmd=showThreads" in x}
+        ))
         if not form:
             return None
-        post_url = self._abs_url_from_relative(form["action"])
+        post_url = self._abs_url_from_relative(cast(str, form["action"]))
 
-        thread_ids = [f["value"] for f in form.find_all(attrs={"name": "thread_ids[]"})]
+        thread_ids = [f["value"] for f in cast(list[Tag], form.find_all(attrs={"name": "thread_ids[]"}))]
 
-        form_data: Dict[str, Union[str, List[str]]] = {
-            "thread_ids[]": thread_ids,
+        form_data: Dict[str, Union[str, list[str]]] = {
+            "thread_ids[]": cast(list[str], thread_ids),
             "selected_cmd2": "html",
             "select_cmd2": "Ausführen",
             "selected_cmd": "",
@@ -285,7 +288,7 @@ class IliasPage:
     def _is_forum_page(self) -> bool:
         read_more_btn = self._soup.find(
             "button",
-            attrs={"onclick": lambda x: x and "cmdClass=ilobjforumgui&cmd=markAllRead" in x}
+            attrs={"onclick": lambda x: x is not None and "cmdClass=ilobjforumgui&cmd=markAllRead" in x}
         )
         return read_more_btn is not None
 
@@ -297,7 +300,7 @@ class IliasPage:
             return True
 
         # Raw listing without ILIAS fluff
-        video_element_table: Tag = self._soup.find(
+        video_element_table = self._soup.find(
             name="table", id=re.compile(r"tbl_xoct_.+")
         )
         return video_element_table is not None
@@ -305,8 +308,8 @@ class IliasPage:
     def _is_ilias_opencast_embedding(self) -> bool:
         # ILIAS fluff around the real opencast html
         if self._soup.find(id="headerimage"):
-            element: Tag = self._soup.find(id="headerimage")
-            if "opencast" in element.attrs["src"].lower():
+            element: Tag = cast(Tag, self._soup.find(id="headerimage"))
+            if "opencast" in cast(str, element.attrs["src"]).lower():
                 return True
         return False
 
@@ -317,8 +320,8 @@ class IliasPage:
 
         # We have no suitable parent - let's guesss
         if self._soup.find(id="headerimage"):
-            element: Tag = self._soup.find(id="headerimage")
-            if "exc" in element.attrs["src"].lower():
+            element: Tag = cast(Tag, self._soup.find(id="headerimage"))
+            if "exc" in cast(str, element.attrs["src"]).lower():
                 return True
 
         return False
@@ -340,10 +343,10 @@ class IliasPage:
         return self._uncollapse_future_meetings_url() is not None
 
     def _uncollapse_future_meetings_url(self) -> Optional[IliasPageElement]:
-        element = self._soup.find(
+        element = cast(Optional[Tag], self._soup.find(
             "a",
-            attrs={"href": lambda x: x and ("crs_next_sess=1" in x or "crs_prev_sess=1" in x)}
-        )
+            attrs={"href": lambda x: x is not None and ("crs_next_sess=1" in x or "crs_prev_sess=1" in x)}
+        ))
         if not element:
             return None
         link = self._abs_url_from_link(element)
@@ -360,24 +363,24 @@ class IliasPage:
         return "baseClass=ilmembershipoverviewgui" in self._page_url
 
     def _select_content_page_url(self) -> Optional[IliasPageElement]:
-        tab = self._soup.find(
+        tab = cast(Optional[Tag], self._soup.find(
             id="tab_view_content",
             attrs={"class": lambda x: x is not None and "active" not in x}
-        )
+        ))
         # Already selected (or not found)
         if not tab:
             return None
-        link = tab.find("a")
+        link = cast(Optional[Tag], tab.find("a"))
         if link:
-            link = self._abs_url_from_link(link)
-            return IliasPageElement.create_new(IliasElementType.FOLDER, link, "select content page")
+            link_str = self._abs_url_from_link(link)
+            return IliasPageElement.create_new(IliasElementType.FOLDER, link_str, "select content page")
 
         _unexpected_html_warning()
         log.warn_contd(f"Could not find content tab URL on {self._page_url!r}.")
         log.warn_contd("PFERD might not find content on the course's main page.")
         return None
 
-    def _player_to_video(self) -> List[IliasPageElement]:
+    def _player_to_video(self) -> list[IliasPageElement]:
         # Fetch the actual video page. This is a small wrapper page initializing a javscript
         # player. Sadly we can not execute that JS. The actual video stream url is nowhere
         # on the page, but defined in a JS object inside a script tag, passed to the player
@@ -414,10 +417,10 @@ class IliasPage:
         return items
 
     def _get_show_max_forum_entries_per_page_url(self) -> Optional[IliasPageElement]:
-        correct_link = self._soup.find(
+        correct_link = cast(Optional[Tag], self._soup.find(
             "a",
-            attrs={"href": lambda x: x and "trows=800" in x and "cmd=showThreads" in x}
-        )
+            attrs={"href": lambda x: x is not None and "trows=800" in x and "cmd=showThreads" in x}
+        ))
 
         if not correct_link:
             return None
@@ -426,15 +429,15 @@ class IliasPage:
 
         return IliasPageElement.create_new(IliasElementType.FORUM, link, "show all forum threads")
 
-    def _find_personal_desktop_entries(self) -> List[IliasPageElement]:
-        items: List[IliasPageElement] = []
+    def _find_personal_desktop_entries(self) -> list[IliasPageElement]:
+        items: list[IliasPageElement] = []
 
-        titles: List[Tag] = self._soup.select("#block_pditems_0 .il-item-title")
+        titles: list[Tag] = self._soup.select("#block_pditems_0 .il-item-title")
         for title in titles:
-            link = title.find("a")
+            link = cast(Optional[Tag], title.find("a"))
 
             if not link:
-                log.explain(f"Skipping offline item: {title.getText().strip()!r}")
+                log.explain(f"Skipping offline item: {title.get_text().strip()!r}")
                 continue
 
             name = _sanitize_path_name(link.text.strip())
@@ -460,13 +463,13 @@ class IliasPage:
 
         return items
 
-    def _find_copa_entries(self) -> List[IliasPageElement]:
-        items: List[IliasPageElement] = []
-        links: List[Tag] = self._soup.findAll(class_="ilc_flist_a_FileListItemLink")
+    def _find_copa_entries(self) -> list[IliasPageElement]:
+        items: list[IliasPageElement] = []
+        links: list[Tag] = cast(list[Tag], self._soup.find_all(class_="ilc_flist_a_FileListItemLink"))
 
         for link in links:
             url = self._abs_url_from_link(link)
-            name = re.sub(r"\([\d,.]+ [MK]B\)", "", link.getText()).strip().replace("\t", "")
+            name = re.sub(r"\([\d,.]+ [MK]B\)", "", link.get_text()).strip().replace("\t", "")
             name = _sanitize_path_name(name)
 
             if "file_id" not in url:
@@ -478,9 +481,9 @@ class IliasPage:
 
         return items
 
-    def _find_info_tab_entries(self) -> List[IliasPageElement]:
+    def _find_info_tab_entries(self) -> list[IliasPageElement]:
         items = []
-        links: List[Tag] = self._soup.select("a.il_ContainerItemCommand")
+        links: list[Tag] = self._soup.select("a.il_ContainerItemCommand")
 
         for link in links:
             if "cmdClass=ilobjcoursegui" not in link["href"]:
@@ -490,12 +493,12 @@ class IliasPage:
             items.append(IliasPageElement.create_new(
                 IliasElementType.FILE,
                 self._abs_url_from_link(link),
-                _sanitize_path_name(link.getText())
+                _sanitize_path_name(link.get_text())
             ))
 
         return items
 
-    def _find_opencast_video_entries(self) -> List[IliasPageElement]:
+    def _find_opencast_video_entries(self) -> list[IliasPageElement]:
         # ILIAS has three stages for video pages
         # 1. The initial dummy page without any videos. This page contains the link to the listing
         # 2. The video listing which might be paginated
@@ -503,14 +506,14 @@ class IliasPage:
         #
         # We need to figure out where we are.
 
-        video_element_table: Tag = self._soup.find(
+        video_element_table = cast(Optional[Tag], self._soup.find(
             name="table", id=re.compile(r"tbl_xoct_.+")
-        )
+        ))
 
         if video_element_table is None:
             # We are in stage 1
             # The page is actually emtpy but contains the link to stage 2
-            content_link: Tag = self._soup.select_one("#tab_series a")
+            content_link: Tag = cast(Tag, self._soup.select_one("#tab_series a"))
             url: str = self._abs_url_from_link(content_link)
             query_params = {"limit": "800", "cmd": "asyncGetTableGUI", "cmdMode": "asynch"}
             url = url_set_query_params(url, query_params)
@@ -527,14 +530,14 @@ class IliasPage:
 
         return self._find_opencast_video_entries_no_paging()
 
-    def _find_opencast_video_entries_paginated(self) -> List[IliasPageElement]:
-        table_element: Tag = self._soup.find(name="table", id=re.compile(r"tbl_xoct_.+"))
+    def _find_opencast_video_entries_paginated(self) -> list[IliasPageElement]:
+        table_element = cast(Optional[Tag], self._soup.find(name="table", id=re.compile(r"tbl_xoct_.+")))
 
         if table_element is None:
             log.warn("Couldn't increase elements per page (table not found). I might miss elements.")
             return self._find_opencast_video_entries_no_paging()
 
-        id_match = re.match(r"tbl_xoct_(.+)", table_element.attrs["id"])
+        id_match = re.match(r"tbl_xoct_(.+)", cast(str, table_element.attrs["id"]))
         if id_match is None:
             log.warn("Couldn't increase elements per page (table id not found). I might miss elements.")
             return self._find_opencast_video_entries_no_paging()
@@ -548,16 +551,16 @@ class IliasPage:
         log.explain("Disabled pagination, retrying folder as a new entry")
         return [IliasPageElement.create_new(IliasElementType.OPENCAST_VIDEO_FOLDER, url, "")]
 
-    def _find_opencast_video_entries_no_paging(self) -> List[IliasPageElement]:
+    def _find_opencast_video_entries_no_paging(self) -> list[IliasPageElement]:
         """
         Crawls the "second stage" video page. This page contains the actual video urls.
         """
         # Video start links are marked with an "Abspielen" link
-        video_links: List[Tag] = self._soup.findAll(
+        video_links = cast(list[Tag], self._soup.find_all(
             name="a", text=re.compile(r"\s*(Abspielen|Play)\s*")
-        )
+        ))
 
-        results: List[IliasPageElement] = []
+        results: list[IliasPageElement] = []
 
         for link in video_links:
             results.append(self._listed_opencast_video_to_element(link))
@@ -569,12 +572,12 @@ class IliasPage:
         # 6th or 7th child (1 indexed) is the modification time string. Try to find it
         # by parsing backwards from the end and finding something that looks like a date
         modification_time = None
-        row: Tag = link.parent.parent.parent
+        row: Tag = link.parent.parent.parent  # type: ignore
         column_count = len(row.select("td.std"))
         for index in range(column_count, 0, -1):
-            modification_string = link.parent.parent.parent.select_one(
+            modification_string = link.parent.parent.parent.select_one(  # type: ignore
                 f"td.std:nth-child({index})"
-            ).getText().strip()
+            ).get_text().strip()
             if match := re.search(r"\d+\.\d+.\d+ \d+:\d+", modification_string):
                 modification_time = datetime.strptime(match.group(0), "%d.%m.%Y %H:%M")
                 break
@@ -583,7 +586,7 @@ class IliasPage:
             log.warn(f"Could not determine upload time for {link}")
             modification_time = datetime.now()
 
-        title = link.parent.parent.parent.select_one("td.std:nth-child(3)").getText().strip()
+        title = link.parent.parent.parent.select_one("td.std:nth-child(3)").get_text().strip()  # type: ignore
         title += ".mp4"
 
         video_name: str = _sanitize_path_name(title)
@@ -595,33 +598,34 @@ class IliasPage:
             IliasElementType.OPENCAST_VIDEO_PLAYER, video_url, video_name, modification_time
         )
 
-    def _find_exercise_entries(self) -> List[IliasPageElement]:
+    def _find_exercise_entries(self) -> list[IliasPageElement]:
         if self._soup.find(id="tab_submission"):
             log.explain("Found submission tab. This is an exercise detail page")
             return self._find_exercise_entries_detail_page()
         log.explain("Found no submission tab. This is an exercise root page")
         return self._find_exercise_entries_root_page()
 
-    def _find_exercise_entries_detail_page(self) -> List[IliasPageElement]:
-        results: List[IliasPageElement] = []
+    def _find_exercise_entries_detail_page(self) -> list[IliasPageElement]:
+        results: list[IliasPageElement] = []
 
         # Find all download links in the container (this will contain all the files)
-        download_links: List[Tag] = self._soup.findAll(
+        download_links = cast(list[Tag], self._soup.find_all(
             name="a",
             # download links contain the given command class
-            attrs={"href": lambda x: x and "cmd=download" in x},
+            attrs={"href": lambda x: x is not None and "cmd=download" in x},
             text="Download"
-        )
+        ))
 
         for link in download_links:
-            parent_row: Tag = link.findParent("tr")
-            children: List[Tag] = parent_row.findChildren("td")
+            parent_row: Tag = cast(Tag, link.find_parent("tr"))
+            children = cast(list[Tag], parent_row.find_all("td"))
 
-            name = _sanitize_path_name(children[1].getText().strip())
+            name = _sanitize_path_name(children[1].get_text().strip())
             log.explain(f"Found exercise detail entry {name!r}")
 
+            date = None
             for child in reversed(children):
-                date = demangle_date(child.getText().strip(), fail_silently=True)
+                date = demangle_date(child.get_text().strip(), fail_silently=True)
                 if date is not None:
                     break
             if date is None:
@@ -636,30 +640,33 @@ class IliasPage:
 
         return results
 
-    def _find_exercise_entries_root_page(self) -> List[IliasPageElement]:
-        results: List[IliasPageElement] = []
+    def _find_exercise_entries_root_page(self) -> list[IliasPageElement]:
+        results: list[IliasPageElement] = []
 
         # Each assignment is in an accordion container
-        assignment_containers: List[Tag] = self._soup.select(".il_VAccordionInnerContainer")
+        assignment_containers: list[Tag] = self._soup.select(".il_VAccordionInnerContainer")
 
         for container in assignment_containers:
             # Fetch the container name out of the header to use it in the path
-            container_name = container.select_one(".ilAssignmentHeader").getText().strip()
+            container_name = cast(Tag, container.select_one(".ilAssignmentHeader")).get_text().strip()
             log.explain(f"Found exercise container {container_name!r}")
 
             # Find all download links in the container (this will contain all the files)
-            files: List[Tag] = container.findAll(
+            files = cast(list[Tag], container.find_all(
                 name="a",
                 # download links contain the given command class
-                attrs={"href": lambda x: x and "cmdClass=ilexsubmissiongui" in x},
+                attrs={"href": lambda x: x is not None and "cmdClass=ilexsubmissiongui" in x},
                 text="Download"
-            )
+            ))
 
             # Grab each file as you now have the link
             for file_link in files:
                 # Two divs, side by side. Left is the name, right is the link ==> get left
                 # sibling
-                file_name = file_link.parent.findPrevious(name="div").getText().strip()
+                file_name = cast(
+                    Tag,
+                    cast(Tag, file_link.parent).find_previous(name="div")
+                ).get_text().strip()
                 url = self._abs_url_from_link(file_link)
 
                 log.explain(f"Found exercise entry {file_name!r}")
@@ -672,21 +679,21 @@ class IliasPage:
                 ))
 
             # Find all links to file listings (e.g. "Submitted Files" for groups)
-            file_listings: List[Tag] = container.findAll(
+            file_listings = cast(list[Tag], container.find_all(
                 name="a",
                 # download links contain the given command class
-                attrs={"href": lambda x: x and "cmdclass=ilexsubmissionfilegui" in x.lower()}
-            )
+                attrs={"href": lambda x: x is not None and "cmdclass=ilexsubmissionfilegui" in x.lower()}
+            ))
 
             # Add each listing as a new
             for listing in file_listings:
-                parent_container: Tag = listing.findParent(
-                    "div", attrs={"class": lambda x: x and "form-group" in x}
-                )
-                label_container: Tag = parent_container.find(
-                    attrs={"class": lambda x: x and "control-label" in x}
-                )
-                file_name = label_container.getText().strip()
+                parent_container = cast(Tag, listing.find_parent(
+                    "div", attrs={"class": lambda x: x is not None and "form-group" in x}
+                ))
+                label_container = cast(Tag, parent_container.find(
+                    attrs={"class": lambda x: x is not None and "control-label" in x}
+                ))
+                file_name = label_container.get_text().strip()
                 url = self._abs_url_from_link(listing)
                 log.explain(f"Found exercise detail {file_name!r} at {url}")
                 results.append(IliasPageElement.create_new(
@@ -699,10 +706,10 @@ class IliasPage:
 
         return results
 
-    def _find_normal_entries(self) -> List[IliasPageElement]:
-        result: List[IliasPageElement] = []
+    def _find_normal_entries(self) -> list[IliasPageElement]:
+        result: list[IliasPageElement] = []
 
-        links: List[Tag] = []
+        links: list[Tag] = []
         # Fetch all links and throw them to the general interpreter
         if self._is_course_overview_page():
             log.explain("Page is a course overview page, adjusting link selector")
@@ -716,9 +723,9 @@ class IliasPage:
             parents = [_sanitize_path_name(x) for x in self._find_upwards_folder_hierarchy(link)]
 
             if parents:
-                element_name = "/".join(parents) + "/" + _sanitize_path_name(link.getText())
+                element_name = "/".join(parents) + "/" + _sanitize_path_name(link.get_text())
             else:
-                element_name = _sanitize_path_name(link.getText())
+                element_name = _sanitize_path_name(link.get_text())
 
             element_type = self._find_type_from_link(element_name, link, abs_url)
             description = self._find_link_description(link)
@@ -750,17 +757,17 @@ class IliasPage:
 
         return result
 
-    def _find_mediacast_videos(self) -> List[IliasPageElement]:
-        videos: List[IliasPageElement] = []
+    def _find_mediacast_videos(self) -> list[IliasPageElement]:
+        videos: list[IliasPageElement] = []
 
-        for elem in cast(List[Tag], self._soup.select(".ilPlayerPreviewOverlayOuter")):
+        for elem in cast(list[Tag], self._soup.select(".ilPlayerPreviewOverlayOuter")):
             element_name = _sanitize_path_name(
-                elem.select_one(".ilPlayerPreviewDescription").getText().strip()
+                cast(Tag, elem.select_one(".ilPlayerPreviewDescription")).get_text().strip()
             )
             if not element_name.endswith(".mp4"):
                 # just to make sure it has some kinda-alrightish ending
                 element_name = element_name + ".mp4"
-            video_element = elem.find(name="video")
+            video_element = cast(Optional[Tag], elem.find(name="video"))
             if not video_element:
                 _unexpected_html_warning()
                 log.warn_contd(f"No <video> element found for mediacast video '{element_name}'")
@@ -768,18 +775,18 @@ class IliasPage:
 
             videos.append(IliasPageElement.create_new(
                 typ=IliasElementType.MEDIACAST_VIDEO,
-                url=self._abs_url_from_relative(video_element.get("src")),
+                url=self._abs_url_from_relative(cast(str, video_element.get("src"))),
                 name=element_name,
-                mtime=self._find_mediacast_video_mtime(elem.findParent(name="td"))
+                mtime=self._find_mediacast_video_mtime(cast(Tag, elem.find_parent(name="td")))
             ))
 
         return videos
 
-    def _find_mob_videos(self) -> List[IliasPageElement]:
-        videos: List[IliasPageElement] = []
+    def _find_mob_videos(self) -> list[IliasPageElement]:
+        videos: list[IliasPageElement] = []
 
         for figure in self._soup.select("figure.ilc_media_cont_MediaContainerHighlighted"):
-            title = figure.select_one("figcaption").getText().strip() + ".mp4"
+            title = cast(Tag, figure.select_one("figcaption")).get_text().strip() + ".mp4"
             video_element = figure.select_one("video")
             if not video_element:
                 _unexpected_html_warning()
@@ -789,7 +796,7 @@ class IliasPage:
             url = None
             for source in video_element.select("source"):
                 if source.get("type", "") == "video/mp4":
-                    url = source.get("src")
+                    url = cast(Optional[str], source.get("src"))
                     break
 
             if url is None:
@@ -807,15 +814,15 @@ class IliasPage:
         return videos
 
     def _find_mediacast_video_mtime(self, enclosing_td: Tag) -> Optional[datetime]:
-        description_td: Tag = enclosing_td.findPreviousSibling("td")
+        description_td = cast(Tag, enclosing_td.find_previous_sibling("td"))
         if not description_td:
             return None
 
-        meta_tag: Tag = description_td.find_all("p")[-1]
+        meta_tag = cast(Optional[Tag], description_td.find_all("p")[-1])
         if not meta_tag:
             return None
 
-        updated_str = meta_tag.getText().strip().replace("\n", " ")
+        updated_str = meta_tag.get_text().strip().replace("\n", " ")
         updated_str = re.sub(".+?: ", "", updated_str)
         return demangle_date(updated_str)
 
@@ -826,20 +833,20 @@ class IliasPage:
         It is in the same general div and this whole thing is guesswork.
         Therefore, you should check for meetings before passing them in this function.
         """
-        parents: List[Tag] = list(tag.parents)
+        parents: list[Tag] = list(tag.parents)
         for parent in parents:
             if not parent.get("class"):
                 continue
 
             # We should not crawl files under meetings
-            if "ilContainerListItemContentCB" in parent.get("class"):
-                link: Tag = parent.parent.find("a")
+            if "ilContainerListItemContentCB" in cast(str, parent.get("class")):
+                link: Tag = parent.parent.find("a")  # type: ignore
                 type = IliasPage._find_type_from_folder_like(link, self._page_url)
                 return type == IliasElementType.MEETING
 
         return False
 
-    def _find_upwards_folder_hierarchy(self, tag: Tag) -> List[str]:
+    def _find_upwards_folder_hierarchy(self, tag: Tag) -> list[str]:
         """
         Interprets accordions and expandable blocks as virtual folders and returns them
         in order. This allows us to find a file named "Test" in an accordion "Acc" as "Acc/Test"
@@ -848,7 +855,7 @@ class IliasPage:
 
         outer_accordion_content: Optional[Tag] = None
 
-        parents: List[Tag] = list(tag.parents)
+        parents: list[Tag] = list(tag.parents)
         for parent in parents:
             if not parent.get("class"):
                 continue
@@ -857,57 +864,63 @@ class IliasPage:
             # but some JS later transforms them into an accordion.
 
             # This is for these weird JS-y blocks and custom item groups
-            if "ilContainerItemsContainer" in parent.get("class"):
-                data_store_url = parent.parent.get("data-store-url", "").lower()
+            if "ilContainerItemsContainer" in cast(str, parent.get("class")):
+                data_store_url = parent.parent.get("data-store-url", "").lower()  # type: ignore
                 is_custom_item_group = "baseclass=ilcontainerblockpropertiesstoragegui" in data_store_url \
                                        and "cont_block_id=" in data_store_url
                 # I am currently under the impression that *only* those JS blocks have an
                 # ilNoDisplay class.
-                if not is_custom_item_group and "ilNoDisplay" not in parent.get("class"):
+                if not is_custom_item_group and "ilNoDisplay" not in cast(str, parent.get("class")):
                     continue
-                prev: Tag = parent.findPreviousSibling("div")
-                if "ilContainerBlockHeader" in prev.get("class"):
+                prev = cast(Tag, parent.find_previous_sibling("div"))
+                if "ilContainerBlockHeader" in cast(str, prev.get("class")):
                     if prev.find("h3"):
-                        found_titles.append(prev.find("h3").getText().strip())
+                        found_titles.append(cast(Tag, prev.find("h3")).get_text().strip())
                     else:
-                        found_titles.append(prev.find("h2").getText().strip())
+                        found_titles.append(cast(Tag, prev.find("h2")).get_text().strip())
 
             # And this for real accordions
-            if "il_VAccordionContentDef" in parent.get("class"):
+            if "il_VAccordionContentDef" in cast(str, parent.get("class")):
                 outer_accordion_content = parent
                 break
 
         if outer_accordion_content:
-            accordion_tag: Tag = outer_accordion_content.parent
-            head_tag: Tag = accordion_tag.find(attrs={
-                "class": lambda x: x and "ilc_va_ihead_VAccordIHead" in x
-            })
-            found_titles.append(head_tag.getText().strip())
+            accordion_tag = cast(Tag, outer_accordion_content.parent)
+            head_tag = cast(Tag, accordion_tag.find(attrs={
+                "class": lambda x: x is not None and "ilc_va_ihead_VAccordIHead" in x
+            }))
+            found_titles.append(head_tag.get_text().strip())
 
         return [_sanitize_path_name(x) for x in reversed(found_titles)]
 
     def _find_link_description(self, link: Tag) -> Optional[str]:
-        tile: Tag = link.findParent("div", {"class": lambda x: x and "il_ContainerListItem" in x})
+        tile = cast(
+            Tag,
+            link.find_parent("div", {"class": lambda x: x is not None and "il_ContainerListItem" in x})
+        )
         if not tile:
             return None
-        description_element: Tag = tile.find("div", {"class": lambda x: x and "il_Description" in x})
+        description_element = cast(
+            Tag,
+            tile.find("div", {"class": lambda x: x is not None and "il_Description" in x})
+        )
         if not description_element:
             return None
-        return description_element.getText().strip()
+        return description_element.get_text().strip()
 
     def _file_to_element(self, name: str, url: str, link_element: Tag) -> IliasPageElement:
         # Files have a list of properties (type, modification date, size, etc.)
         # In a series of divs.
         # Find the parent containing all those divs, so we can filter our what we need
-        properties_parent: Tag = link_element.findParent(
+        properties_parent = cast(Tag, cast(Tag, link_element.find_parent(
             "div", {"class": lambda x: "il_ContainerListItem" in x}
-        ).select_one(".il_ItemProperties")
+        )).select_one(".il_ItemProperties"))
         # The first one is always the filetype
-        file_type = properties_parent.select_one("span.il_ItemProperty").getText().strip()
+        file_type = cast(Tag, properties_parent.select_one("span.il_ItemProperty")).get_text().strip()
 
         # The rest does not have a stable order. Grab the whole text and reg-ex the date
         # out of it
-        all_properties_text = properties_parent.getText().strip()
+        all_properties_text = properties_parent.get_text().strip()
         modification_date_match = re.search(
             r"(((\d+\. \w+ \d+)|(Gestern|Yesterday)|(Heute|Today)|(Morgen|Tomorrow)), \d+:\d+)",
             all_properties_text
@@ -927,14 +940,14 @@ class IliasPage:
             IliasElementType.FILE, url, full_path, modification_date, skip_sanitize=True
         )
 
-    def _find_cards(self) -> List[IliasPageElement]:
-        result: List[IliasPageElement] = []
+    def _find_cards(self) -> list[IliasPageElement]:
+        result: list[IliasPageElement] = []
 
-        card_titles: List[Tag] = self._soup.select(".card-title a")
+        card_titles: list[Tag] = self._soup.select(".card-title a")
 
         for title in card_titles:
             url = self._abs_url_from_link(title)
-            name = _sanitize_path_name(title.getText().strip())
+            name = _sanitize_path_name(title.get_text().strip())
             type = self._find_type_from_card(title)
 
             if not type:
@@ -944,25 +957,25 @@ class IliasPage:
 
             result.append(IliasPageElement.create_new(type, url, name))
 
-        card_button_tiles: List[Tag] = self._soup.select(".card-title button")
+        card_button_tiles: list[Tag] = self._soup.select(".card-title button")
 
         for button in card_button_tiles:
-            regex = re.compile(button["id"] + r".*window.open\(['\"](.+?)['\"]")
+            regex = re.compile(button["id"] + r".*window.open\(['\"](.+?)['\"]")  # type: ignore
             res = regex.search(str(self._soup))
             if not res:
                 _unexpected_html_warning()
                 log.warn_contd(f"Could not find click handler target for {button}")
                 continue
             url = self._abs_url_from_relative(res.group(1))
-            name = _sanitize_path_name(button.getText().strip())
+            name = _sanitize_path_name(button.get_text().strip())
             type = self._find_type_from_card(button)
-            caption_parent = button.findParent(
+            caption_parent = cast(Tag, button.find_parent(
                 "div",
-                attrs={"class": lambda x: x and "caption" in x},
-            )
+                attrs={"class": lambda x: x is not None and "caption" in x},
+            ))
             caption_container = caption_parent.find_next_sibling("div")
             if caption_container:
-                description = caption_container.getText().strip()
+                description = caption_container.get_text().strip()
             else:
                 description = None
 
@@ -992,7 +1005,7 @@ class IliasPage:
             log.warn_contd(f"Tried to figure out element type, but did not find an icon for {card_title}")
             return None
 
-        icon: Tag = card_root.select_one(".il-card-repository-head .icon")
+        icon = cast(Tag, card_root.select_one(".il-card-repository-head .icon"))
 
         if "opencast" in icon["class"] or "xoct" in icon["class"]:
             return IliasElementType.OPENCAST_VIDEO_FOLDER_MAYBE_PAGINATED
@@ -1125,7 +1138,7 @@ class IliasPage:
 
         is_session_expansion_button = found_parent.find(
             "a",
-            attrs={"href": lambda x: x and ("crs_next_sess=" in x or "crs_prev_sess=" in x)}
+            attrs={"href": lambda x: x is not None and ("crs_next_sess=" in x or "crs_prev_sess=" in x)}
         )
         if img_tag is None and is_session_expansion_button:
             log.explain("Found session expansion button, skipping it as it has no content")
@@ -1168,19 +1181,19 @@ class IliasPage:
     @staticmethod
     def is_logged_in(soup: BeautifulSoup) -> bool:
         # Normal ILIAS pages
-        mainbar: Optional[Tag] = soup.find(class_="il-maincontrols-metabar")
+        mainbar = cast(Optional[Tag], soup.find(class_="il-maincontrols-metabar"))
         if mainbar is not None:
-            login_button = mainbar.find(attrs={"href": lambda x: x and "login.php" in x})
+            login_button = mainbar.find(attrs={"href": lambda x: x is not None and "login.php" in x})
             shib_login = soup.find(id="button_shib_login")
             return not login_button and not shib_login
 
         # Personal Desktop
-        if soup.find("a", attrs={"href": lambda x: x and "block_type=pditems" in x}):
+        if soup.find("a", attrs={"href": lambda x: x is not None and "block_type=pditems" in x}):
             return True
 
         # Empty personal desktop has zero (0) markers. Match on the text...
         if alert := soup.select_one(".alert-info"):
-            text = alert.getText().lower()
+            text = alert.get_text().lower()
             if "you have not yet selected any favourites" in text:
                 return True
             if "sie haben aktuell noch keine favoriten ausgewählt" in text:
@@ -1208,7 +1221,7 @@ class IliasPage:
         """
         Create an absolute url from an <a> tag.
         """
-        return self._abs_url_from_relative(link_tag.get("href"))
+        return self._abs_url_from_relative(cast(str, link_tag.get("href")))
 
     def _abs_url_from_relative(self, relative_url: str) -> str:
         """
@@ -1218,10 +1231,10 @@ class IliasPage:
 
     @staticmethod
     def get_soup_permalink(soup: BeautifulSoup) -> Optional[str]:
-        perma_link_element: Tag = soup.select_one(".il-footer-permanent-url > a")
+        perma_link_element = cast(Tag, soup.select_one(".il-footer-permanent-url > a"))
         if not perma_link_element or not perma_link_element.get("href"):
             return None
-        return perma_link_element.get("href")
+        return cast(Optional[str], perma_link_element.get("href"))
 
 
 def _unexpected_html_warning() -> None:
@@ -1298,11 +1311,11 @@ def _sanitize_path_name(name: str) -> str:
     return name.replace("/", "-").replace("\\", "-").strip()
 
 
-def parse_ilias_forum_export(forum_export: BeautifulSoup) -> List[IliasForumThread]:
+def parse_ilias_forum_export(forum_export: BeautifulSoup) -> list[IliasForumThread]:
     elements = []
     for p in forum_export.select("body > p"):
         title_tag = p
-        content_tag = p.find_next_sibling("ul")
+        content_tag = cast(Optional[Tag], p.find_next_sibling("ul"))
 
         if not content_tag:
             # ILIAS allows users to delete the initial post while keeping the thread open
@@ -1310,7 +1323,7 @@ def parse_ilias_forum_export(forum_export: BeautifulSoup) -> List[IliasForumThre
             # I am not sure why you would want this, but ILIAS makes it easy to do.
             continue
 
-        title = p.find("b").text
+        title = cast(Tag, p.find("b")).text
         if ":" in title:
             title = title[title.find(":") + 1:]
         title = title.strip()
@@ -1321,7 +1334,7 @@ def parse_ilias_forum_export(forum_export: BeautifulSoup) -> List[IliasForumThre
 
 
 def _guess_timestamp_from_forum_post_content(content: Tag) -> Optional[datetime]:
-    posts: Optional[Tag] = content.select(".ilFrmPostHeader > span.small")
+    posts = cast(Optional[Tag], content.select(".ilFrmPostHeader > span.small"))
     if not posts:
         return None
 

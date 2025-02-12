@@ -1,8 +1,8 @@
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 import aiohttp
 import yarl
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 from ...auth import Authenticator, TfaAuthenticator
 from ...logging import log
@@ -48,8 +48,8 @@ class ShibbolethLogin:
         while not self._login_successful(soup):
             # Searching the form here so that this fails before asking for
             # credentials rather than after asking.
-            form = soup.find("form", {"method": "post"})
-            action = form["action"]
+            form = cast(Tag, soup.find("form", {"method": "post"}))
+            action = cast(str, form["action"])
 
             # Equivalent: Enter credentials in
             # https://idp.scc.kit.edu/idp/profile/SAML2/Redirect/SSO
@@ -62,7 +62,7 @@ class ShibbolethLogin:
                 "fudis_web_authn_assertion_input": "",
             }
             if csrf_token_input := form.find("input", {"name": "csrf_token"}):
-                data["csrf_token"] = csrf_token_input["value"]
+                data["csrf_token"] = csrf_token_input["value"]  # type: ignore
             soup = await _post(sess, url, data)
 
             if soup.find(id="attributeRelease"):
@@ -79,14 +79,14 @@ class ShibbolethLogin:
 
         # Equivalent: Being redirected via JS automatically
         # (or clicking "Continue" if you have JS disabled)
-        relay_state = soup.find("input", {"name": "RelayState"})
-        saml_response = soup.find("input", {"name": "SAMLResponse"})
-        url = form = soup.find("form", {"method": "post"})["action"]
+        relay_state = cast(Tag, soup.find("input", {"name": "RelayState"}))
+        saml_response = cast(Tag, soup.find("input", {"name": "SAMLResponse"}))
+        url = form = soup.find("form", {"method": "post"})["action"]  # type: ignore
         data = {  # using the info obtained in the while loop above
-            "RelayState": relay_state["value"],
-            "SAMLResponse": saml_response["value"],
+            "RelayState": cast(str, relay_state["value"]),
+            "SAMLResponse": cast(str, saml_response["value"]),
         }
-        await sess.post(url, data=data)
+        await sess.post(cast(str, url), data=data)
 
     async def _authenticate_tfa(
         self, session: aiohttp.ClientSession, soup: BeautifulSoup, shib_url: yarl.URL
@@ -98,8 +98,8 @@ class ShibbolethLogin:
 
         # Searching the form here so that this fails before asking for
         # credentials rather than after asking.
-        form = soup.find("form", {"method": "post"})
-        action = form["action"]
+        form = cast(Tag, soup.find("form", {"method": "post"}))
+        action = cast(str, form["action"])
 
         # Equivalent: Enter token in
         # https://idp.scc.kit.edu/idp/profile/SAML2/Redirect/SSO
@@ -110,7 +110,7 @@ class ShibbolethLogin:
             "fudis_otp_input": tfa_token,
         }
         if csrf_token_input := form.find("input", {"name": "csrf_token"}):
-            data["csrf_token"] = csrf_token_input["value"]
+            data["csrf_token"] = csrf_token_input["value"]  # type: ignore
         return await _post(session, url, data)
 
     @staticmethod

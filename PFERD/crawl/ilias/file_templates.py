@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Optional
+from typing import Optional, cast
 
 import bs4
 
@@ -139,13 +139,13 @@ def learning_module_template(body: bs4.Tag, name: str, prev: Optional[str], next
         </div>
     """
     if prev and body.select_one(".ilc_page_lnav_LeftNavigation"):
-        text = body.select_one(".ilc_page_lnav_LeftNavigation").getText().strip()
+        text = cast(bs4.Tag, body.select_one(".ilc_page_lnav_LeftNavigation")).get_text().strip()
         left = f'<a href="{prev}">{text}</a>'
     else:
         left = "<span></span>"
 
     if next and body.select_one(".ilc_page_rnav_RightNavigation"):
-        text = body.select_one(".ilc_page_rnav_RightNavigation").getText().strip()
+        text = cast(bs4.Tag, body.select_one(".ilc_page_rnav_RightNavigation")).get_text().strip()
         right = f'<a href="{next}">{text}</a>'
     else:
         right = "<span></span>"
@@ -160,8 +160,8 @@ def learning_module_template(body: bs4.Tag, name: str, prev: Optional[str], next
             "{{left}}", left).replace("{{right}}", right).encode())
         )
 
-    body = body.prettify()
-    return _learning_module_template.replace("{{body}}", body).replace("{{name}}", name)
+    body_str = cast(str, body.prettify())
+    return _learning_module_template.replace("{{body}}", body_str).replace("{{name}}", name)
 
 
 class Links(Enum):

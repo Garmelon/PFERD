@@ -257,6 +257,7 @@ instance's greatest bottleneck.
             async with cl:
                 next_stage_url: Optional[str] = url
                 current_parent = current_element
+                page = None
 
                 while next_stage_url:
                     soup = await self._get_page(next_stage_url)
@@ -278,6 +279,7 @@ instance's greatest bottleneck.
                     else:
                         next_stage_url = None
 
+                page = cast(IliasPage, page)
                 elements.extend(page.get_child_elements())
                 if description_string := page.get_description():
                     description.append(description_string)
@@ -461,10 +463,10 @@ instance's greatest bottleneck.
         if not dl:
             return
 
-        async with dl as (bar, sink):
+        async with dl as (_bar, sink):
             description = clean(insert_base_markup(description))
-            description = await self.internalize_images(description)
-            sink.file.write(description.prettify().encode("utf-8"))
+            description_tag = await self.internalize_images(description)
+            sink.file.write(cast(str, description_tag.prettify()).encode("utf-8"))
             sink.done()
 
     @anoncritical
@@ -483,7 +485,7 @@ instance's greatest bottleneck.
             async with self.session.get(export_url, allow_redirects=False) as resp:
                 # No redirect means we were authenticated
                 if hdrs.LOCATION not in resp.headers:
-                    return soupify(await resp.read()).select_one("a").get("href").strip()
+                    return soupify(await resp.read()).select_one("a").get("href").strip()  # type: ignore
                 # We are either unauthenticated or the link is not active
                 new_url = resp.headers[hdrs.LOCATION].lower()
                 if "baseclass=illinkresourcehandlergui" in new_url and "cmd=infoscreen" in new_url:
@@ -707,6 +709,8 @@ instance's greatest bottleneck.
 
         async with cl:
             next_stage_url = element.url
+            page = None
+
             while next_stage_url:
                 log.explain_topic(f"Parsing HTML page for {fmt_path(cl.path)}")
                 log.explain(f"URL: {next_stage_url}")
@@ -719,7 +723,7 @@ instance's greatest bottleneck.
                 else:
                     break
 
-            download_data = page.get_download_forum_data()
+            download_data = cast(IliasPage, page).get_download_forum_data()
             if not download_data:
                 raise CrawlWarning("Failed to extract forum data")
             if download_data.empty:
@@ -751,8 +755,8 @@ instance's greatest bottleneck.
 
         async with maybe_dl as (bar, sink):
             content = "<!DOCTYPE html>\n"
-            content += element.title_tag.prettify()
-            content += element.content_tag.prettify()
+            content += cast(str, element.title_tag.prettify())
+            content += cast(str, element.content_tag.prettify())
             sink.file.write(content.encode("utf-8"))
             sink.done()
 
@@ -877,15 +881,15 @@ instance's greatest bottleneck.
                 continue
             if elem.name == "img":
                 if src := elem.attrs.get("src", None):
-                    url = urljoin(self._base_url, src)
+                    url = urljoin(self._base_url, cast(str, src))
                     if not url.startswith(self._base_url):
                         continue
                     log.explain(f"Internalizing {url!r}")
                     img = await self._get_authenticated(url)
                     elem.attrs["src"] = "data:;base64," + base64.b64encode(img).decode()
-            if elem.name == "iframe" and elem.attrs.get("src", "").startswith("//"):
+            if elem.name == "iframe" and cast(str, elem.attrs.get("src", "")).startswith("//"):
                 # For unknown reasons the protocol seems to be stripped.
-                elem.attrs["src"] = "https:" + elem.attrs["src"]
+                elem.attrs["src"] = "https:" + cast(str, elem.attrs["src"])
         return tag
 
     def _ensure_not_seen(self, element: IliasPageElement, parent_path: PurePath) -> None:
@@ -979,11 +983,11 @@ instance's greatest bottleneck.
             async with self.session.get(urljoin(self._base_url, "/login.php"), params=params) as request:
                 login_page = soupify(await request.read())
 
-            login_form = login_page.find("form", attrs={"name": "formlogin"})
+            login_form = cast(Optional[Tag], login_page.find("form", attrs={"name": "formlogin"}))
             if login_form is None:
                 raise CrawlError("Could not find the login form! Specified client id might be invalid.")
 
-            login_url = login_form.attrs.get("action")
+            login_url = cast(Optional[str], login_form.attrs.get("action"))
             if login_url is None:
                 raise CrawlError("Could not find the action URL in the login form!")
 
@@ -1004,14 +1008,14 @@ instance's greatest bottleneck.
     @staticmethod
     def _is_logged_in(soup: BeautifulSoup) -> bool:
         # Normal ILIAS pages
-        mainbar: Optional[Tag] = soup.find(class_="il-maincontrols-metabar")
+        mainbar = cast(Optional[Tag], soup.find(class_="il-maincontrols-metabar"))
         if mainbar is not None:
-            login_button = mainbar.find(attrs={"href": lambda x: x and "login.php" in x})
+            login_button = mainbar.find(attrs={"href": lambda x: x is not None and "login.php" in x})
             shib_login = soup.find(id="button_shib_login")
             return not login_button and not shib_login
 
         # Personal Desktop
-        if soup.find("a", attrs={"href": lambda x: x and "block_type=pditems" in x}):
+        if soup.find("a", attrs={"href": lambda x: x is not None and "block_type=pditems" in x}):
             return True
 
         # Video listing embeds do not have complete ILIAS html. Try to match them by

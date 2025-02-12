@@ -3,7 +3,7 @@ import http.cookies
 import ssl
 from datetime import datetime
 from pathlib import Path, PurePath
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, cast
 
 import aiohttp
 import certifi
@@ -187,12 +187,12 @@ class HttpCrawler(Crawler):
             if level == 0 or (level == 1 and drop_h1):
                 return PurePath()
 
-            level_heading = tag.find_previous(name=f"h{level}")
+            level_heading = cast(Optional[Tag], tag.find_previous(name=f"h{level}"))
 
             if level_heading is None:
                 return find_associated_headings(tag, level - 1)
 
-            folder_name = level_heading.getText().strip()
+            folder_name = level_heading.get_text().strip()
             return find_associated_headings(level_heading, level - 1) / folder_name
 
         # start at level <h3> because paragraph-level headings are usually too granular for folder names
@@ -231,6 +231,7 @@ class HttpCrawler(Crawler):
 
                 etag_header = resp.headers.get("ETag")
                 last_modified_header = resp.headers.get("Last-Modified")
+                last_modified = None
 
                 if last_modified_header:
                     try:

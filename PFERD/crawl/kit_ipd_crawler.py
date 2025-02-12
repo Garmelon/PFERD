@@ -3,7 +3,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import PurePath
-from typing import Any, Awaitable, Generator, Iterable, List, Optional, Pattern, Tuple, Union
+from typing import Any, Awaitable, Generator, Iterable, List, Optional, Pattern, Tuple, Union, cast
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup, Tag
@@ -156,11 +156,11 @@ class KitIpdCrawler(HttpCrawler):
         name = os.path.basename(url)
         return KitIpdFile(name, url)
 
-    def _find_file_links(self, tag: Union[Tag, BeautifulSoup]) -> List[Tag]:
-        return tag.findAll(name="a", attrs={"href": self._file_regex})
+    def _find_file_links(self, tag: Union[Tag, BeautifulSoup]) -> list[Tag]:
+        return cast(list[Tag], tag.find_all(name="a", attrs={"href": self._file_regex}))
 
     def _abs_url_from_link(self, url: str, link_tag: Tag) -> str:
-        return urljoin(url, link_tag.get("href"))
+        return urljoin(url, cast(str, link_tag.get("href")))
 
     async def _stream_from_url(self, url: str, path: PurePath, sink: FileSink, bar: ProgressBar) -> None:
         async with self.session.get(url, allow_redirects=False) as resp:
