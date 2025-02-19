@@ -25,6 +25,7 @@ ambiguous situations.
 ## Fixed
 - File links in report on Windows
 - TOTP authentication in KIT Shibboleth
+- Forum crawling only considering the first 20 entries
 
 ## 3.7.0 - 2024-11-13
 

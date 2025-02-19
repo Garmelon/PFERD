@@ -264,10 +264,22 @@ class IliasPage:
 
     def get_next_stage_element(self) -> Optional[IliasPageElement]:
         if self._is_forum_page():
-            if "trows=800" in self._page_url:
+            if "trows=" in self._page_url:
+                log.explain("Manual row override detected, accepting it as good")
                 return None
             log.explain("Requesting *all* forum threads")
-            return self._get_show_max_forum_entries_per_page_url()
+            thread_count = self._get_forum_thread_count()
+            if thread_count is not None and thread_count > 400:
+                log.warn(
+                    "Forum has more than 400 threads, fetching all threads will take a while. "
+                    "You might need to adjust your http_timeout config option."
+                )
+
+            # Fetch at least 400 in case we detect it wrong
+            if thread_count is not None and thread_count < 400:
+                thread_count = 400
+
+            return self._get_show_max_forum_entries_per_page_url(thread_count)
         if self._is_ilias_opencast_embedding():
             log.explain("Unwrapping opencast embedding")
             return self.get_child_elements()[0]
@@ -414,7 +426,9 @@ class IliasPage:
 
         return items
 
-    def _get_show_max_forum_entries_per_page_url(self) -> Optional[IliasPageElement]:
+    def _get_show_max_forum_entries_per_page_url(
+        self, wanted_max: Optional[int] = None
+    ) -> Optional[IliasPageElement]:
         correct_link = cast(Optional[Tag], self._soup.find(
             "a",
             attrs={"href": lambda x: x is not None and "trows=800" in x and "cmd=showThreads" in x}
@@ -424,8 +438,25 @@ class IliasPage:
             return None
 
         link = self._abs_url_from_link(correct_link)
+        if wanted_max is not None:
+            link = link.replace("trows=800", f"trows={wanted_max}")
 
         return IliasPageElement.create_new(IliasElementType.FORUM, link, "show all forum threads")
+
+    def _get_forum_thread_count(self) -> Optional[int]:
+        log.explain_topic("Trying to find forum thread count")
+
+        candidates = cast(list[Tag], self._soup.select(".ilTableFootLight"))
+        extract_regex = re.compile(r"\s(?P<max>\d+)\s*\)")
+
+        for candidate in candidates:
+            log.explain(f"Found thread count candidate: {candidate}")
+            if match := extract_regex.search(candidate.get_text()):
+                return int(match.group("max"))
+        else:
+            log.explain("Found no candidates to extract thread count from")
+
+        return None
 
     def _find_personal_desktop_entries(self) -> list[IliasPageElement]:
         items: list[IliasPageElement] = []
