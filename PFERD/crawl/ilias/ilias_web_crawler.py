@@ -19,7 +19,7 @@ from ...utils import fmt_path, soupify, url_set_query_param
 from ..crawler import CrawlError, CrawlToken, CrawlWarning, DownloadToken, anoncritical
 from ..http_crawler import HttpCrawler, HttpCrawlerSection
 from .async_helper import _iorepeat
-from .file_templates import Links, learning_module_template
+from .file_templates import Links, forum_thread_template, learning_module_template
 from .ilias_html_cleaner import clean, insert_base_markup
 from .kit_ilias_html import (IliasElementType, IliasForumThread, IliasLearningModulePage, IliasPage,
                              IliasPageElement, _sanitize_path_name, parse_ilias_forum_export)
@@ -786,10 +786,12 @@ instance's greatest bottleneck.
             return
 
         async with maybe_dl as (bar, sink):
-            content = "<!DOCTYPE html>\n"
-            content += cast(str, element.name_tag.prettify())
-            content += cast(str, await self.internalize_images(element.content_tag.prettify()))
-            sink.file.write(content.encode("utf-8"))
+            rendered = forum_thread_template(
+                element.name,
+                element.name_tag,
+                element.content_tag
+            )
+            sink.file.write(rendered.encode("utf-8"))
             sink.done()
 
     async def _handle_learning_module(

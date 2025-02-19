@@ -22,6 +22,9 @@ ambiguous situations.
 
 ## Unreleased
 
+### Changed
+- Added prettier CSS to forum threads
+
 ## Fixed
 - File links in report on Windows
 - TOTP authentication in KIT Shibboleth

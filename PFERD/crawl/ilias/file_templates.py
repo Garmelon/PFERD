@@ -126,6 +126,88 @@ _learning_module_template = """
 </html>
 """
 
+_forum_thread_template = """
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>ILIAS - Forum: {{name}}</title>
+        <style>
+            * {
+                box-sizing: border-box;
+            }
+            body {
+                font-family: 'Open Sans', Verdana, Arial, Helvetica, sans-serif;
+                padding: 8px;
+            }
+            ul, ol, p {
+                margin: 1.2em 0;
+            }
+            p {
+                margin-top: 8px;
+                margin-bottom: 8px;
+            }
+            a {
+                color: #00876c;
+                text-decoration: none;
+                cursor: pointer;
+            }
+            a:hover {
+                text-decoration: underline;
+            }
+            body > p:first-child > span:first-child {
+                font-size: 1.6em;
+            }
+            body > p:first-child > span:first-child ~ span.default {
+                display: inline-block;
+                font-size: 1.2em;
+                padding-bottom: 8px;
+            }
+            .ilFrmPostContent {
+                margin-top: 8px;
+                max-width: 64em;
+            }
+            .ilFrmPostContent > *:first-child {
+                margin-top: 0px;
+            }
+            .ilFrmPostTitle {
+                margin-top: 24px;
+                color: #00876c;
+                font-weight: bold;
+            }
+            #ilFrmPostList {
+                list-style: none;
+                padding-left: 0;
+            }
+            li.ilFrmPostRow {
+                padding: 3px 0 3px 3px;
+                margin-bottom: 24px;
+                border-left: 6px solid #dddddd;
+            }
+            .ilFrmPostRow > div {
+                display: flex;
+            }
+            .ilFrmPostImage img {
+                margin: 0 !important;
+                padding: 6px 9px 9px 6px;
+            }
+            .ilUserIcon {
+                width: 115px;
+            }
+            .small {
+                text-decoration: none;
+                font-size: 0.75rem;
+                color: #6f6f6f;
+            }
+        </style>
+    </head>
+    <body>
+    {{heading}}
+    {{content}}
+    </body>
+</html>
+""".strip()  # noqa: E501 line too long
+
 
 def learning_module_template(body: bs4.Tag, name: str, prev: Optional[str], next: Optional[str]) -> str:
     # Seems to be comments, ignore those.
@@ -162,6 +244,13 @@ def learning_module_template(body: bs4.Tag, name: str, prev: Optional[str], next
 
     body_str = cast(str, body.prettify())
     return _learning_module_template.replace("{{body}}", body_str).replace("{{name}}", name)
+
+
+def forum_thread_template(name: str, heading: bs4.Tag, content: bs4.Tag) -> str:
+    return _forum_thread_template \
+        .replace("{{name}}", name) \
+        .replace("{{heading}}", cast(str, heading.prettify())) \
+        .replace("{{content}}", cast(str, content.prettify()))
 
 
 class Links(Enum):
