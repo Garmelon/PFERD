@@ -789,7 +789,7 @@ instance's greatest bottleneck.
             rendered = forum_thread_template(
                 element.name,
                 element.name_tag,
-                element.content_tag
+                await self.internalize_images(element.content_tag)
             )
             sink.file.write(rendered.encode("utf-8"))
             sink.done()
