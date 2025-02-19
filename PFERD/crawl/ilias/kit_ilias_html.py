@@ -286,11 +286,9 @@ class IliasPage:
         return None
 
     def _is_forum_page(self) -> bool:
-        read_more_btn = self._soup.find(
-            "button",
-            attrs={"onclick": lambda x: x is not None and "cmdClass=ilobjforumgui&cmd=markAllRead" in x}
-        )
-        return read_more_btn is not None
+        if perma_link := self.get_permalink():
+            return "target=frm_" in perma_link
+        return False
 
     def _is_video_player(self) -> bool:
         return "paella_config_file" in str(self._soup)
