@@ -371,6 +371,22 @@ class OutputDirectory:
 
         raise OutputDirError("Failed to create temporary file")
 
+    def should_try_download(
+        self,
+        path: PurePath,
+        *,
+        etag_differs: Optional[bool] = None,
+        mtime: Optional[datetime] = None,
+        redownload: Optional[Redownload] = None,
+        on_conflict: Optional[OnConflict] = None,
+    ) -> bool:
+        heuristics = Heuristics(etag_differs, mtime)
+        redownload = self._redownload if redownload is None else redownload
+        on_conflict = self._on_conflict if on_conflict is None else on_conflict
+        local_path = self.resolve(path)
+
+        return self._should_download(local_path, heuristics, redownload, on_conflict)
+
     async def download(
             self,
             remote_path: PurePath,

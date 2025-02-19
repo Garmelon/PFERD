@@ -723,20 +723,52 @@ instance's greatest bottleneck.
                 else:
                     break
 
-            download_data = cast(IliasPage, page).get_download_forum_data()
-            if not download_data:
-                raise CrawlWarning("Failed to extract forum data")
-            if download_data.empty:
+            forum_threads: list[tuple[IliasPageElement, bool]] = []
+            for entry in cast(IliasPage, page).get_forum_entries():
+                path = cl.path / (_sanitize_path_name(entry.name) + ".html")
+                forum_threads.append((entry, self.should_try_download(path, mtime=entry.mtime)))
+
+            # Sort the ids. The forum download will *preserve* this ordering
+            forum_threads.sort(key=lambda elem: elem[0].id())
+
+            if not forum_threads:
                 log.explain("Forum had no threads")
                 return
-            html = await self._post_authenticated(download_data.url, download_data.form_data)
-            elements = parse_ilias_forum_export(soupify(html))
 
-        elements.sort(key=lambda elem: elem.title)
+            download_data = cast(IliasPage, page).get_download_forum_data(
+                [thread.id() for thread, download in forum_threads if download]
+            )
+            if not download_data:
+                raise CrawlWarning("Failed to extract forum data")
+
+            if not download_data.empty:
+                html = await self._post_authenticated(download_data.url, download_data.form_data)
+                elements = parse_ilias_forum_export(soupify(html))
+            else:
+                elements = []
+
+        # Verify that ILIAS does not change the order, as we depend on it later. Otherwise, we could not call
+        # download in the correct order, potentially messing up duplication handling.
+        expected_element_titles = [thread.name for thread, download in forum_threads if download]
+        actual_element_titles = [_sanitize_path_name(thread.name) for thread in elements]
+        if expected_element_titles != actual_element_titles:
+            raise CrawlWarning(
+                f"Forum thread order mismatch: {expected_element_titles} != {actual_element_titles}"
+            )
 
         tasks: List[Awaitable[None]] = []
-        for elem in elements:
-            tasks.append(asyncio.create_task(self._download_forum_thread(cl.path, elem)))
+        for thread, download in forum_threads:
+            if download:
+                # This only works because ILIAS keeps the order in the export
+                elem = elements.pop(0)
+                tasks.append(asyncio.create_task(self._download_forum_thread(cl.path, elem)))
+            else:
+                # We only downloaded the threads we "should_try_download"ed. This can be an
+                # over-approximation and all will be fine.
+                # If we selected too few, e.g. because there was a duplicate title and the mtime of the
+                # original is newer than the update of the duplicate.
+                # This causes stale data locally, but I consider this problem acceptable right now.
+                tasks.append(asyncio.create_task(self._download_forum_thread(cl.path, thread)))
 
         # And execute them
         await self.gather(tasks)
@@ -746,17 +778,17 @@ instance's greatest bottleneck.
     async def _download_forum_thread(
         self,
         parent_path: PurePath,
-        element: IliasForumThread,
+        element: Union[IliasForumThread, IliasPageElement]
     ) -> None:
-        path = parent_path / (_sanitize_path_name(element.title) + ".html")
+        path = parent_path / (_sanitize_path_name(element.name) + ".html")
         maybe_dl = await self.download(path, mtime=element.mtime)
-        if not maybe_dl:
+        if not maybe_dl or not isinstance(element, IliasForumThread):
             return
 
         async with maybe_dl as (bar, sink):
             content = "<!DOCTYPE html>\n"
-            content += cast(str, element.title_tag.prettify())
-            content += cast(str, element.content_tag.prettify())
+            content += cast(str, element.name_tag.prettify())
+            content += cast(str, await self.internalize_images(element.content_tag.prettify()))
             sink.file.write(content.encode("utf-8"))
             sink.done()
 

@@ -294,6 +294,35 @@ class Crawler(ABC):
         log.explain("Answer: Yes")
         return CrawlToken(self._limiter, path)
 
+    def should_try_download(
+            self,
+            path: PurePath,
+            *,
+            etag_differs: Optional[bool] = None,
+            mtime: Optional[datetime] = None,
+            redownload: Optional[Redownload] = None,
+            on_conflict: Optional[OnConflict] = None,
+    ) -> bool:
+        log.explain_topic(f"Decision: Should Download {fmt_path(path)}")
+
+        if self._transformer.transform(path) is None:
+            log.explain("Answer: No (ignored)")
+            return False
+
+        should_download = self._output_dir.should_try_download(
+            path,
+            etag_differs=etag_differs,
+            mtime=mtime,
+            redownload=redownload,
+            on_conflict=on_conflict
+        )
+        if should_download:
+            log.explain("Answer: Yes")
+            return True
+        else:
+            log.explain("Answer: No")
+            return False
+
     async def download(
             self,
             path: PurePath,

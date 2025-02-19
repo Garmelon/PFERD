@@ -22,6 +22,7 @@ class IliasElementType(Enum):
     FILE = "file"
     FOLDER = "folder"
     FORUM = "forum"
+    FORUM_THREAD = "forum_thread"
     INFO_TAB = "info_tab"
     LEARNING_MODULE = "learning_module"
     LINK = "link"
@@ -54,6 +55,7 @@ class IliasPageElement:
             r"fold_(?P<id>\d+)",
             r"frm_(?P<id>\d+)",
             r"exc_(?P<id>\d+)",
+            r"thr_pk=(?P<id>\d+)",  # forums
             r"ref_id=(?P<id>\d+)",
             r"target=[a-z]+_(?P<id>\d+)",
             r"mm_(?P<id>\d+)"
@@ -123,8 +125,8 @@ class IliasDownloadForumData:
 
 @dataclass
 class IliasForumThread:
-    title: str
-    title_tag: Tag
+    name: str
+    name_tag: Tag
     content_tag: Tag
     mtime: Optional[datetime]
 
@@ -242,7 +244,36 @@ class IliasPage:
             return url
         return None
 
-    def get_download_forum_data(self) -> Optional[IliasDownloadForumData]:
+    def get_forum_entries(self) -> list[IliasPageElement]:
+        form = self._get_forum_form()
+        if not form:
+            return []
+        threads = []
+
+        for row in cast(list[Tag], form.select("table > tbody > tr")):
+            url_tag = cast(
+                Optional[Tag],
+                row.find(name="a", attrs={"href": lambda x: x is not None and "cmd=viewthread" in x.lower()})
+            )
+            if url_tag is None:
+                log.explain(f"Skipping row without URL: {row}")
+                continue
+            name = url_tag.get_text().strip()
+            columns = [td.get_text().strip() for td in cast(list[Tag], row.find_all(name="td"))]
+            potential_dates_opt = [IliasPage._find_date_in_text(column) for column in columns]
+            potential_dates = [x for x in potential_dates_opt if x is not None]
+            mtime = max(potential_dates) if potential_dates else None
+
+            threads.append(IliasPageElement.create_new(
+                IliasElementType.FORUM_THREAD,
+                self._abs_url_from_link(url_tag),
+                name,
+                mtime=mtime
+            ))
+
+        return threads
+
+    def get_download_forum_data(self, thread_ids: list[str]) -> Optional[IliasDownloadForumData]:
         form = cast(Optional[Tag], self._soup.find(
             "form",
             attrs={"action": lambda x: x is not None and "fallbackCmd=showThreads" in x}
@@ -251,7 +282,7 @@ class IliasPage:
             return None
         post_url = self._abs_url_from_relative(cast(str, form["action"]))
 
-        thread_ids = [f["value"] for f in cast(list[Tag], form.find_all(attrs={"name": "thread_ids[]"}))]
+        log.explain(f"Fetching forum threads {thread_ids}")
 
         form_data: Dict[str, Union[str, list[str]]] = {
             "thread_ids[]": cast(list[str], thread_ids),
@@ -261,6 +292,12 @@ class IliasPage:
         }
 
         return IliasDownloadForumData(url=post_url, form_data=form_data, empty=len(thread_ids) == 0)
+
+    def _get_forum_form(self) -> Optional[Tag]:
+        return cast(Optional[Tag], self._soup.find(
+            "form",
+            attrs={"action": lambda x: x is not None and "fallbackCmd=showThreads" in x}
+        ))
 
     def get_next_stage_element(self) -> Optional[IliasPageElement]:
         if self._is_forum_page():
@@ -950,16 +987,9 @@ class IliasPage:
         # The rest does not have a stable order. Grab the whole text and reg-ex the date
         # out of it
         all_properties_text = properties_parent.get_text().strip()
-        modification_date_match = re.search(
-            r"(((\d+\. \w+ \d+)|(Gestern|Yesterday)|(Heute|Today)|(Morgen|Tomorrow)), \d+:\d+)",
-            all_properties_text
-        )
-        if modification_date_match is None:
-            modification_date = None
+        modification_date = IliasPage._find_date_in_text(all_properties_text)
+        if modification_date is None:
             log.explain(f"Element {name} at {url} has no date.")
-        else:
-            modification_date_str = modification_date_match.group(1)
-            modification_date = demangle_date(modification_date_str)
 
         # Grab the name from the link text
         full_path = name + "." + file_type
@@ -1242,6 +1272,17 @@ class IliasPage:
         if soup.select_one("#playerContainer") is not None:
             return True
         return False
+
+    @staticmethod
+    def _find_date_in_text(text: str) -> Optional[datetime]:
+        modification_date_match = re.search(
+            r"(((\d+\. \w+ \d+)|(Gestern|Yesterday)|(Heute|Today)|(Morgen|Tomorrow)), \d+:\d+)",
+            text
+        )
+        if modification_date_match is not None:
+            modification_date_str = modification_date_match.group(1)
+            return demangle_date(modification_date_str)
+        return None
 
     def get_permalink(self) -> Optional[str]:
         return IliasPage.get_soup_permalink(self._soup)
