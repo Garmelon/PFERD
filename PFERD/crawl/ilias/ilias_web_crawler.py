@@ -761,14 +761,14 @@ instance's greatest bottleneck.
             if download:
                 # This only works because ILIAS keeps the order in the export
                 elem = elements.pop(0)
-                tasks.append(asyncio.create_task(self._download_forum_thread(cl.path, elem)))
+                tasks.append(asyncio.create_task(self._download_forum_thread(cl.path, elem, thread)))
             else:
                 # We only downloaded the threads we "should_try_download"ed. This can be an
                 # over-approximation and all will be fine.
                 # If we selected too few, e.g. because there was a duplicate title and the mtime of the
                 # original is newer than the update of the duplicate.
                 # This causes stale data locally, but I consider this problem acceptable right now.
-                tasks.append(asyncio.create_task(self._download_forum_thread(cl.path, thread)))
+                tasks.append(asyncio.create_task(self._download_forum_thread(cl.path, thread, thread)))
 
         # And execute them
         await self.gather(tasks)
@@ -778,18 +778,20 @@ instance's greatest bottleneck.
     async def _download_forum_thread(
         self,
         parent_path: PurePath,
-        element: Union[IliasForumThread, IliasPageElement]
+        thread: Union[IliasForumThread, IliasPageElement],
+        element: IliasPageElement
     ) -> None:
-        path = parent_path / (_sanitize_path_name(element.name) + ".html")
-        maybe_dl = await self.download(path, mtime=element.mtime)
-        if not maybe_dl or not isinstance(element, IliasForumThread):
+        path = parent_path / (_sanitize_path_name(thread.name) + ".html")
+        maybe_dl = await self.download(path, mtime=thread.mtime)
+        if not maybe_dl or not isinstance(thread, IliasForumThread):
             return
 
         async with maybe_dl as (bar, sink):
             rendered = forum_thread_template(
-                element.name,
-                element.name_tag,
-                await self.internalize_images(element.content_tag)
+                thread.name,
+                element.url,
+                thread.name_tag,
+                await self.internalize_images(thread.content_tag)
             )
             sink.file.write(rendered.encode("utf-8"))
             sink.done()

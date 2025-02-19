@@ -246,7 +246,9 @@ def learning_module_template(body: bs4.Tag, name: str, prev: Optional[str], next
     return _learning_module_template.replace("{{body}}", body_str).replace("{{name}}", name)
 
 
-def forum_thread_template(name: str, heading: bs4.Tag, content: bs4.Tag) -> str:
+def forum_thread_template(name: str, url: str, heading: bs4.Tag, content: bs4.Tag) -> str:
+    if title := cast(Optional[bs4.Tag], heading.find(name="b")):
+        title.wrap(bs4.Tag(name="a", attrs={"href": url}))
     return _forum_thread_template \
         .replace("{{name}}", name) \
         .replace("{{heading}}", cast(str, heading.prettify())) \
