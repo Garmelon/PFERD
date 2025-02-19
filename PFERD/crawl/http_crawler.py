@@ -22,7 +22,7 @@ ETAGS_CUSTOM_REPORT_VALUE_KEY = "etags"
 
 class HttpCrawlerSection(CrawlerSection):
     def http_timeout(self) -> float:
-        return self.s.getfloat("http_timeout", fallback=20)
+        return self.s.getfloat("http_timeout", fallback=30)
 
 
 class HttpCrawler(Crawler):
