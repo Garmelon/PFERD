@@ -1387,16 +1387,18 @@ def parse_ilias_forum_export(forum_export: BeautifulSoup) -> list[IliasForumThre
         title_tag = p
         content_tag = cast(Optional[Tag], p.find_next_sibling("ul"))
 
-        if not content_tag:
-            # ILIAS allows users to delete the initial post while keeping the thread open
-            # This produces empty threads without *any* content.
-            # I am not sure why you would want this, but ILIAS makes it easy to do.
-            continue
-
         title = cast(Tag, p.find("b")).text
         if ":" in title:
             title = title[title.find(":") + 1:]
         title = title.strip()
+
+        if not content_tag or content_tag.find_previous_sibling("p") != title_tag:
+            # ILIAS allows users to delete the initial post while keeping the thread open
+            # This produces empty threads without *any* content.
+            # I am not sure why you would want this, but ILIAS makes it easy to do.
+            elements.append(IliasForumThread(title, title_tag, forum_export.new_tag("ul"), None))
+            continue
+
         mtime = _guess_timestamp_from_forum_post_content(content_tag)
         elements.append(IliasForumThread(title, title_tag, content_tag, mtime))
 
