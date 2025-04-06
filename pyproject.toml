@@ -4,6 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "PFERD"
+description = "Programm zum Flotten Einfachen Runterladen von Dateien"
+readme = "README.md"
+license = { file = "LICENSE" }
 dependencies = [
   "aiohttp>=3.8.1",
   "beautifulsoup4>=4.10.0",
@@ -13,12 +16,24 @@ dependencies = [
 ]
 dynamic = ["version"]
 requires-python = ">=3.9"
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+]
+
+[project.urls]
+Repository = "https://github.com/Garmelon/PFERD"
+Issues = "https://github.com/Garmelon/PFERD/issues"
 
 [project.scripts]
 pferd = "PFERD.__main__:main"
 
 [tool.setuptools.dynamic]
-version = {attr = "PFERD.version.VERSION"}
+version = { attr = "PFERD.version.VERSION" }
 
 [tool.flake8]
 max-line-length = 110
