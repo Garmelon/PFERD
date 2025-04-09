@@ -267,7 +267,7 @@ instance's greatest bottleneck.
                     # If we expect to find a root course, enforce it
                     if current_parent is None and expected_course_id is not None:
                         perma_link = IliasPage.get_soup_permalink(soup)
-                        if not perma_link or "crs_" not in perma_link:
+                        if not perma_link or "crs" not in perma_link:
                             raise CrawlError("Invalid course id? Didn't find anything looking like a course")
                         if str(expected_course_id) not in perma_link:
                             raise CrawlError(f"Expected course id {expected_course_id} but got {perma_link}")

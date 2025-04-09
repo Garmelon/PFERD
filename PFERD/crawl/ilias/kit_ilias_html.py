@@ -1301,10 +1301,14 @@ class IliasPage:
 
     @staticmethod
     def get_soup_permalink(soup: BeautifulSoup) -> Optional[str]:
-        perma_link_element = cast(Tag, soup.select_one(".il-footer-permanent-url > a"))
-        if not perma_link_element or not perma_link_element.get("href"):
-            return None
-        return cast(Optional[str], perma_link_element.get("href"))
+        for script in soup.find_all("script", attrs={'src': cast(str, None)}):
+            match = re.search(
+                r"((?:https?:\\\/\\\/)?(?:[^.]+\.)?ilias\.studium\.kit\.edu(\\\/.*)?)\"",
+                script.text
+            )
+            if match is not None:
+                return match.group(1)
+        return None
 
 
 def _unexpected_html_warning() -> None:
