@@ -51,10 +51,10 @@ class IliasPageElement:
         regexes = [
             r"eid=(?P<id>[0-9a-z\-]+)",
             r"file_(?P<id>\d+)",
-            r"copa_(?P<id>\d+)",
-            r"fold_(?P<id>\d+)",
-            r"frm_(?P<id>\d+)",
-            r"exc_(?P<id>\d+)",
+            r"copa/(?P<id>\d+)",
+            r"fold/(?P<id>\d+)",
+            r"frm/(?P<id>\d+)",
+            r"exc/(?P<id>\d+)",
             r"thr_pk=(?P<id>\d+)",  # forums
             r"ref_id=(?P<id>\d+)",
             r"target=[a-z]+_(?P<id>\d+)",
