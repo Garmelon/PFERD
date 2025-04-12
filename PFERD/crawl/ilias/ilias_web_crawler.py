@@ -22,7 +22,7 @@ from .async_helper import _iorepeat
 from .file_templates import Links, forum_thread_template, learning_module_template
 from .ilias_html_cleaner import clean, insert_base_markup
 from .kit_ilias_html import (IliasElementType, IliasForumThread, IliasLearningModulePage, IliasPage,
-                             IliasPageElement, _sanitize_path_name, parse_ilias_forum_export)
+                             IliasPageElement, IliasSoup, _sanitize_path_name, parse_ilias_forum_export)
 from .shibboleth_login import ShibbolethLogin
 
 TargetType = Union[str, int]
@@ -105,7 +105,6 @@ class IliasWebCrawlerSection(HttpCrawlerSection):
 
 
 _DIRECTORY_PAGES: Set[IliasElementType] = {
-    IliasElementType.COURSE,
     IliasElementType.EXERCISE,
     IliasElementType.EXERCISE_FILES,
     IliasElementType.FOLDER,
@@ -217,11 +216,19 @@ instance's greatest bottleneck.
 
     async def _crawl_desktop(self) -> None:
         await self._crawl_url(
-            urljoin(self._base_url, "/ilias.php?baseClass=ilDashboardGUI&cmd=show")
+            urljoin(self._base_url, "/ilias.php?baseClass=ilDashboardGUI&cmd=show"),
+            crawl_nested_courses=True
         )
 
-    async def _crawl_url(self, url: str, expected_id: Optional[int] = None) -> None:
-        if awaitable := await self._handle_ilias_page(url, None, PurePath("."), expected_id):
+    async def _crawl_url(
+        self,
+        url: str,
+        expected_id: Optional[int] = None,
+        crawl_nested_courses: bool = False
+    ) -> None:
+        if awaitable := await self._handle_ilias_page(
+            url, None, PurePath("."), expected_id, crawl_nested_courses
+        ):
             await awaitable
 
     async def _handle_ilias_page(
@@ -230,6 +237,7 @@ instance's greatest bottleneck.
         current_element: Optional[IliasPageElement],
         path: PurePath,
         expected_course_id: Optional[int] = None,
+        crawl_nested_courses: bool = False
     ) -> Optional[Coroutine[Any, Any, None]]:
         maybe_cl = await self.crawl(path)
         if not maybe_cl:
@@ -237,7 +245,9 @@ instance's greatest bottleneck.
         if current_element:
             self._ensure_not_seen(current_element, path)
 
-        return self._crawl_ilias_page(url, current_element, maybe_cl, expected_course_id)
+        return self._crawl_ilias_page(
+            url, current_element, maybe_cl, expected_course_id, crawl_nested_courses
+        )
 
     @anoncritical
     async def _crawl_ilias_page(
@@ -246,6 +256,7 @@ instance's greatest bottleneck.
         current_element: Optional[IliasPageElement],
         cl: CrawlToken,
         expected_course_id: Optional[int] = None,
+        crawl_nested_courses: bool = False,
     ) -> None:
         elements: List[IliasPageElement] = []
         # A list as variable redefinitions are not propagated to outer scopes
@@ -267,12 +278,12 @@ instance's greatest bottleneck.
                     # If we expect to find a root course, enforce it
                     if current_parent is None and expected_course_id is not None:
                         perma_link = IliasPage.get_soup_permalink(soup)
-                        if not perma_link or "crs_" not in perma_link:
+                        if not perma_link or "crs/" not in perma_link:
                             raise CrawlError("Invalid course id? Didn't find anything looking like a course")
                         if str(expected_course_id) not in perma_link:
                             raise CrawlError(f"Expected course id {expected_course_id} but got {perma_link}")
 
-                    page = IliasPage(soup, next_stage_url, current_parent)
+                    page = IliasPage(soup, current_parent)
                     if next_element := page.get_next_stage_element():
                         current_parent = next_element
                         next_stage_url = next_element.url
@@ -294,7 +305,7 @@ instance's greatest bottleneck.
 
         tasks: List[Awaitable[None]] = []
         for element in elements:
-            if handle := await self._handle_ilias_element(cl.path, element):
+            if handle := await self._handle_ilias_element(cl.path, element, crawl_nested_courses):
                 tasks.append(asyncio.create_task(handle))
 
         # And execute them
@@ -310,6 +321,7 @@ instance's greatest bottleneck.
         self,
         parent_path: PurePath,
         element: IliasPageElement,
+        crawl_nested_courses: bool = False
     ) -> Optional[Coroutine[Any, Any, None]]:
         # element.name might contain `/` if the crawler created nested elements,
         # so we can not sanitize it here. We trust in the output dir to thwart worst-case
@@ -360,6 +372,56 @@ instance's greatest bottleneck.
                 "Ignored",
                 fmt_path(element_path),
                 "[bright_black](scorm learning modules are not supported)"
+            )
+            return None
+        elif element.type == IliasElementType.LITERATURE_LIST:
+            log.status(
+                "[bold bright_black]",
+                "Ignored",
+                fmt_path(element_path),
+                "[bright_black](literature lists are not currently supported)"
+            )
+            return None
+        elif element.type == IliasElementType.LEARNING_MODULE_HTML:
+            log.status(
+                "[bold bright_black]",
+                "Ignored",
+                fmt_path(element_path),
+                "[bright_black](HTML learning modules are not supported)"
+            )
+            return None
+        elif element.type == IliasElementType.BLOG:
+            log.status(
+                "[bold bright_black]",
+                "Ignored",
+                fmt_path(element_path),
+                "[bright_black](blogs are not currently supported)"
+            )
+            return None
+        elif element.type == IliasElementType.DCL_RECORD_LIST:
+            log.status(
+                "[bold bright_black]",
+                "Ignored",
+                fmt_path(element_path),
+                "[bright_black](dcl record lists are not currently supported)"
+            )
+            return None
+        elif element.type == IliasElementType.MEDIA_POOL:
+            log.status(
+                "[bold bright_black]",
+                "Ignored",
+                fmt_path(element_path),
+                "[bright_black](media pools are not currently supported)"
+            )
+            return None
+        elif element.type == IliasElementType.COURSE:
+            if crawl_nested_courses:
+                return await self._handle_ilias_page(element.url, element, element_path)
+            log.status(
+                "[bold bright_black]",
+                "Ignored",
+                fmt_path(element_path),
+                "[bright_black](not descending into linked course)"
             )
             return None
         elif element.type == IliasElementType.LEARNING_MODULE:
@@ -590,7 +652,7 @@ instance's greatest bottleneck.
             )
 
         async with dl as (bar, sink):
-            page = IliasPage(await self._get_page(element.url), element.url, element)
+            page = IliasPage(await self._get_page(element.url), element)
             stream_elements = page.get_child_elements()
 
             if len(stream_elements) > 1:
@@ -600,7 +662,7 @@ instance's greatest bottleneck.
                 stream_element = stream_elements[0]
 
                 # We do not have a local cache yet
-                await self._stream_from_url(stream_element.url, sink, bar, is_video=True)
+                await self._stream_from_url(stream_element, sink, bar, is_video=True)
                 add_to_report([str(self._transformer.transform(dl.path))])
                 return
 
@@ -615,7 +677,7 @@ instance's greatest bottleneck.
             async with maybe_dl as (bar, sink):
                 log.explain(f"Streaming video from real url {stream_element.url}")
                 contained_video_paths.append(str(self._transformer.transform(maybe_dl.path)))
-                await self._stream_from_url(stream_element.url, sink, bar, is_video=True)
+                await self._stream_from_url(stream_element, sink, bar, is_video=True)
 
         add_to_report(contained_video_paths)
 
@@ -637,12 +699,19 @@ instance's greatest bottleneck.
     async def _download_file(self, element: IliasPageElement, dl: DownloadToken, is_video: bool) -> None:
         assert dl  # The function is only reached when dl is not None
         async with dl as (bar, sink):
-            await self._stream_from_url(element.url, sink, bar, is_video)
+            await self._stream_from_url(element, sink, bar, is_video)
 
-    async def _stream_from_url(self, url: str, sink: FileSink, bar: ProgressBar, is_video: bool) -> None:
+    async def _stream_from_url(
+        self,
+        element: IliasPageElement,
+        sink: FileSink,
+        bar: ProgressBar,
+        is_video: bool
+    ) -> None:
+        url = element.url
+
         async def try_stream() -> bool:
             next_url = url
-
             # Normal files redirect to the magazine if we are not authenticated. As files could be HTML,
             # we can not match on the content type here. Instead, we disallow redirects and inspect the
             # new location. If we are redirected anywhere but the ILIAS 8 "sendfile" command, we assume
@@ -690,7 +759,7 @@ instance's greatest bottleneck.
         await self.authenticate(auth_id)
 
         if not await try_stream():
-            raise CrawlError("File streaming failed after authenticate()")
+            raise CrawlError(f"File streaming failed after authenticate() {element!r}")
 
     async def _handle_forum(
         self,
@@ -705,70 +774,23 @@ instance's greatest bottleneck.
     @_iorepeat(3, "crawling forum")
     @anoncritical
     async def _crawl_forum(self, element: IliasPageElement, cl: CrawlToken) -> None:
-        elements: List[IliasForumThread] = []
-
         async with cl:
-            next_stage_url = element.url
-            page = None
-
-            while next_stage_url:
-                log.explain_topic(f"Parsing HTML page for {fmt_path(cl.path)}")
-                log.explain(f"URL: {next_stage_url}")
-
-                soup = await self._get_page(next_stage_url)
-                page = IliasPage(soup, next_stage_url, element)
-
-                if next := page.get_next_stage_element():
-                    next_stage_url = next.url
-                else:
-                    break
-
-            forum_threads: list[tuple[IliasPageElement, bool]] = []
-            for entry in cast(IliasPage, page).get_forum_entries():
-                path = cl.path / (_sanitize_path_name(entry.name) + ".html")
-                forum_threads.append((entry, self.should_try_download(path, mtime=entry.mtime)))
-
-            # Sort the ids. The forum download will *preserve* this ordering
-            forum_threads.sort(key=lambda elem: elem[0].id())
-
-            if not forum_threads:
-                log.explain("Forum had no threads")
+            inner = IliasPage(await self._get_page(element.url), element)
+            export_url = inner.get_forum_export_url()
+            if not export_url:
+                log.warn("Could not extract forum export url")
                 return
 
-            download_data = cast(IliasPage, page).get_download_forum_data(
-                [thread.id() for thread, download in forum_threads if download]
-            )
-            if not download_data:
-                raise CrawlWarning("Failed to extract forum data")
+            export = await self._post(export_url, {
+                "format": "html",
+                "cmd[createExportFile]": ""
+            })
 
-            if not download_data.empty:
-                html = await self._post_authenticated(download_data.url, download_data.form_data)
-                elements = parse_ilias_forum_export(soupify(html))
-            else:
-                elements = []
-
-        # Verify that ILIAS does not change the order, as we depend on it later. Otherwise, we could not call
-        # download in the correct order, potentially messing up duplication handling.
-        expected_element_titles = [thread.name for thread, download in forum_threads if download]
-        actual_element_titles = [_sanitize_path_name(thread.name) for thread in elements]
-        if expected_element_titles != actual_element_titles:
-            raise CrawlWarning(
-                f"Forum thread order mismatch: {expected_element_titles} != {actual_element_titles}"
-            )
+            elements = parse_ilias_forum_export(soupify(export))
 
         tasks: List[Awaitable[None]] = []
-        for thread, download in forum_threads:
-            if download:
-                # This only works because ILIAS keeps the order in the export
-                elem = elements.pop(0)
-                tasks.append(asyncio.create_task(self._download_forum_thread(cl.path, elem, thread)))
-            else:
-                # We only downloaded the threads we "should_try_download"ed. This can be an
-                # over-approximation and all will be fine.
-                # If we selected too few, e.g. because there was a duplicate title and the mtime of the
-                # original is newer than the update of the duplicate.
-                # This causes stale data locally, but I consider this problem acceptable right now.
-                tasks.append(asyncio.create_task(self._download_forum_thread(cl.path, thread, thread)))
+        for thread in elements:
+            tasks.append(asyncio.create_task(self._download_forum_thread(cl.path, thread, element.url)))
 
         # And execute them
         await self.gather(tasks)
@@ -779,7 +801,7 @@ instance's greatest bottleneck.
         self,
         parent_path: PurePath,
         thread: Union[IliasForumThread, IliasPageElement],
-        element: IliasPageElement
+        forum_url: str
     ) -> None:
         path = parent_path / (_sanitize_path_name(thread.name) + ".html")
         maybe_dl = await self.download(path, mtime=thread.mtime)
@@ -789,7 +811,7 @@ instance's greatest bottleneck.
         async with maybe_dl as (bar, sink):
             rendered = forum_thread_template(
                 thread.name,
-                element.url,
+                forum_url,
                 thread.name_tag,
                 await self.internalize_images(thread.content_tag)
             )
@@ -817,7 +839,7 @@ instance's greatest bottleneck.
             log.explain_topic(f"Parsing initial HTML page for {fmt_path(cl.path)}")
             log.explain(f"URL: {element.url}")
             soup = await self._get_page(element.url)
-            page = IliasPage(soup, element.url, element)
+            page = IliasPage(soup, element)
             if next := page.get_learning_module_data():
                 elements.extend(await self._crawl_learning_module_direction(
                     cl.path, next.previous_url, "left", element
@@ -860,7 +882,7 @@ instance's greatest bottleneck.
             log.explain_topic(f"Parsing HTML page for {fmt_path(path)} ({dir}-{counter})")
             log.explain(f"URL: {next_element_url}")
             soup = await self._get_page(next_element_url)
-            page = IliasPage(soup, next_element_url, parent_element)
+            page = IliasPage(soup, parent_element)
             if next := page.get_learning_module_data():
                 elements.append(next)
                 if dir == "left":
@@ -891,13 +913,13 @@ instance's greatest bottleneck.
         if prev:
             prev_p = self._transformer.transform(parent_path / (_sanitize_path_name(prev) + ".html"))
             if prev_p:
-                prev = os.path.relpath(prev_p, my_path.parent)
+                prev = cast(str, os.path.relpath(prev_p, my_path.parent))
             else:
                 prev = None
         if next:
             next_p = self._transformer.transform(parent_path / (_sanitize_path_name(next) + ".html"))
             if next_p:
-                next = os.path.relpath(next_p, my_path.parent)
+                next = cast(str, os.path.relpath(next_p, my_path.parent))
             else:
                 next = None
 
@@ -937,10 +959,10 @@ instance's greatest bottleneck.
             )
         self._visited_urls[element.url] = parent_path
 
-    async def _get_page(self, url: str, root_page_allowed: bool = False) -> BeautifulSoup:
+    async def _get_page(self, url: str, root_page_allowed: bool = False) -> IliasSoup:
         auth_id = await self._current_auth_id()
         async with self.session.get(url) as request:
-            soup = soupify(await request.read())
+            soup = IliasSoup(soupify(await request.read()), str(request.url))
             if IliasPage.is_logged_in(soup):
                 return self._verify_page(soup, url, root_page_allowed)
 
@@ -949,13 +971,13 @@ instance's greatest bottleneck.
 
         # Retry once after authenticating. If this fails, we will die.
         async with self.session.get(url) as request:
-            soup = soupify(await request.read())
+            soup = IliasSoup(soupify(await request.read()), str(request.url))
             if IliasPage.is_logged_in(soup):
                 return self._verify_page(soup, url, root_page_allowed)
         raise CrawlError(f"get_page failed even after authenticating on {url!r}")
 
     @staticmethod
-    def _verify_page(soup: BeautifulSoup, url: str, root_page_allowed: bool) -> BeautifulSoup:
+    def _verify_page(soup: IliasSoup, url: str, root_page_allowed: bool) -> IliasSoup:
         if IliasPage.is_root_page(soup) and not root_page_allowed:
             raise CrawlError(
                 "Unexpectedly encountered ILIAS root page. "
@@ -967,29 +989,19 @@ instance's greatest bottleneck.
             )
         return soup
 
-    async def _post_authenticated(
+    async def _post(
         self,
         url: str,
         data: dict[str, Union[str, List[str]]]
     ) -> bytes:
-        auth_id = await self._current_auth_id()
-
         form_data = aiohttp.FormData()
         for key, val in data.items():
             form_data.add_field(key, val)
 
-        async with self.session.post(url, data=form_data(), allow_redirects=False) as request:
+        async with self.session.post(url, data=form_data()) as request:
             if request.status == 200:
                 return await request.read()
-
-        # We weren't authenticated, so try to do that
-        await self.authenticate(auth_id)
-
-        # Retry once after authenticating. If this fails, we will die.
-        async with self.session.post(url, data=data, allow_redirects=False) as request:
-            if request.status == 200:
-                return await request.read()
-        raise CrawlError("post_authenticated failed even after authenticating")
+            raise CrawlError(f"post failed with status {request.status}")
 
     async def _get_authenticated(self, url: str) -> bytes:
         auth_id = await self._current_auth_id()
@@ -1037,34 +1049,6 @@ instance's greatest bottleneck.
 
             # do the actual login
             async with self.session.post(urljoin(self._base_url, login_url), data=login_data) as request:
-                soup = soupify(await request.read())
-                if not self._is_logged_in(soup):
+                soup = IliasSoup(soupify(await request.read()), str(request.url))
+                if not IliasPage.is_logged_in(soup):
                     self._auth.invalidate_credentials()
-
-    @staticmethod
-    def _is_logged_in(soup: BeautifulSoup) -> bool:
-        # Normal ILIAS pages
-        mainbar = cast(Optional[Tag], soup.find(class_="il-maincontrols-metabar"))
-        if mainbar is not None:
-            login_button = mainbar.find(attrs={"href": lambda x: x is not None and "login.php" in x})
-            shib_login = soup.find(id="button_shib_login")
-            return not login_button and not shib_login
-
-        # Personal Desktop
-        if soup.find("a", attrs={"href": lambda x: x is not None and "block_type=pditems" in x}):
-            return True
-
-        # Video listing embeds do not have complete ILIAS html. Try to match them by
-        # their video listing table
-        video_table = soup.find(
-            recursive=True,
-            name="table",
-            attrs={"id": lambda x: x is not None and x.startswith("tbl_xoct")}
-        )
-        if video_table is not None:
-            return True
-        # The individual video player wrapper page has nothing of the above.
-        # Match it by its playerContainer.
-        if soup.select_one("#playerContainer") is not None:
-            return True
-        return False

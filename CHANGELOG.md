@@ -22,8 +22,14 @@ ambiguous situations.
 
 ## Unreleased
 
+### Added
+- Support for ILIAS 9
+
 ### Changed
 - Added prettier CSS to forum threads
+- Downloaded forum threads now link to the forum instead of the ILIAS thread
+- Increase minimum supported Python version to 3.11
+- Do not crawl nested courses (courses linked in other courses)
 
 ## Fixed
 - File links in report on Windows

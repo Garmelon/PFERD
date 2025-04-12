@@ -3,20 +3,100 @@ import re
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from enum import Enum
-from typing import Dict, Optional, Union, cast
+from typing import Callable, Dict, Optional, Union, cast
 from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup, Tag
 
+from PFERD.crawl import CrawlError
+from PFERD.crawl.crawler import CrawlWarning
 from PFERD.logging import log
 from PFERD.utils import url_set_query_params
 
 TargetType = Union[str, int]
 
 
+class TypeMatcher:
+    class UrlPath:
+        path: str
+
+        def __init__(self, path: str):
+            self.path = path
+
+    class UrlParameter:
+        query: str
+
+        def __init__(self, query: str):
+            self.query = query
+
+    class ImgSrc:
+        src: str
+
+        def __init__(self, src: str):
+            self.src = src
+
+    class ImgAlt:
+        alt: str
+
+        def __init__(self, alt: str):
+            self.alt = alt
+
+    class All:
+        matchers: list['IliasElementMatcher']
+
+        def __init__(self, matchers: list['IliasElementMatcher']):
+            self.matchers = matchers
+
+    class Any:
+        matchers: list['IliasElementMatcher']
+
+        def __init__(self, matchers: list['IliasElementMatcher']):
+            self.matchers = matchers
+
+    @staticmethod
+    def path(path: str) -> UrlPath:
+        return TypeMatcher.UrlPath(path)
+
+    @staticmethod
+    def query(query: str) -> UrlParameter:
+        return TypeMatcher.UrlParameter(query)
+
+    @staticmethod
+    def img_src(src: str) -> ImgSrc:
+        return TypeMatcher.ImgSrc(src)
+
+    @staticmethod
+    def img_alt(alt: str) -> ImgAlt:
+        return TypeMatcher.ImgAlt(alt)
+
+    @staticmethod
+    def all(*matchers: 'IliasElementMatcher') -> All:
+        return TypeMatcher.All(list(matchers))
+
+    @staticmethod
+    def any(*matchers: 'IliasElementMatcher') -> Any:
+        return TypeMatcher.Any(list(matchers))
+
+    @staticmethod
+    def never() -> Any:
+        return TypeMatcher.Any([])
+
+
+IliasElementMatcher = (
+    TypeMatcher.UrlPath
+    | TypeMatcher.UrlParameter
+    | TypeMatcher.ImgSrc
+    | TypeMatcher.ImgAlt
+    | TypeMatcher.All
+    | TypeMatcher.Any
+)
+
+
 class IliasElementType(Enum):
+    BLOG = "blog"
     BOOKING = "booking"
     COURSE = "course"
+    DCL_RECORD_LIST = "dcl_record_list"
     EXERCISE = "exercise"
     EXERCISE_FILES = "exercise_files"  # own submitted files
     FILE = "file"
@@ -25,7 +105,10 @@ class IliasElementType(Enum):
     FORUM_THREAD = "forum_thread"
     INFO_TAB = "info_tab"
     LEARNING_MODULE = "learning_module"
+    LEARNING_MODULE_HTML = "learning_module_html"
+    LITERATURE_LIST = "literature_list"
     LINK = "link"
+    MEDIA_POOL = "media_pool"
     MEDIACAST_VIDEO = "mediacast_video"
     MEDIACAST_VIDEO_FOLDER = "mediacast_video_folder"
     MEETING = "meeting"
@@ -37,6 +120,131 @@ class IliasElementType(Enum):
     SCORM_LEARNING_MODULE = "scorm_learning_module"
     SURVEY = "survey"
     TEST = "test"  # an online test. Will be ignored currently.
+
+    def matcher(self) -> IliasElementMatcher:
+        match self:
+            case IliasElementType.BLOG:
+                return TypeMatcher.any(
+                    TypeMatcher.img_src("_blog.svg")
+                )
+            case IliasElementType.BOOKING:
+                return TypeMatcher.any(
+                    TypeMatcher.path("/book/"),
+                    TypeMatcher.img_src("_book.svg")
+                )
+            case IliasElementType.COURSE:
+                return TypeMatcher.any(TypeMatcher.path("/crs/"), TypeMatcher.img_src("_crsr.svg"))
+            case IliasElementType.DCL_RECORD_LIST:
+                return TypeMatcher.any(
+                    TypeMatcher.img_src("_dcl.svg"),
+                    TypeMatcher.query("cmdclass=ildclrecordlistgui")
+                )
+            case IliasElementType.EXERCISE:
+                return TypeMatcher.any(
+                    TypeMatcher.path("/exc/"),
+                    TypeMatcher.path("_exc_"),
+                    TypeMatcher.img_src("_exc.svg"),
+                )
+            case IliasElementType.EXERCISE_FILES:
+                return TypeMatcher.never()
+            case IliasElementType.FILE:
+                return TypeMatcher.any(
+                    TypeMatcher.query("cmd=sendfile"),
+                    TypeMatcher.path("_file_"),
+                    TypeMatcher.img_src("/filedelivery/"),
+                )
+            case IliasElementType.FOLDER:
+                return TypeMatcher.any(
+                    TypeMatcher.path("/fold/"),
+                    TypeMatcher.img_src("_fold.svg"),
+
+                    TypeMatcher.path("/grp/"),
+                    TypeMatcher.img_src("_grp.svg"),
+
+                    TypeMatcher.path("/copa/"),
+                    TypeMatcher.path("_copa_"),
+                    TypeMatcher.img_src("_copa.svg"),
+
+                    # Not supported right now but warn users
+                    # TypeMatcher.query("baseclass=ilmediapoolpresentationgui"),
+                    # TypeMatcher.img_alt("medienpool"),
+                    # TypeMatcher.img_src("_mep.svg"),
+                )
+            case IliasElementType.FORUM:
+                return TypeMatcher.any(
+                    TypeMatcher.path("/frm/"),
+                    TypeMatcher.path("_frm_"),
+                    TypeMatcher.img_src("_frm.svg"),
+                )
+            case IliasElementType.FORUM_THREAD:
+                return TypeMatcher.never()
+            case IliasElementType.INFO_TAB:
+                return TypeMatcher.never()
+            case IliasElementType.LITERATURE_LIST:
+                return TypeMatcher.img_src("_bibl.svg")
+            case IliasElementType.LEARNING_MODULE:
+                return TypeMatcher.any(
+                    TypeMatcher.path("/lm/"),
+                    TypeMatcher.img_src("_lm.svg")
+                )
+            case IliasElementType.LEARNING_MODULE_HTML:
+                return TypeMatcher.any(
+                    TypeMatcher.query("baseclass=ilhtlmpresentationgui"),
+                    TypeMatcher.img_src("_htlm.svg")
+                )
+            case IliasElementType.LINK:
+                return TypeMatcher.any(
+                    TypeMatcher.all(
+                        TypeMatcher.query("baseclass=illinkresourcehandlergui"),
+                        TypeMatcher.query("calldirectlink"),
+                    ),
+                    TypeMatcher.img_src("_webr.svg")
+                )
+            case IliasElementType.MEDIA_POOL:
+                return TypeMatcher.any(
+                    TypeMatcher.query("baseclass=ilmediapoolpresentationgui"),
+                    TypeMatcher.img_src("_mep.svg")
+                )
+            case IliasElementType.MEDIACAST_VIDEO:
+                return TypeMatcher.never()
+            case IliasElementType.MEDIACAST_VIDEO_FOLDER:
+                return TypeMatcher.any(
+                    TypeMatcher.path("/mcst/"),
+                    TypeMatcher.query("baseclass=ilmediacasthandlergui"),
+                    TypeMatcher.img_src("_mcst.svg")
+                )
+            case IliasElementType.MEETING:
+                return TypeMatcher.any(
+                    TypeMatcher.img_src("_sess.svg")
+                )
+            case IliasElementType.MOB_VIDEO:
+                return TypeMatcher.never()
+            case IliasElementType.OPENCAST_VIDEO:
+                return TypeMatcher.never()
+            case IliasElementType.OPENCAST_VIDEO_FOLDER:
+                return TypeMatcher.never()
+            case IliasElementType.OPENCAST_VIDEO_FOLDER_MAYBE_PAGINATED:
+                return TypeMatcher.img_alt("opencast")
+            case IliasElementType.OPENCAST_VIDEO_PLAYER:
+                return TypeMatcher.never()
+            case IliasElementType.SCORM_LEARNING_MODULE:
+                return TypeMatcher.any(
+                    TypeMatcher.query("baseclass=ilsahspresentationgui"),
+                    TypeMatcher.img_src("_sahs.svg")
+                )
+            case IliasElementType.SURVEY:
+                return TypeMatcher.any(
+                    TypeMatcher.path("/svy/"),
+                    TypeMatcher.img_src("svy.svg")
+                )
+            case IliasElementType.TEST:
+                return TypeMatcher.any(
+                    TypeMatcher.query("cmdclass=ilobjtestgui"),
+                    TypeMatcher.query("cmdclass=iltestscreengui"),
+                    TypeMatcher.img_src("_tst.svg")
+                )
+
+        raise CrawlWarning(f"Unknown matcher {self}")
 
 
 @dataclass
@@ -50,11 +258,21 @@ class IliasPageElement:
     def id(self) -> str:
         regexes = [
             r"eid=(?P<id>[0-9a-z\-]+)",
-            r"file_(?P<id>\d+)",
-            r"copa_(?P<id>\d+)",
-            r"fold_(?P<id>\d+)",
-            r"frm_(?P<id>\d+)",
-            r"exc_(?P<id>\d+)",
+            r"book/(?P<id>\d+)",  # booking
+            r"cat/(?P<id>\d+)",
+            r"copa/(?P<id>\d+)",  # content page
+            r"crs/(?P<id>\d+)",  # course
+            r"exc/(?P<id>\d+)",  # exercise
+            r"file/(?P<id>\d+)",  # file
+            r"fold/(?P<id>\d+)",  # folder
+            r"frm/(?P<id>\d+)",  # forum
+            r"grp/(?P<id>\d+)",  # group
+            r"lm/(?P<id>\d+)",  # learning module
+            r"mcst/(?P<id>\d+)",  # mediacast
+            r"pg/(?P<id>(\d|_)+)",  # page?
+            r"svy/(?P<id>\d+)",  # survey
+            r"sess/(?P<id>\d+)",  # session
+            r"webr/(?P<id>\d+)",  # web referene (link)
             r"thr_pk=(?P<id>\d+)",  # forums
             r"ref_id=(?P<id>\d+)",
             r"target=[a-z]+_(?P<id>\d+)",
@@ -139,18 +357,28 @@ class IliasLearningModulePage:
     previous_url: Optional[str]
 
 
+class IliasSoup:
+    soup: BeautifulSoup
+    page_url: str
+
+    def __init__(self, soup: BeautifulSoup, page_url: str):
+        self.soup = soup
+        self.page_url = page_url
+
+
 class IliasPage:
 
-    def __init__(self, soup: BeautifulSoup, _page_url: str, source_element: Optional[IliasPageElement]):
-        self._soup = soup
-        self._page_url = _page_url
+    def __init__(self, ilias_soup: IliasSoup, source_element: Optional[IliasPageElement]):
+        self._ilias_soup = ilias_soup
+        self._soup = ilias_soup.soup
+        self._page_url = ilias_soup.page_url
         self._page_type = source_element.type if source_element else None
         self._source_name = source_element.name if source_element else ""
 
     @staticmethod
-    def is_root_page(soup: BeautifulSoup) -> bool:
+    def is_root_page(soup: IliasSoup) -> bool:
         if permalink := IliasPage.get_soup_permalink(soup):
-            return "goto.php?target=root_" in permalink
+            return "goto.php/root/" in permalink
         return False
 
     def get_child_elements(self) -> list[IliasPageElement]:
@@ -193,7 +421,10 @@ class IliasPage:
 
     def get_description(self) -> Optional[BeautifulSoup]:
         def is_interesting_class(name: str) -> bool:
-            return name in ["ilCOPageSection", "ilc_Paragraph", "ilc_va_ihcap_VAccordIHeadCap"]
+            return name in [
+                "ilCOPageSection", "ilc_Paragraph", "ilc_va_ihcap_VAccordIHeadCap",
+                "ilc_va_ihcap_AccordIHeadCap", "ilc_media_cont_MediaContainer"
+            ]
 
         paragraphs: list[Tag] = cast(list[Tag], self._soup.find_all(class_=is_interesting_class))
         if not paragraphs:
@@ -206,6 +437,21 @@ class IliasPage:
         for p in paragraphs:
             if p.find_parent(class_=is_interesting_class):
                 continue
+            if "ilc_media_cont_MediaContainer" in p["class"]:
+                # We have an embedded video which should be downloaded by _find_mob_videos
+                if video := p.select_one("video"):
+                    url, title = self._find_mob_video_url_title(video, p)
+                    raw_html += '<div style="min-width: 100px; min-height: 100px; border: 1px solid black;'
+                    raw_html += 'display: flex; justify-content: center; align-items: center;'
+                    raw_html += ' margin: 0.5rem;">'
+                    if url is not None and urlparse(url).hostname != urlparse(self._page_url).hostname:
+                        if url.startswith("//"):
+                            url = "https:" + url
+                        raw_html += f'<a href="{url}" target="_blank">External Video: {title}</a>'
+                    else:
+                        raw_html += f"Video elided. Filename: '{title}'."
+                    raw_html += "</div>\n"
+                    continue
 
             # Ignore special listings (like folder groupings)
             if "ilc_section_Special" in p["class"]:
@@ -244,79 +490,31 @@ class IliasPage:
             return url
         return None
 
-    def get_forum_entries(self) -> list[IliasPageElement]:
-        form = self._get_forum_form()
-        if not form:
-            return []
-        threads = []
-
-        for row in cast(list[Tag], form.select("table > tbody > tr")):
-            url_tag = cast(
-                Optional[Tag],
-                row.find(name="a", attrs={"href": lambda x: x is not None and "cmd=viewthread" in x.lower()})
-            )
-            if url_tag is None:
-                log.explain(f"Skipping row without URL: {row}")
-                continue
-            name = url_tag.get_text().strip()
-            columns = [td.get_text().strip() for td in cast(list[Tag], row.find_all(name="td"))]
-            potential_dates_opt = [IliasPage._find_date_in_text(column) for column in columns]
-            potential_dates = [x for x in potential_dates_opt if x is not None]
-            mtime = max(potential_dates) if potential_dates else None
-
-            threads.append(IliasPageElement.create_new(
-                IliasElementType.FORUM_THREAD,
-                self._abs_url_from_link(url_tag),
-                name,
-                mtime=mtime
-            ))
-
-        return threads
-
-    def get_download_forum_data(self, thread_ids: list[str]) -> Optional[IliasDownloadForumData]:
-        form = cast(Optional[Tag], self._soup.find(
-            "form",
-            attrs={"action": lambda x: x is not None and "fallbackCmd=showThreads" in x}
-        ))
-        if not form:
+    def get_forum_export_url(self) -> Optional[str]:
+        forum_link = self._soup.select_one("#tab_forums_threads > a")
+        if not forum_link:
+            log.explain("Found no forum link")
             return None
-        post_url = self._abs_url_from_relative(cast(str, form["action"]))
 
-        log.explain(f"Fetching forum threads {thread_ids}")
+        base_url = self._abs_url_from_link(forum_link)
+        base_url = re.sub(r"cmd=\w+", "cmd=post", base_url)
+        base_url = re.sub(r"cmdClass=\w+", "cmdClass=ilExportGUI", base_url)
 
-        form_data: Dict[str, Union[str, list[str]]] = {
-            "thread_ids[]": cast(list[str], thread_ids),
-            "selected_cmd2": "html",
-            "select_cmd2": "Ausführen",
-            "selected_cmd": "",
-        }
+        rtoken_form = cast(
+            Optional[Tag],
+            self._soup.find("form", attrs={"action": lambda x: x is not None and "rtoken=" in x})
+        )
+        if not rtoken_form:
+            log.explain("Found no rtoken anywhere")
+            return None
+        match = cast(re.Match[str], re.search(r"rtoken=(\w+)", str(rtoken_form.attrs["action"])))
+        rtoken = match.group(1)
 
-        return IliasDownloadForumData(url=post_url, form_data=form_data, empty=len(thread_ids) == 0)
+        base_url = base_url + "&rtoken=" + rtoken
 
-    def _get_forum_form(self) -> Optional[Tag]:
-        return cast(Optional[Tag], self._soup.find(
-            "form",
-            attrs={"action": lambda x: x is not None and "fallbackCmd=showThreads" in x}
-        ))
+        return base_url
 
     def get_next_stage_element(self) -> Optional[IliasPageElement]:
-        if self._is_forum_page():
-            if "trows=" in self._page_url:
-                log.explain("Manual row override detected, accepting it as good")
-                return None
-            log.explain("Requesting *all* forum threads")
-            thread_count = self._get_forum_thread_count()
-            if thread_count is not None and thread_count > 400:
-                log.warn(
-                    "Forum has more than 400 threads, fetching all threads will take a while. "
-                    "You might need to adjust your http_timeout config option."
-                )
-
-            # Fetch at least 400 in case we detect it wrong
-            if thread_count is not None and thread_count < 400:
-                thread_count = 400
-
-            return self._get_show_max_forum_entries_per_page_url(thread_count)
         if self._is_ilias_opencast_embedding():
             log.explain("Unwrapping opencast embedding")
             return self.get_child_elements()[0]
@@ -333,11 +531,6 @@ class IliasPage:
             else:
                 log.explain("Crawling info tab, skipping content select")
         return None
-
-    def _is_forum_page(self) -> bool:
-        if perma_link := self.get_permalink():
-            return "target=frm_" in perma_link
-        return False
 
     def _is_video_player(self) -> bool:
         return "paella_config_file" in str(self._soup)
@@ -378,7 +571,7 @@ class IliasPage:
 
     def _is_content_page(self) -> bool:
         if link := self.get_permalink():
-            return "target=copa_" in link
+            return "/copa/" in link
         return False
 
     def _is_learning_module_page(self) -> bool:
@@ -513,19 +706,17 @@ class IliasPage:
                 # Configure button/link does not have anything interesting
                 continue
 
-            type = self._find_type_from_link(name, link, url)
-            if not type:
+            typ = IliasPage._find_type_for_element(
+                name, url, lambda: IliasPage._find_icon_for_folder_entry(link)
+            )
+            if not typ:
                 _unexpected_html_warning()
                 log.warn_contd(f"Could not extract type for {link}")
                 continue
 
-            log.explain(f"Found {name!r}")
+            log.explain(f"Found {name!r} of type {typ}")
 
-            if type == IliasElementType.FILE and "_download" not in url:
-                url = re.sub(r"(target=file_\d+)", r"\1_download", url)
-                log.explain("Rewired file URL to include download part")
-
-            items.append(IliasPageElement.create_new(type, url, name))
+            items.append(IliasPageElement.create_new(typ, url, name))
 
         return items
 
@@ -786,15 +977,17 @@ class IliasPage:
         for link in links:
             abs_url = self._abs_url_from_link(link)
             # Make sure parents are sanitized. We do not want accidental parents
-            parents = [_sanitize_path_name(x) for x in self._find_upwards_folder_hierarchy(link)]
+            parents = [_sanitize_path_name(x) for x in IliasPage._find_upwards_folder_hierarchy(link)]
 
             if parents:
                 element_name = "/".join(parents) + "/" + _sanitize_path_name(link.get_text())
             else:
                 element_name = _sanitize_path_name(link.get_text())
 
-            element_type = self._find_type_from_link(element_name, link, abs_url)
-            description = self._find_link_description(link)
+            element_type = IliasPage._find_type_for_element(
+                element_name, abs_url, lambda: IliasPage._find_icon_for_folder_entry(link)
+            )
+            description = IliasPage._find_link_description(link)
 
             # The last meeting on every page is expanded by default.
             # Its content is then shown inline *and* in the meeting page itself.
@@ -805,10 +998,10 @@ class IliasPage:
             if not element_type:
                 continue
             elif element_type == IliasElementType.FILE:
-                result.append(self._file_to_element(element_name, abs_url, link))
+                result.append(IliasPage._file_to_element(element_name, abs_url, link))
                 continue
 
-            log.explain(f"Found {element_name!r}")
+            log.explain(f"Found {element_name!r} of type {element_type}")
             result.append(IliasPageElement.create_new(
                 element_type,
                 abs_url,
@@ -826,71 +1019,92 @@ class IliasPage:
     def _find_mediacast_videos(self) -> list[IliasPageElement]:
         videos: list[IliasPageElement] = []
 
-        for elem in cast(list[Tag], self._soup.select(".ilPlayerPreviewOverlayOuter")):
-            element_name = _sanitize_path_name(
-                cast(Tag, elem.select_one(".ilPlayerPreviewDescription")).get_text().strip()
-            )
-            if not element_name.endswith(".mp4"):
-                # just to make sure it has some kinda-alrightish ending
-                element_name = element_name + ".mp4"
-            video_element = cast(Optional[Tag], elem.find(name="video"))
-            if not video_element:
-                _unexpected_html_warning()
-                log.warn_contd(f"No <video> element found for mediacast video '{element_name}'")
-                continue
+        regex = re.compile(r"il\.VideoPlaylist\.init.+?\[(.+?)], ")
+        for script in cast(list[Tag], self._soup.find_all("script")):
+            for match in regex.finditer(script.text):
+                try:
+                    playlist = json.loads("[" + match.group(1) + "]")
+                except json.JSONDecodeError:
+                    log.warn("Could not decode playlist json")
+                    log.warn_contd(f"Playlist json: [{match.group(1)}]")
+                    continue
+                for elem in playlist:
+                    title = elem.get("title", None)
+                    description = elem.get("description", None)
+                    url = elem.get("resource", None)
+                    if title is None or description is None or url is None:
+                        log.explain(f"Mediacast json: {match.group(1)}")
+                        log.warn("Mediacast video json was not complete")
+                    if title is None:
+                        log.warn_contd("Missing title")
+                    if description is None:
+                        log.warn_contd("Missing description")
+                    if url is None:
+                        log.warn_contd("Missing URL")
 
-            videos.append(IliasPageElement.create_new(
-                typ=IliasElementType.MEDIACAST_VIDEO,
-                url=self._abs_url_from_relative(cast(str, video_element.get("src"))),
-                name=element_name,
-                mtime=self._find_mediacast_video_mtime(cast(Tag, elem.find_parent(name="td")))
-            ))
+                    if not title.endswith(".mp4") and not title.endswith(".webm"):
+                        # just to make sure it has some kinda-alrightish ending
+                        title = title + ".mp4"
+                    videos.append(IliasPageElement.create_new(
+                        typ=IliasElementType.MEDIACAST_VIDEO,
+                        url=self._abs_url_from_relative(cast(str, url)),
+                        name=_sanitize_path_name(title)
+                    ))
 
         return videos
 
     def _find_mob_videos(self) -> list[IliasPageElement]:
         videos: list[IliasPageElement] = []
 
-        for figure in self._soup.select("figure.ilc_media_cont_MediaContainerHighlighted"):
-            title = cast(Tag, figure.select_one("figcaption")).get_text().strip() + ".mp4"
+        selector = "figure.ilc_media_cont_MediaContainerHighlighted,figure.ilc_media_cont_MediaContainer"
+        for figure in self._soup.select(selector):
             video_element = figure.select_one("video")
             if not video_element:
-                _unexpected_html_warning()
-                log.warn_contd(f"No <video> element found for mob video '{title}'")
                 continue
 
-            url = None
-            for source in video_element.select("source"):
-                if source.get("type", "") == "video/mp4":
-                    url = cast(Optional[str], source.get("src"))
-                    break
+            url, title = self._find_mob_video_url_title(video_element, figure)
 
             if url is None:
                 _unexpected_html_warning()
                 log.warn_contd(f"No <source> element found for mob video '{title}'")
                 continue
 
+            if urlparse(url).hostname != urlparse(self._page_url).hostname:
+                log.explain(f"Found external video at {url}, ignoring")
+                continue
+
             videos.append(IliasPageElement.create_new(
                 typ=IliasElementType.MOB_VIDEO,
-                url=self._abs_url_from_relative(url),
+                url=url,
                 name=_sanitize_path_name(title),
                 mtime=None
             ))
 
         return videos
 
-    def _find_mediacast_video_mtime(self, enclosing_td: Tag) -> Optional[datetime]:
-        description_td = cast(Tag, enclosing_td.find_previous_sibling("td"))
-        if not description_td:
-            return None
+    def _find_mob_video_url_title(self, video_element: Tag, figure: Tag) -> tuple[Optional[str], str]:
+        url = None
+        for source in video_element.select("source"):
+            if source.get("type", "") == "video/mp4":
+                url = cast(Optional[str], source.get("src"))
+                break
 
-        meta_tag = cast(Optional[Tag], description_td.find_all("p")[-1])
-        if not meta_tag:
-            return None
+        if url is None and video_element.get("src"):
+            url = cast(Optional[str], video_element.get("src"))
 
-        updated_str = meta_tag.get_text().strip().replace("\n", " ")
-        updated_str = re.sub(".+?: ", "", updated_str)
-        return demangle_date(updated_str)
+        fig_caption = cast(Optional[Tag], figure.select_one("figcaption"))
+        if fig_caption:
+            title = cast(Tag, figure.select_one("figcaption")).get_text().strip() + ".mp4"
+        elif url is not None:
+            path = urlparse(self._abs_url_from_relative(url)).path
+            title = path.rsplit("/", 1)[-1]
+        else:
+            title = f"unknown video {figure}"
+
+        if url:
+            url = self._abs_url_from_relative(url)
+
+        return url, title
 
     def _is_in_expanded_meeting(self, tag: Tag) -> bool:
         """
@@ -907,12 +1121,17 @@ class IliasPage:
             # We should not crawl files under meetings
             if "ilContainerListItemContentCB" in cast(str, parent.get("class")):
                 link: Tag = parent.parent.find("a")  # type: ignore
-                type = IliasPage._find_type_from_folder_like(link, self._page_url)
-                return type == IliasElementType.MEETING
+                typ = IliasPage._find_type_for_element(
+                    "meeting",
+                    self._abs_url_from_link(link),
+                    lambda: IliasPage._find_icon_for_folder_entry(link)
+                )
+                return typ == IliasElementType.MEETING
 
         return False
 
-    def _find_upwards_folder_hierarchy(self, tag: Tag) -> list[str]:
+    @staticmethod
+    def _find_upwards_folder_hierarchy(tag: Tag) -> list[str]:
         """
         Interprets accordions and expandable blocks as virtual folders and returns them
         in order. This allows us to find a file named "Test" in an accordion "Acc" as "Acc/Test"
@@ -953,13 +1172,16 @@ class IliasPage:
         if outer_accordion_content:
             accordion_tag = cast(Tag, outer_accordion_content.parent)
             head_tag = cast(Tag, accordion_tag.find(attrs={
-                "class": lambda x: x is not None and "ilc_va_ihead_VAccordIHead" in x
+                "class": lambda x: x is not None and (
+                    "ilc_va_ihead_VAccordIHead" in x or "ilc_va_ihead_AccordIHead" in x
+                )
             }))
             found_titles.append(head_tag.get_text().strip())
 
         return [_sanitize_path_name(x) for x in reversed(found_titles)]
 
-    def _find_link_description(self, link: Tag) -> Optional[str]:
+    @staticmethod
+    def _find_link_description(link: Tag) -> Optional[str]:
         tile = cast(
             Tag,
             link.find_parent("div", {"class": lambda x: x is not None and "il_ContainerListItem" in x})
@@ -974,7 +1196,8 @@ class IliasPage:
             return None
         return description_element.get_text().strip()
 
-    def _file_to_element(self, name: str, url: str, link_element: Tag) -> IliasPageElement:
+    @staticmethod
+    def _file_to_element(name: str, url: str, link_element: Tag) -> IliasPageElement:
         # Files have a list of properties (type, modification date, size, etc.)
         # In a series of divs.
         # Find the parent containing all those divs, so we can filter our what we need
@@ -1007,27 +1230,38 @@ class IliasPage:
         for title in card_titles:
             url = self._abs_url_from_link(title)
             name = _sanitize_path_name(title.get_text().strip())
-            type = self._find_type_from_card(title)
+            typ = IliasPage._find_type_for_element(
+                name, url, lambda: IliasPage._find_icon_from_card(title)
+            )
 
-            if not type:
+            if not typ:
                 _unexpected_html_warning()
                 log.warn_contd(f"Could not extract type for {title}")
                 continue
 
-            result.append(IliasPageElement.create_new(type, url, name))
+            result.append(IliasPageElement.create_new(typ, url, name))
 
         card_button_tiles: list[Tag] = self._soup.select(".card-title button")
 
         for button in card_button_tiles:
-            regex = re.compile(button["id"] + r".*window.open\(['\"](.+?)['\"]")  # type: ignore
-            res = regex.search(str(self._soup))
-            if not res:
+            signal_regex = re.compile("#" + str(button["id"]) + r"[\s\S]*?\.trigger\('(.+?)'")
+            signal_match = signal_regex.search(str(self._soup))
+            if not signal_match:
                 _unexpected_html_warning()
-                log.warn_contd(f"Could not find click handler target for {button}")
+                log.warn_contd(f"Could not find click handler signal for {button}")
                 continue
-            url = self._abs_url_from_relative(res.group(1))
+            signal = signal_match.group(1)
+            open_regex = re.compile(r"\.on\('" + signal + r"[\s\S]*?window.open\(['\"](.+?)['\"]")
+            open_match = open_regex.search(str(self._soup))
+            if not open_match:
+                _unexpected_html_warning()
+                log.warn_contd(f"Could not find click handler target for signal {signal} for {button}")
+                continue
+            url = self._abs_url_from_relative(open_match.group(1))
             name = _sanitize_path_name(button.get_text().strip())
-            type = self._find_type_from_card(button)
+            typ = IliasPage._find_type_for_element(
+                name, url, lambda: IliasPage._find_icon_from_card(button)
+            )
             caption_parent = cast(Tag, button.find_parent(
                 "div",
                 attrs={"class": lambda x: x is not None and "caption" in x},
@@ -1038,143 +1272,59 @@ class IliasPage:
             else:
                 description = None
 
-            if not type:
+            if not typ:
                 _unexpected_html_warning()
                 log.warn_contd(f"Could not extract type for {button}")
                 continue
 
-            result.append(IliasPageElement.create_new(type, url, name, description=description))
+            result.append(IliasPageElement.create_new(typ, url, name, description=description))
 
         return result
 
-    def _find_type_from_card(self, card_title: Tag) -> Optional[IliasElementType]:
-        def is_card_root(element: Tag) -> bool:
-            return "il-card" in element["class"] and "thumbnail" in element["class"]
-
-        card_root: Optional[Tag] = None
-
-        # We look for the card root
-        for parent in card_title.parents:
-            if is_card_root(parent):
-                card_root = parent
-                break
-
-        if card_root is None:
-            _unexpected_html_warning()
-            log.warn_contd(f"Tried to figure out element type, but did not find an icon for {card_title}")
-            return None
-
-        icon = cast(Tag, card_root.select_one(".il-card-repository-head .icon"))
-
-        if "opencast" in icon["class"] or "xoct" in icon["class"]:
-            return IliasElementType.OPENCAST_VIDEO_FOLDER_MAYBE_PAGINATED
-        if "exc" in icon["class"]:
-            return IliasElementType.EXERCISE
-        if "grp" in icon["class"]:
-            return IliasElementType.FOLDER
-        if "webr" in icon["class"]:
-            return IliasElementType.LINK
-        if "book" in icon["class"]:
-            return IliasElementType.BOOKING
-        if "crsr" in icon["class"]:
-            return IliasElementType.COURSE
-        if "frm" in icon["class"]:
-            return IliasElementType.FORUM
-        if "sess" in icon["class"]:
-            return IliasElementType.MEETING
-        if "tst" in icon["class"]:
-            return IliasElementType.TEST
-        if "fold" in icon["class"]:
-            return IliasElementType.FOLDER
-        if "copa" in icon["class"]:
-            return IliasElementType.FOLDER
-        if "svy" in icon["class"]:
-            return IliasElementType.SURVEY
-        if "file" in icon["class"]:
-            return IliasElementType.FILE
-        if "mcst" in icon["class"]:
-            return IliasElementType.MEDIACAST_VIDEO_FOLDER
-
-        _unexpected_html_warning()
-        log.warn_contd(f"Could not extract type from {icon} for card title {card_title}")
-        return None
-
     @staticmethod
-    def _find_type_from_link(
+    def _find_type_for_element(
         element_name: str,
-        link_element: Tag,
-        url: str
+        url: str,
+        icon_for_element: Callable[[], Optional[Tag]],
     ) -> Optional[IliasElementType]:
         """
         Decides which sub crawler to use for a given top level element.
         """
         parsed_url = urlparse(url)
+        icon = icon_for_element()
 
-        # file URLs contain "target=file"
-        if "target=file_" in parsed_url.query:
-            return IliasElementType.FILE
+        def try_matcher(matcher: IliasElementMatcher) -> bool:
+            match matcher:
+                case TypeMatcher.All(matchers=ms):
+                    return all(try_matcher(m) for m in ms)
+                case TypeMatcher.Any(matchers=ms):
+                    return any(try_matcher(m) for m in ms)
+                case TypeMatcher.ImgAlt(alt=alt):
+                    return icon is not None and alt in str(icon["alt"]).lower()
+                case TypeMatcher.ImgSrc(src=src):
+                    return icon is not None and src in str(icon["src"]).lower()
+                case TypeMatcher.UrlPath(path=path):
+                    return path in parsed_url.path.lower()
+                case TypeMatcher.UrlParameter(query=query):
+                    return query in parsed_url.query.lower()
 
-        if "target=grp_" in parsed_url.query:
-            return IliasElementType.FOLDER
+            raise CrawlError(f"Unknown matcher {matcher}")
 
-        if "target=crs_" in parsed_url.query:
-            return IliasElementType.FOLDER
-
-        if "baseClass=ilExerciseHandlerGUI" in parsed_url.query:
-            return IliasElementType.EXERCISE
-
-        if "baseClass=ilLinkResourceHandlerGUI" in parsed_url.query and "calldirectlink" in parsed_url.query:
-            return IliasElementType.LINK
-
-        if "cmd=showThreads" in parsed_url.query or "target=frm_" in parsed_url.query:
-            return IliasElementType.FORUM
-
-        if "cmdClass=ilobjtestgui" in parsed_url.query:
-            return IliasElementType.TEST
-
-        if "baseClass=ilLMPresentationGUI" in parsed_url.query:
-            return IliasElementType.LEARNING_MODULE
-
-        if "baseClass=ilMediaCastHandlerGUI" in parsed_url.query:
-            return IliasElementType.MEDIACAST_VIDEO_FOLDER
-
-        if "baseClass=ilSAHSPresentationGUI" in parsed_url.query:
-            return IliasElementType.SCORM_LEARNING_MODULE
-
-        # other universities might have content type specified in URL path
-        if "_file_" in parsed_url.path:
-            return IliasElementType.FILE
-
-        if "_fold_" in parsed_url.path or "_copa_" in parsed_url.path:
-            return IliasElementType.FOLDER
-
-        if "_frm_" in parsed_url.path:
-            return IliasElementType.FORUM
-
-        if "_exc_" in parsed_url.path:
-            return IliasElementType.EXERCISE
-
-        # Booking and Meeting can not be detected based on the link. They do have a ref_id though, so
-        # try to guess it from the image.
-
-        # Everything with a ref_id can *probably* be opened to reveal nested things
-        # video groups, directories, exercises, etc
-        if "ref_id=" in parsed_url.query or "goto.php" in parsed_url.path:
-            return IliasPage._find_type_from_folder_like(link_element, url)
+        for typ in IliasElementType:
+            if try_matcher(typ.matcher()):
+                return typ
 
         _unexpected_html_warning()
-        log.warn_contd(
-            f"Tried to figure out element type, but failed for {element_name!r} / {link_element!r})"
-        )
+        log.warn_contd(f"Tried to figure out element type, but failed for {element_name!r} / {url!r})")
+
+        if "ref_id=" in parsed_url.query.lower() or "goto.php" in parsed_url.path.lower():
+            log.warn_contd("Defaulting to FOLDER as it contains a ref_id/goto")
+            return IliasElementType.FOLDER
+
         return None
 
     @staticmethod
-    def _find_type_from_folder_like(link_element: Tag, url: str) -> Optional[IliasElementType]:
-        """
-        Try crawling something that looks like a folder.
-        """
-        # pylint: disable=too-many-return-statements
-
+    def _find_icon_for_folder_entry(link_element: Tag) -> Optional[Tag]:
         found_parent: Optional[Tag] = None
 
         # We look for the outer div of our inner link, to find information around it
@@ -1186,7 +1336,9 @@ class IliasPage:
 
         if found_parent is None:
             _unexpected_html_warning()
-            log.warn_contd(f"Tried to figure out element type, but did not find an icon for {url}")
+            log.warn_contd(
+                f"Tried to figure out element type, but did not find an icon for {link_element!r}"
+            )
             return None
 
         # Find the small descriptive icon to figure out the type
@@ -1203,42 +1355,35 @@ class IliasPage:
             log.explain("Found session expansion button, skipping it as it has no content")
             return None
 
-        if img_tag is None:
-            _unexpected_html_warning()
-            log.warn_contd(f"Tried to figure out element type, but did not find an image for {url}")
-            return None
+        if img_tag is not None:
+            return img_tag
 
-        if "opencast" in str(img_tag["alt"]).lower():
-            return IliasElementType.OPENCAST_VIDEO_FOLDER_MAYBE_PAGINATED
-
-        if str(img_tag["src"]).endswith("icon_exc.svg"):
-            return IliasElementType.EXERCISE
-
-        if str(img_tag["src"]).endswith("icon_webr.svg"):
-            return IliasElementType.LINK
-
-        if str(img_tag["src"]).endswith("icon_book.svg"):
-            return IliasElementType.BOOKING
-
-        if str(img_tag["src"]).endswith("frm.svg"):
-            return IliasElementType.FORUM
-
-        if str(img_tag["src"]).endswith("sess.svg"):
-            return IliasElementType.MEETING
-
-        if str(img_tag["src"]).endswith("icon_tst.svg"):
-            return IliasElementType.TEST
-
-        if str(img_tag["src"]).endswith("icon_mcst.svg"):
-            return IliasElementType.MEDIACAST_VIDEO_FOLDER
-
-        if str(img_tag["src"]).endswith("icon_sahs.svg"):
-            return IliasElementType.SCORM_LEARNING_MODULE
-
-        return IliasElementType.FOLDER
+        log.explain(f"Tried to figure out element type, but did not find an image for {link_element!r}")
+        return None
 
     @staticmethod
-    def is_logged_in(soup: BeautifulSoup) -> bool:
+    def _find_icon_from_card(card_title: Tag) -> Optional[Tag]:
+        def is_card_root(element: Tag) -> bool:
+            return "il-card" in element["class"] and "thumbnail" in element["class"]
+
+        card_root: Optional[Tag] = None
+
+        # We look for the card root
+        for parent in card_title.parents:
+            if is_card_root(parent):
+                card_root = parent
+                break
+
+        if card_root is None:
+            _unexpected_html_warning()
+            log.warn_contd(f"Tried to figure out element type, but did not find an icon for {card_title}")
+            return None
+
+        return cast(Tag, card_root.select_one(".il-card-repository-head .icon"))
+
+    @staticmethod
+    def is_logged_in(ilias_soup: IliasSoup) -> bool:
+        soup = ilias_soup.soup
         # Normal ILIAS pages
         mainbar = cast(Optional[Tag], soup.find(class_="il-maincontrols-metabar"))
         if mainbar is not None:
@@ -1285,7 +1430,7 @@ class IliasPage:
         return None
 
     def get_permalink(self) -> Optional[str]:
-        return IliasPage.get_soup_permalink(self._soup)
+        return IliasPage.get_soup_permalink(self._ilias_soup)
 
     def _abs_url_from_link(self, link_tag: Tag) -> str:
         """
@@ -1300,11 +1445,15 @@ class IliasPage:
         return urljoin(self._page_url, relative_url)
 
     @staticmethod
-    def get_soup_permalink(soup: BeautifulSoup) -> Optional[str]:
-        perma_link_element = cast(Tag, soup.select_one(".il-footer-permanent-url > a"))
-        if not perma_link_element or not perma_link_element.get("href"):
-            return None
-        return cast(Optional[str], perma_link_element.get("href"))
+    def get_soup_permalink(ilias_soup: IliasSoup) -> Optional[str]:
+        scripts = cast(list[Tag], ilias_soup.soup.find_all("script"))
+        pattern = re.compile(r"il\.Footer\.permalink\.copyText\(\"(.+?)\"\)")
+        for script in scripts:
+            if match := pattern.search(script.text):
+                url = match.group(1)
+                url = url.replace(r"\/", "/")
+                return url
+        return None
 
 
 def _unexpected_html_warning() -> None:
