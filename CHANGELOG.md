@@ -22,6 +22,9 @@ ambiguous situations.
 
 ## Unreleased
 
+### Added
+- Support for ILIAS 9
+
 ### Changed
 - Added prettier CSS to forum threads
 
