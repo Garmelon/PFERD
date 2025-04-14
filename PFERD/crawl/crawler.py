@@ -149,9 +149,7 @@ class CrawlerSection(Section):
         return self.s.getboolean("skip", fallback=False)
 
     def output_dir(self, name: str) -> Path:
-        # TODO Use removeprefix() after switching to 3.9
-        if name.startswith("crawl:"):
-            name = name[len("crawl:"):]
+        name = name.removeprefix("crawl:")
         return Path(self.s.get("output_dir", name)).expanduser()
 
     def redownload(self) -> Redownload:
