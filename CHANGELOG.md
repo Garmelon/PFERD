@@ -27,6 +27,7 @@ ambiguous situations.
 
 ### Changed
 - Added prettier CSS to forum threads
+- Increase minimum supported Python version to 3.11
 
 ## Fixed
 - File links in report on Windows

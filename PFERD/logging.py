@@ -1,9 +1,8 @@
 import asyncio
 import sys
 import traceback
-from contextlib import asynccontextmanager, contextmanager
-# TODO In Python 3.9 and above, ContextManager is deprecated
-from typing import AsyncIterator, ContextManager, Iterator, List, Optional
+from contextlib import AbstractContextManager, asynccontextmanager, contextmanager
+from typing import AsyncIterator, Iterator, List, Optional
 
 from rich.console import Console, Group
 from rich.live import Live
@@ -261,7 +260,7 @@ directly or as a GitHub issue: https://github.com/Garmelon/PFERD/issues/new
             action: str,
             text: str,
             total: Optional[float] = None,
-    ) -> ContextManager[ProgressBar]:
+    ) -> AbstractContextManager[ProgressBar]:
         """
         Allows markup in the "style" argument which will be applied to the
         "action" string.
@@ -277,7 +276,7 @@ directly or as a GitHub issue: https://github.com/Garmelon/PFERD/issues/new
             action: str,
             text: str,
             total: Optional[float] = None,
-    ) -> ContextManager[ProgressBar]:
+    ) -> AbstractContextManager[ProgressBar]:
         """
         Allows markup in the "style" argument which will be applied to the
         "action" string.

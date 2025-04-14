@@ -12,7 +12,7 @@ dependencies = [
   "certifi>=2021.10.8"
 ]
 dynamic = ["version"]
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 
 [project.scripts]
 pferd = "PFERD.__main__:main"

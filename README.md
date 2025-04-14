@@ -17,7 +17,7 @@ Binaries for Linux, Windows and Mac can be downloaded directly from the
 
 ### With pip
 
-Ensure you have at least Python 3.9 installed. Run the following command to
+Ensure you have at least Python 3.11 installed. Run the following command to
 install PFERD or upgrade it to the latest version:
 
 ```
