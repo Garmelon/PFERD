@@ -22,6 +22,8 @@ ambiguous situations.
 
 ## Unreleased
 
+## 3.8.0 - 2025-04-15
+
 ### Added
 - Support for ILIAS 9
 
