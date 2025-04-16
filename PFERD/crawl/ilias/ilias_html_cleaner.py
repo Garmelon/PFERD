@@ -39,6 +39,10 @@ _STYLE_TAG_CONTENT = """
       margin: 0.5rem 0;
     }
 
+    img {
+        background-color: white;
+    }
+
     body {
       padding: 1em;
       grid-template-columns: 1fr min(60rem, 90%) 1fr;
@@ -56,12 +60,11 @@ _ARTICLE_WORTHY_CLASSES = [
 def insert_base_markup(soup: BeautifulSoup) -> BeautifulSoup:
     head = soup.new_tag("head")
     soup.insert(0, head)
+    # Force UTF-8 encoding
+    head.append(soup.new_tag("meta", charset="utf-8"))
 
-    simplecss_link: Tag = soup.new_tag("link")
     # <link rel="stylesheet" href="https://cdn.simplecss.org/simple.css">
-    simplecss_link["rel"] = "stylesheet"
-    simplecss_link["href"] = "https://cdn.simplecss.org/simple.css"
-    head.append(simplecss_link)
+    head.append(soup.new_tag("link", rel="stylesheet", href="https://cdn.simplecss.org/simple.css"))
 
     # Basic style tags for compat
     style: Tag = soup.new_tag("style")
