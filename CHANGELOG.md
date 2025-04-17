@@ -22,6 +22,8 @@ ambiguous situations.
 
 ## Unreleased
 
+## 3.8.1 - 2025-04-17
+
 ## Fixed
 - Description html files now specify at UTF-8 encoding
 - Images in descriptions now always have a white background
