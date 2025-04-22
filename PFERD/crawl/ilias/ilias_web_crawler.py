@@ -1039,7 +1039,7 @@ instance's greatest bottleneck.
             async with self.session.get(urljoin(self._base_url, "/login.php"), params=params) as request:
                 login_page = soupify(await request.read())
 
-            login_form = cast(Optional[Tag], login_page.find("form", attrs={"name": "formlogin"}))
+            login_form = cast(Optional[Tag], login_page.find("form", attrs={"name": "login_form"}))
             if login_form is None:
                 raise CrawlError("Could not find the login form! Specified client id might be invalid.")
 
@@ -1049,14 +1049,12 @@ instance's greatest bottleneck.
 
             username, password = await self._auth.credentials()
 
-            login_data = {
-                "username": username,
-                "password": password,
-                "cmd[doStandardAuthentication]": "Login",
-            }
+            login_form_data = aiohttp.FormData()
+            login_form_data.add_field('login_form/input_3/input_4', username)
+            login_form_data.add_field('login_form/input_3/input_5', password)
 
             # do the actual login
-            async with self.session.post(urljoin(self._base_url, login_url), data=login_data) as request:
+            async with self.session.post(urljoin(self._base_url, login_url), data=login_form_data) as request:
                 soup = IliasSoup(soupify(await request.read()), str(request.url))
                 if not IliasPage.is_logged_in(soup):
                     self._auth.invalidate_credentials()

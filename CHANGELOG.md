@@ -25,6 +25,9 @@ ambiguous situations.
 ## Changed
 - Explicitly mention that wikis are not supported at the moment and ignore them
 
+## Fixed
+- Ilias-native login
+
 ## 3.8.1 - 2025-04-17
 
 ## Fixed
