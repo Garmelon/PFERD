@@ -424,6 +424,14 @@ instance's greatest bottleneck.
                 "[bright_black](not descending into linked course)"
             )
             return None
+        elif element.type == IliasElementType.WIKI:
+            log.status(
+                "[bold bright_black]",
+                "Ignored",
+                fmt_path(element_path),
+                "[bright_black](wikis are not currently supported)"
+            )
+            return None
         elif element.type == IliasElementType.LEARNING_MODULE:
             return await self._handle_learning_module(element, element_path)
         elif element.type == IliasElementType.LINK:

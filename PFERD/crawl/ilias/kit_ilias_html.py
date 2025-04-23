@@ -120,6 +120,7 @@ class IliasElementType(Enum):
     SCORM_LEARNING_MODULE = "scorm_learning_module"
     SURVEY = "survey"
     TEST = "test"  # an online test. Will be ignored currently.
+    WIKI = "wiki"
 
     def matcher(self) -> IliasElementMatcher:
         match self:
@@ -242,6 +243,11 @@ class IliasElementType(Enum):
                     TypeMatcher.query("cmdclass=ilobjtestgui"),
                     TypeMatcher.query("cmdclass=iltestscreengui"),
                     TypeMatcher.img_src("_tst.svg")
+                )
+            case IliasElementType.WIKI:
+                return TypeMatcher.any(
+                    TypeMatcher.query("baseClass=ilwikihandlergui"),
+                    TypeMatcher.img_src("wiki.svg")
                 )
 
         raise CrawlWarning(f"Unknown matcher {self}")
