@@ -97,7 +97,8 @@ class IliasElementType(Enum):
     BOOKING = "booking"
     COURSE = "course"
     DCL_RECORD_LIST = "dcl_record_list"
-    EXERCISE = "exercise"
+    EXERCISE_OVERVIEW = "exercise_overview"
+    EXERCISE = "exercise"  # own submitted files
     EXERCISE_FILES = "exercise_files"  # own submitted files
     FILE = "file"
     FOLDER = "folder"
@@ -141,13 +142,15 @@ class IliasElementType(Enum):
                     TypeMatcher.query("cmdclass=ildclrecordlistgui")
                 )
             case IliasElementType.EXERCISE:
+                return TypeMatcher.never()
+            case IliasElementType.EXERCISE_FILES:
+                return TypeMatcher.never()
+            case IliasElementType.EXERCISE_OVERVIEW:
                 return TypeMatcher.any(
                     TypeMatcher.path("/exc/"),
                     TypeMatcher.path("_exc_"),
                     TypeMatcher.img_src("_exc.svg"),
                 )
-            case IliasElementType.EXERCISE_FILES:
-                return TypeMatcher.never()
             case IliasElementType.FILE:
                 return TypeMatcher.any(
                     TypeMatcher.query("cmd=sendfile"),
@@ -530,6 +533,8 @@ class IliasPage:
         if self._contains_collapsed_future_meetings():
             log.explain("Requesting *all* future meetings")
             return self._uncollapse_future_meetings_url()
+        if self._is_exercise_not_all_shown():
+            return self._show_all_exercises()
         if not self._is_content_tab_selected():
             if self._page_type != IliasElementType.INFO_TAB:
                 log.explain("Selecting content tab")
@@ -561,7 +566,7 @@ class IliasPage:
 
     def _is_exercise_file(self) -> bool:
         # we know it from before
-        if self._page_type == IliasElementType.EXERCISE:
+        if self._page_type == IliasElementType.EXERCISE_OVERVIEW:
             return True
 
         # We have no suitable parent - let's guesss
@@ -597,6 +602,17 @@ class IliasPage:
             return None
         link = self._abs_url_from_link(element)
         return IliasPageElement.create_new(IliasElementType.FOLDER, link, "show all meetings")
+
+    def _is_exercise_not_all_shown(self) -> bool:
+        return (self._page_type == IliasElementType.EXERCISE_OVERVIEW
+                and "mode=all" not in self._page_url.lower())
+
+    def _show_all_exercises(self) -> Optional[IliasPageElement]:
+        return IliasPageElement.create_new(
+            IliasElementType.EXERCISE_OVERVIEW,
+            self._page_url + "&mode=all",
+            "show all exercises"
+        )
 
     def _is_content_tab_selected(self) -> bool:
         return self._select_content_page_url() is None
@@ -863,15 +879,62 @@ class IliasPage:
 
     def _find_exercise_entries(self) -> list[IliasPageElement]:
         if self._soup.find(id="tab_submission"):
-            log.explain("Found submission tab. This is an exercise detail page")
-            return self._find_exercise_entries_detail_page()
+            log.explain("Found submission tab. This is an exercise detail or files page")
+            if self._soup.select_one("#tab_submission.active") is None:
+                log.explain("  This is a details page")
+                return self._find_exercise_entries_detail_page()
+            else:
+                log.explain("  This is a files page")
+                return self._find_exercise_entries_files_page()
+
         log.explain("Found no submission tab. This is an exercise root page")
         return self._find_exercise_entries_root_page()
 
     def _find_exercise_entries_detail_page(self) -> list[IliasPageElement]:
         results: list[IliasPageElement] = []
 
-        # Find all download links in the container (this will contain all the files)
+        if link := cast(Optional[Tag], self._soup.select_one("#tab_submission > a")):
+            results.append(IliasPageElement.create_new(
+                IliasElementType.EXERCISE_FILES,
+                self._abs_url_from_link(link),
+                "Submission"
+            ))
+        else:
+            log.explain("Found no submission link for exercise, maybe it has not started yet?")
+
+        # Find all download links in the container (this will contain all the *feedback* files)
+        download_links = cast(list[Tag], self._soup.find_all(
+            name="a",
+            # download links contain the given command class
+            attrs={"href": lambda x: x is not None and "cmd=download" in x},
+            text="Download"
+        ))
+
+        for link in download_links:
+            parent_row: Tag = cast(Tag, link.find_parent(
+                attrs={"class": lambda x: x is not None and "row" in x}))
+            name_tag = cast(Optional[Tag], parent_row.find(name="div"))
+
+            if not name_tag:
+                log.warn("Could not find name tag for exercise entry")
+                _unexpected_html_warning()
+                continue
+
+            name = _sanitize_path_name(name_tag.get_text().strip())
+            log.explain(f"Found exercise detail entry {name!r}")
+
+            results.append(IliasPageElement.create_new(
+                IliasElementType.FILE,
+                self._abs_url_from_link(link),
+                name
+            ))
+
+        return results
+
+    def _find_exercise_entries_files_page(self) -> list[IliasPageElement]:
+        results: list[IliasPageElement] = []
+
+        # Find all download links in the container
         download_links = cast(list[Tag], self._soup.find_all(
             name="a",
             # download links contain the given command class
@@ -884,7 +947,7 @@ class IliasPage:
             children = cast(list[Tag], parent_row.find_all("td"))
 
             name = _sanitize_path_name(children[1].get_text().strip())
-            log.explain(f"Found exercise detail entry {name!r}")
+            log.explain(f"Found exercise file entry {name!r}")
 
             date = None
             for child in reversed(children):
@@ -892,7 +955,7 @@ class IliasPage:
                 if date is not None:
                     break
             if date is None:
-                log.warn(f"Date parsing failed for exercise entry {name!r}")
+                log.warn(f"Date parsing failed for exercise file entry {name!r}")
 
             results.append(IliasPageElement.create_new(
                 IliasElementType.FILE,
@@ -906,66 +969,31 @@ class IliasPage:
     def _find_exercise_entries_root_page(self) -> list[IliasPageElement]:
         results: list[IliasPageElement] = []
 
-        # Each assignment is in an accordion container
-        assignment_containers: list[Tag] = self._soup.select(".il_VAccordionInnerContainer")
+        content_tab = cast(Optional[Tag], self._soup.find(id="ilContentContainer"))
+        if not content_tab:
+            log.warn("Could not find content tab in exercise overview page")
+            _unexpected_html_warning()
+            return []
 
-        for container in assignment_containers:
-            # Fetch the container name out of the header to use it in the path
-            container_name = cast(Tag, container.select_one(".ilAssignmentHeader")).get_text().strip()
-            log.explain(f"Found exercise container {container_name!r}")
+        individual_exercises = content_tab.find_all(
+            name="a",
+            attrs={
+                "href": lambda x: x is not None
+                and "ass_id=" in x
+                and "cmdClass=ilAssignmentPresentationGUI" in x
+            }
+        )
 
-            # Find all download links in the container (this will contain all the files)
-            files = cast(list[Tag], container.find_all(
-                name="a",
-                # download links contain the given command class
-                attrs={"href": lambda x: x is not None and "cmdClass=ilexsubmissiongui" in x},
-                text="Download"
+        for exercise in cast(list[Tag], individual_exercises):
+            name = _sanitize_path_name(exercise.get_text().strip())
+            results.append(IliasPageElement.create_new(
+                IliasElementType.EXERCISE,
+                self._abs_url_from_link(exercise),
+                name
             ))
 
-            # Grab each file as you now have the link
-            for file_link in files:
-                # Two divs, side by side. Left is the name, right is the link ==> get left
-                # sibling
-                file_name = cast(
-                    Tag,
-                    cast(Tag, file_link.parent).find_previous(name="div")
-                ).get_text().strip()
-                url = self._abs_url_from_link(file_link)
-
-                log.explain(f"Found exercise entry {file_name!r}")
-                results.append(IliasPageElement.create_new(
-                    IliasElementType.FILE,
-                    url,
-                    _sanitize_path_name(container_name) + "/" + _sanitize_path_name(file_name),
-                    mtime=None,  # We do not have any timestamp
-                    skip_sanitize=True
-                ))
-
-            # Find all links to file listings (e.g. "Submitted Files" for groups)
-            file_listings = cast(list[Tag], container.find_all(
-                name="a",
-                # download links contain the given command class
-                attrs={"href": lambda x: x is not None and "cmdclass=ilexsubmissionfilegui" in x.lower()}
-            ))
-
-            # Add each listing as a new
-            for listing in file_listings:
-                parent_container = cast(Tag, listing.find_parent(
-                    "div", attrs={"class": lambda x: x is not None and "form-group" in x}
-                ))
-                label_container = cast(Tag, parent_container.find(
-                    attrs={"class": lambda x: x is not None and "control-label" in x}
-                ))
-                file_name = label_container.get_text().strip()
-                url = self._abs_url_from_link(listing)
-                log.explain(f"Found exercise detail {file_name!r} at {url}")
-                results.append(IliasPageElement.create_new(
-                    IliasElementType.EXERCISE_FILES,
-                    url,
-                    _sanitize_path_name(container_name) + "/" + _sanitize_path_name(file_name),
-                    None,  # we do not have any timestamp
-                    skip_sanitize=True
-                ))
+        for result in results:
+            log.explain(f"Found exercise {result.name!r}")
 
         return results
 

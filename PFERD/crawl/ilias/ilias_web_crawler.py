@@ -107,6 +107,7 @@ class IliasWebCrawlerSection(HttpCrawlerSection):
 _DIRECTORY_PAGES: Set[IliasElementType] = {
     IliasElementType.EXERCISE,
     IliasElementType.EXERCISE_FILES,
+    IliasElementType.EXERCISE_OVERVIEW,
     IliasElementType.FOLDER,
     IliasElementType.INFO_TAB,
     IliasElementType.MEDIACAST_VIDEO_FOLDER,

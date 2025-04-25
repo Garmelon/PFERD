@@ -27,6 +27,7 @@ ambiguous situations.
 
 ## Fixed
 - Ilias-native login
+- Exercise crawling
 
 ## 3.8.1 - 2025-04-17
 
