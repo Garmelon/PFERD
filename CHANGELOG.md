@@ -22,6 +22,8 @@ ambiguous situations.
 
 ## Unreleased
 
+## 3.8.2 - 2025-04-29
+
 ## Changed
 - Explicitly mention that wikis are not supported at the moment and ignore them
 
