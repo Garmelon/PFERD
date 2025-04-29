@@ -22,6 +22,9 @@ ambiguous situations.
 
 ## Unreleased
 
+## Fixed
+- Crawling of exercises with instructions
+
 ## 3.8.2 - 2025-04-29
 
 ## Changed
