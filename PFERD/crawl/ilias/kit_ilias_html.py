@@ -975,16 +975,17 @@ class IliasPage:
             _unexpected_html_warning()
             return []
 
-        individual_exercises = content_tab.find_all(
-            name="a",
-            attrs={
-                "href": lambda x: x is not None
-                and "ass_id=" in x
-                and "cmdClass=ilAssignmentPresentationGUI" in x
-            }
-        )
+        exercise_links = content_tab.select(".il-item-title a")
 
-        for exercise in cast(list[Tag], individual_exercises):
+        for exercise in cast(list[Tag], exercise_links):
+            if "href" not in exercise.attrs:
+                continue
+            href = exercise.attrs["href"]
+            if type(href) is not str:
+                continue
+            if "ass_id=" not in href or "cmdclass=ilassignmentpresentationgui" not in href.lower():
+                continue
+
             name = _sanitize_path_name(exercise.get_text().strip())
             results.append(IliasPageElement.create_new(
                 IliasElementType.EXERCISE,
