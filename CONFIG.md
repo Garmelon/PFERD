@@ -163,13 +163,14 @@ out of the box for the corresponding universities:
 
 [ilias-dl]: https://github.com/V3lop5/ilias-downloader/blob/main/configs "ilias-downloader configs"
 
-| University    | `base_url`                              | `login_type` | `client_id`   |
-|---------------|-----------------------------------------|--------------|---------------|
-| FH Aachen     | https://www.ili.fh-aachen.de            | local        | elearning     |
-| Uni Köln      | https://www.ilias.uni-koeln.de/ilias    | local        | uk            |
-| Uni Konstanz  | https://ilias.uni-konstanz.de           | local        | ILIASKONSTANZ |
-| Uni Stuttgart | https://ilias3.uni-stuttgart.de         | local        | Uni_Stuttgart |
-| Uni Tübingen  | https://ovidius.uni-tuebingen.de/ilias3 | shibboleth   |               |
+| University      | `base_url`                              | `login_type` | `client_id`   |
+|-----------------|-----------------------------------------|--------------|---------------|
+| FH Aachen       | https://www.ili.fh-aachen.de            | local        | elearning     |
+| Uni Köln        | https://www.ilias.uni-koeln.de/ilias    | local        | uk            |
+| Uni Konstanz    | https://ilias.uni-konstanz.de           | local        | ILIASKONSTANZ |
+| Uni Stuttgart   | https://ilias3.uni-stuttgart.de         | local        | Uni_Stuttgart |
+| Uni Tübingen    | https://ovidius.uni-tuebingen.de/ilias3 | shibboleth   |               |
+| KIT ILIAS Pilot | https://pilot.ilias.studium.kit.edu     | shibboleth   | pilot         |
 
 If your university isn't listed, try navigating to your instance's login page.
 Assuming no custom login service is used, the URL will look something like this:
