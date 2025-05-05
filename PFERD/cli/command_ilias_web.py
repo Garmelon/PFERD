@@ -45,8 +45,8 @@ def load(
     load_crawler(args, section)
 
     section["type"] = COMMAND_NAME
-    if args.ilias_url is not None:
-        section["base_url"] = args.ilias_url
+    if args.base_url is not None:
+        section["base_url"] = args.base_url
     if args.client_id is not None:
         section["client_id"] = args.client_id
 
