@@ -983,6 +983,8 @@ instance's greatest bottleneck.
             soup = IliasSoup(soupify(await request.read()), str(request.url))
             if IliasPage.is_logged_in(soup):
                 return self._verify_page(soup, url, root_page_allowed)
+            with open("/tmp/ilias_debug.html", "w") as f:
+                f.write(str(soup.soup.prettify()))
         raise CrawlError(f"get_page failed even after authenticating on {url!r}")
 
     @staticmethod
