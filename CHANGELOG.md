@@ -22,6 +22,12 @@ ambiguous situations.
 
 ## Unreleased
 
+## Added
+- Support for link collections.  
+  In "fancy" mode, a single HTML file with multiple links is generated.
+  In all other modes, PFERD creates a folder for the collection and a new file
+  for every link inside.
+
 ## Fixed
 - Crawling of exercises with instructions
 

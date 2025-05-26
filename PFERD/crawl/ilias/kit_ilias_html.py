@@ -109,6 +109,7 @@ class IliasElementType(Enum):
     LEARNING_MODULE_HTML = "learning_module_html"
     LITERATURE_LIST = "literature_list"
     LINK = "link"
+    LINK_COLLECTION = "link_collection"
     MEDIA_POOL = "media_pool"
     MEDIACAST_VIDEO = "mediacast_video"
     MEDIACAST_VIDEO_FOLDER = "mediacast_video_folder"
@@ -202,7 +203,12 @@ class IliasElementType(Enum):
                         TypeMatcher.query("baseclass=illinkresourcehandlergui"),
                         TypeMatcher.query("calldirectlink"),
                     ),
-                    TypeMatcher.img_src("_webr.svg")
+                    TypeMatcher.img_src("_webr.svg")  # duplicated :(
+                )
+            case IliasElementType.LINK_COLLECTION:
+                return TypeMatcher.any(
+                    TypeMatcher.query("baseclass=illinkresourcehandlergui"),
+                    TypeMatcher.img_src("_webr.svg")  # duplicated :(
                 )
             case IliasElementType.MEDIA_POOL:
                 return TypeMatcher.any(

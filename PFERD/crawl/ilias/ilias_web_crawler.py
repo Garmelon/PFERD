@@ -19,7 +19,7 @@ from ...utils import fmt_path, soupify, url_set_query_param
 from ..crawler import CrawlError, CrawlToken, CrawlWarning, DownloadToken, anoncritical
 from ..http_crawler import HttpCrawler, HttpCrawlerSection
 from .async_helper import _iorepeat
-from .file_templates import Links, forum_thread_template, learning_module_template
+from .file_templates import LinkData, Links, forum_thread_template, learning_module_template
 from .ilias_html_cleaner import clean, insert_base_markup
 from .kit_ilias_html import (IliasElementType, IliasForumThread, IliasLearningModulePage, IliasPage,
                              IliasPageElement, IliasSoup, _sanitize_path_name, parse_ilias_forum_export)
@@ -437,6 +437,8 @@ instance's greatest bottleneck.
             return await self._handle_learning_module(element, element_path)
         elif element.type == IliasElementType.LINK:
             return await self._handle_link(element, element_path)
+        elif element.type == IliasElementType.LINK_COLLECTION:
+            return await self._handle_link(element, element_path)
         elif element.type == IliasElementType.BOOKING:
             return await self._handle_booking(element, element_path)
         elif element.type == IliasElementType.OPENCAST_VIDEO:
@@ -462,44 +464,97 @@ instance's greatest bottleneck.
         log.explain_topic(f"Decision: Crawl Link {fmt_path(element_path)}")
         log.explain(f"Links type is {self._links}")
 
-        link_template_maybe = self._links.template()
-        link_extension = self._links.extension()
-        if not link_template_maybe or not link_extension:
+        export_url = url_set_query_param(element.url, "cmd", "exportHTML")
+        resolved = await self._resolve_link_target(export_url)
+        if resolved == "none":
+            links = [LinkData(element.name, "", element.description or "")]
+        else:
+            links = self._parse_link_content(element, cast(BeautifulSoup, resolved))
+
+        maybe_extension = self._links.extension()
+
+        if not maybe_extension:
             log.explain("Answer: No")
             return None
         else:
             log.explain("Answer: Yes")
-        element_path = element_path.with_name(element_path.name + link_extension)
 
-        maybe_dl = await self.download(element_path, mtime=element.mtime)
-        if not maybe_dl:
+        if len(links) <= 1 or self._links.collection_as_one():
+            element_path = element_path.with_name(element_path.name + maybe_extension)
+            maybe_dl = await self.download(element_path, mtime=element.mtime)
+            if not maybe_dl:
+                return None
+            return self._download_link(self._links, element.name, links, maybe_dl)
+
+        maybe_cl = await self.crawl(element_path)
+        if not maybe_cl:
             return None
+        # Required for download_all closure
+        cl = maybe_cl
+        extension = maybe_extension
 
-        return self._download_link(element, link_template_maybe, maybe_dl)
+        async def download_all() -> None:
+            for link in links:
+                path = cl.path / (_sanitize_path_name(link.name) + extension)
+                if dl := await self.download(path, mtime=element.mtime):
+                    await self._download_link(self._links, element.name, [link], dl)
+
+        return download_all()
 
     @anoncritical
     @_iorepeat(3, "resolving link")
-    async def _download_link(self, element: IliasPageElement, link_template: str, dl: DownloadToken) -> None:
-        async with dl as (bar, sink):
-            export_url = element.url.replace("cmd=calldirectlink", "cmd=exportHTML")
-            real_url = await self._resolve_link_target(export_url)
-            self._write_link_content(link_template, real_url, element.name, element.description, sink)
-
-    def _write_link_content(
+    async def _download_link(
         self,
-        link_template: str,
-        url: str,
-        name: str,
-        description: Optional[str],
-        sink: FileSink,
+        link_renderer: Links,
+        collection_name: str,
+        links: list[LinkData],
+        dl: DownloadToken
     ) -> None:
-        content = link_template
-        content = content.replace("{{link}}", url)
-        content = content.replace("{{name}}", name)
-        content = content.replace("{{description}}", str(description))
-        content = content.replace("{{redirect_delay}}", str(self._link_file_redirect_delay))
-        sink.file.write(content.encode("utf-8"))
-        sink.done()
+        async with dl as (bar, sink):
+            rendered = link_renderer.interpolate(self._link_file_redirect_delay, collection_name, links)
+            sink.file.write(rendered.encode("utf-8"))
+            sink.done()
+
+    async def _resolve_link_target(self, export_url: str) -> Union[BeautifulSoup, Literal['none']]:
+        async def impl() -> Optional[Union[BeautifulSoup, Literal['none']]]:
+            async with self.session.get(export_url, allow_redirects=False) as resp:
+                # No redirect means we were authenticated
+                if hdrs.LOCATION not in resp.headers:
+                    return soupify(await resp.read())  # .select_one("a").get("href").strip()  # type: ignore
+                # We are either unauthenticated or the link is not active
+                new_url = resp.headers[hdrs.LOCATION].lower()
+                if "baseclass=illinkresourcehandlergui" in new_url and "cmd=infoscreen" in new_url:
+                    return "none"
+                return None
+
+        auth_id = await self._current_auth_id()
+        target = await impl()
+        if target is not None:
+            return target
+
+        await self.authenticate(auth_id)
+
+        target = await impl()
+        if target is not None:
+            return target
+
+        raise CrawlError("resolve_link_target failed even after authenticating")
+
+    @staticmethod
+    def _parse_link_content(element: IliasPageElement, content: BeautifulSoup) -> list[LinkData]:
+        links = cast(list[Tag], list(content.select("a")))
+        if len(links) == 1:
+            url = str(links[0].get("href")).strip()
+            return [LinkData(name=element.name, description=element.description or "", url=url)]
+
+        results = []
+        for link in links:
+            url = str(link.get("href")).strip()
+            name = link.get_text(strip=True)
+            description = cast(Tag, link.find_next_sibling("dd")).get_text(strip=True)
+            results.append(LinkData(name=name, description=description, url=url.strip()))
+
+        return results
 
     async def _handle_booking(
         self,
@@ -524,7 +579,7 @@ instance's greatest bottleneck.
 
         self._ensure_not_seen(element, element_path)
 
-        return self._download_booking(element, link_template_maybe, maybe_dl)
+        return self._download_booking(element, maybe_dl)
 
     @anoncritical
     @_iorepeat(1, "downloading description")
@@ -545,36 +600,13 @@ instance's greatest bottleneck.
     async def _download_booking(
         self,
         element: IliasPageElement,
-        link_template: str,
         dl: DownloadToken,
     ) -> None:
         async with dl as (bar, sink):
-            self._write_link_content(link_template, element.url, element.name, element.description, sink)
-
-    async def _resolve_link_target(self, export_url: str) -> str:
-        async def impl() -> Optional[str]:
-            async with self.session.get(export_url, allow_redirects=False) as resp:
-                # No redirect means we were authenticated
-                if hdrs.LOCATION not in resp.headers:
-                    return soupify(await resp.read()).select_one("a").get("href").strip()  # type: ignore
-                # We are either unauthenticated or the link is not active
-                new_url = resp.headers[hdrs.LOCATION].lower()
-                if "baseclass=illinkresourcehandlergui" in new_url and "cmd=infoscreen" in new_url:
-                    return ""
-                return None
-
-        auth_id = await self._current_auth_id()
-        target = await impl()
-        if target is not None:
-            return target
-
-        await self.authenticate(auth_id)
-
-        target = await impl()
-        if target is not None:
-            return target
-
-        raise CrawlError("resolve_link_target failed even after authenticating")
+            links = [LinkData(name=element.name, description=element.description or "", url=element.url)]
+            rendered = self._links.interpolate(self._link_file_redirect_delay, element.name, links)
+            sink.file.write(rendered.encode("utf-8"))
+            sink.done()
 
     async def _handle_opencast_video(
         self,
