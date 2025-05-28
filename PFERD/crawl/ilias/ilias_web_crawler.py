@@ -332,6 +332,10 @@ instance's greatest bottleneck.
         # This is symptomatic of no access to the element, for example, because
         # of time availability restrictions.
         if "cmdClass=ilInfoScreenGUI" in element.url and "cmd=showSummary" in element.url:
+            log.explain(
+                "Skipping element as url points to info screen, "
+                "this should only happen with not-yet-released elements"
+            )
             return None
 
         if element.type in _VIDEO_ELEMENTS:
