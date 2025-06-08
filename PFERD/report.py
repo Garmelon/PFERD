@@ -176,6 +176,9 @@ class Report:
     def is_marked(self, path: PurePath) -> bool:
         return path in self.marked
 
+    def contains_marked(self, path: PurePath) -> bool:
+        return any(marked_file.is_relative_to(path) for marked_file in self.marked)
+
     def add_file(self, path: PurePath) -> None:
         """
         Unlike mark(), this function accepts any paths.
