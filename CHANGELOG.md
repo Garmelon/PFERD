@@ -22,6 +22,8 @@ ambiguous situations.
 
 ## Unreleased
 
+## 3.8.3 - 2025-07-01
+
 ## Added
 - Support for link collections.  
   In "fancy" mode, a single HTML file with multiple links is generated.
