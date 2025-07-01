@@ -33,6 +33,7 @@ ambiguous situations.
 - Don't download unavailable elements.  
   Elements that are unavailable (for example, because their availability is
   time restricted) will not download the HTML for the info page anymore.
+- `base_url` argument for `ilias-web` crawler causing crashes
 
 ## 3.8.2 - 2025-04-29
 
