@@ -22,6 +22,9 @@ ambiguous situations.
 
 ## Unreleased
 
+## Added
+- Store the description when using the `internet-shortcut` link format
+
 ## 3.8.3 - 2025-07-01
 
 ## Added

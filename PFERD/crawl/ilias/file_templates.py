@@ -111,6 +111,7 @@ _link_template_fancy = """
 _link_template_internet_shortcut = """
 [InternetShortcut]
 URL={{link}}
+Desc={{description}}
 """.strip()
 
 _learning_module_template = """
