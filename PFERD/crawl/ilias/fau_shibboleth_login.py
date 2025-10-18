@@ -11,7 +11,7 @@ import aiohttp
 import yarl
 from bs4 import BeautifulSoup, Tag
 
-from ...auth import Authenticator, TfaAuthenticator
+from ...auth import Authenticator
 from ...logging import log
 from ...utils import soupify
 from ..crawler import CrawlError
@@ -79,7 +79,9 @@ class FauShibbolethLogin:
                 )
 
             if self._tfa_required(soup):
-                soup = await self._authenticate_tfa(sess, soup, shib_url)
+                raise CrawlError(
+                    "Two-factor authentication is not yet supported for FAU Shibboleth login!"
+                )
 
             if not self._login_successful(soup):
                 self._auth.invalidate_credentials()
@@ -95,30 +97,6 @@ class FauShibbolethLogin:
         }
         await sess.post(cast(str, url), data=data)
 
-    async def _authenticate_tfa(
-        self, session: aiohttp.ClientSession, soup: BeautifulSoup, shib_url: yarl.URL
-    ) -> BeautifulSoup:
-        if not self._tfa_auth:
-            self._tfa_auth = TfaAuthenticator("ilias-anon-tfa")
-
-        tfa_token = await self._tfa_auth.password()
-
-        # Searching the form here so that this fails before asking for
-        # credentials rather than after asking.
-        form = cast(Tag, soup.find("form", {"method": "post"}))
-        action = cast(str, form["action"])
-
-        # Equivalent: Enter token in
-        # https://idp.scc.kit.edu/idp/profile/SAML2/Redirect/SSO
-        url = str(shib_url.origin()) + action
-        username, password = await self._auth.credentials()
-        data = {
-            "_eventId_proceed": "",
-            "fudis_otp_input": tfa_token,
-        }
-        if csrf_token_input := form.find("input", {"name": "csrf_token"}):
-            data["csrf_token"] = csrf_token_input["value"]  # type: ignore
-        return await _post(session, url, data)
 
     @staticmethod
     def _login_successful(soup: BeautifulSoup) -> bool:
