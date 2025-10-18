@@ -60,16 +60,15 @@ class FauShibbolethLogin:
 
             # Equivalent: Enter credentials in
             # https://idp.scc.kit.edu/idp/profile/SAML2/Redirect/SSO
-            url = str(shib_url.origin()) + action
+            if action.startswith("https"): # FAU uses full URL here
+                url = action
+            else:
+                url = str(shib_url.origin()) + action #KIT uses relative URL here
             username, password = await self._auth.credentials()
             data = {
-                "_eventId_proceed": "",
-                "j_username": username,
-                "j_password": password,
-                "fudis_web_authn_assertion_input": "",
+                "username": username,
+                "password": password
             }
-            if csrf_token_input := form.find("input", {"name": "csrf_token"}):
-                data["csrf_token"] = csrf_token_input["value"]  # type: ignore
             soup = await _post(sess, url, data)
 
             if soup.find(id="attributeRelease"):
@@ -97,7 +96,7 @@ class FauShibbolethLogin:
         }
         await sess.post(cast(str, url), data=data)
 
-
+  
     @staticmethod
     def _login_successful(soup: BeautifulSoup) -> bool:
         relay_state = soup.find("input", {"name": "RelayState"})
