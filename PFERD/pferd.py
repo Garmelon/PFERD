@@ -66,10 +66,10 @@ class Pferd:
         return crawlers_to_run
 
     def _find_crawlers_to_run(
-            self,
-            config: Config,
-            cli_crawlers: Optional[List[str]],
-            cli_skips: Optional[List[str]],
+        self,
+        config: Config,
+        cli_crawlers: Optional[List[str]],
+        cli_skips: Optional[List[str]],
     ) -> List[str]:
         log.explain_topic("Deciding which crawlers to run")
 

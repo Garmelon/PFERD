@@ -53,12 +53,11 @@ class KitIpdFolder:
 
 
 class KitIpdCrawler(HttpCrawler):
-
     def __init__(
-            self,
-            name: str,
-            section: KitIpdCrawlerSection,
-            config: Config,
+        self,
+        name: str,
+        section: KitIpdCrawlerSection,
+        config: Config,
     ):
         super().__init__(name, section, config)
         self._url = section.target()
@@ -104,11 +103,7 @@ class KitIpdCrawler(HttpCrawler):
         await self.gather(tasks)
 
     async def _download_file(
-        self,
-        parent: PurePath,
-        file: KitIpdFile,
-        etag: Optional[str],
-        mtime: Optional[datetime]
+        self, parent: PurePath, file: KitIpdFile, etag: Optional[str], mtime: Optional[datetime]
     ) -> None:
         element_path = parent / file.name
 

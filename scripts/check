@@ -3,4 +3,4 @@
 set -e
 
 mypy .
-flake8 PFERD --max-line-length 110
+ruff check

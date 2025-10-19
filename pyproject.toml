@@ -20,16 +20,29 @@ pferd = "PFERD.__main__:main"
 [tool.setuptools.dynamic]
 version = {attr = "PFERD.version.VERSION"}
 
-[tool.flake8]
-max-line-length = 110
+[tool.ruff]
+line-length = 110
 
-[tool.isort]
-line_length = 110
-
-[tool.autopep8]
-max_line_length = 110
-in-place = true
-recursive = true
+[tool.ruff.lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+]
+ignore = [
+  "UP045",
+  "SIM114",
+  "B023"
+]
 
 [tool.mypy]
 disallow_any_generics = true

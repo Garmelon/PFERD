@@ -254,8 +254,8 @@ def learning_module_template(body: bs4.Tag, name: str, prev: Optional[str], next
         )
 
     if bot_nav := body.select_one(".ilc_page_bnav_BottomNavigation"):
-        bot_nav.replace_with(soupify(nav_template.replace(
-            "{{left}}", left).replace("{{right}}", right).encode())
+        bot_nav.replace_with(
+            soupify(nav_template.replace("{{left}}", left).replace("{{right}}", right).encode())
         )
 
     body_str = cast(str, body.prettify())
@@ -265,10 +265,11 @@ def learning_module_template(body: bs4.Tag, name: str, prev: Optional[str], next
 def forum_thread_template(name: str, url: str, heading: bs4.Tag, content: bs4.Tag) -> str:
     if title := cast(Optional[bs4.Tag], heading.find(name="b")):
         title.wrap(bs4.Tag(name="a", attrs={"href": url}))
-    return _forum_thread_template \
-        .replace("{{name}}", name) \
-        .replace("{{heading}}", cast(str, heading.prettify())) \
+    return (
+        _forum_thread_template.replace("{{name}}", name)
+        .replace("{{heading}}", cast(str, heading.prettify()))
         .replace("{{content}}", cast(str, content.prettify()))
+    )
 
 
 @dataclasses.dataclass
@@ -330,8 +331,7 @@ class Links(Enum):
         # All others get coerced to fancy
         content = cast(str, Links.FANCY.template())
         repeated_content = cast(
-            re.Match[str],
-            re.search(r"<!-- REPEAT START -->([\s\S]+)<!-- REPEAT END -->", content)
+            re.Match[str], re.search(r"<!-- REPEAT START -->([\s\S]+)<!-- REPEAT END -->", content)
         ).group(1)
 
         parts = []

@@ -17,7 +17,6 @@ class KeyringAuthSection(AuthSection):
 
 
 class KeyringAuthenticator(Authenticator):
-
     def __init__(self, name: str, section: KeyringAuthSection) -> None:
         super().__init__(name)
 

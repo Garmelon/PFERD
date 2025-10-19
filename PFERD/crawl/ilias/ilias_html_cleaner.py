@@ -86,7 +86,7 @@ def clean(soup: BeautifulSoup) -> BeautifulSoup:
 
     for block in cast(list[Tag], soup.find_all(class_="ilc_va_ihcap_VAccordIHeadCap")):
         block.name = "h3"
-        block["class"] += ["accordion-head"]  # type: ignore
+        block["class"] += ["accordion-head"]
 
     for dummy in soup.select(".ilc_text_block_Standard.ilc_Paragraph"):
         children = list(dummy.children)

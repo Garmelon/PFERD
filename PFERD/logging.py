@@ -8,8 +8,15 @@ from rich.console import Console, Group
 from rich.live import Live
 from rich.markup import escape
 from rich.panel import Panel
-from rich.progress import (BarColumn, DownloadColumn, Progress, TaskID, TextColumn, TimeRemainingColumn,
-                           TransferSpeedColumn)
+from rich.progress import (
+    BarColumn,
+    DownloadColumn,
+    Progress,
+    TaskID,
+    TextColumn,
+    TimeRemainingColumn,
+    TransferSpeedColumn,
+)
 from rich.table import Column
 
 
@@ -176,10 +183,14 @@ class Log:
         # Our print function doesn't take types other than strings, but the
         # underlying rich.print function does. This call is a special case
         # anyways, and we're calling it internally, so this should be fine.
-        self.print(Panel.fit("""
+        self.print(
+            Panel.fit(
+                """
 Please copy your program output and send it to the PFERD maintainers, either
 directly or as a GitHub issue: https://github.com/Garmelon/PFERD/issues/new
-        """.strip()))  # type: ignore
+        """.strip()
+            )
+        )
 
     def explain_topic(self, text: str) -> None:
         """
@@ -236,10 +247,10 @@ directly or as a GitHub issue: https://github.com/Garmelon/PFERD/issues/new
 
     @contextmanager
     def _bar(
-            self,
-            progress: Progress,
-            description: str,
-            total: Optional[float],
+        self,
+        progress: Progress,
+        description: str,
+        total: Optional[float],
     ) -> Iterator[ProgressBar]:
         if total is None:
             # Indeterminate progress bar
@@ -255,11 +266,11 @@ directly or as a GitHub issue: https://github.com/Garmelon/PFERD/issues/new
             self._update_live()
 
     def crawl_bar(
-            self,
-            style: str,
-            action: str,
-            text: str,
-            total: Optional[float] = None,
+        self,
+        style: str,
+        action: str,
+        text: str,
+        total: Optional[float] = None,
     ) -> AbstractContextManager[ProgressBar]:
         """
         Allows markup in the "style" argument which will be applied to the
@@ -271,11 +282,11 @@ directly or as a GitHub issue: https://github.com/Garmelon/PFERD/issues/new
         return self._bar(self._crawl_progress, description, total)
 
     def download_bar(
-            self,
-            style: str,
-            action: str,
-            text: str,
-            total: Optional[float] = None,
+        self,
+        style: str,
+        action: str,
+        text: str,
+        total: Optional[float] = None,
     ) -> AbstractContextManager[ProgressBar]:
         """
         Allows markup in the "style" argument which will be applied to the

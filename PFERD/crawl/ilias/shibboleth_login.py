@@ -38,9 +38,7 @@ class ShibbolethLogin:
         async with sess.get(url) as response:
             shib_url = response.url
             if str(shib_url).startswith(self._ilias_url):
-                log.explain(
-                    "ILIAS recognized our shib token and logged us in in the background, returning"
-                )
+                log.explain("ILIAS recognized our shib token and logged us in in the background, returning")
                 return
             soup: BeautifulSoup = soupify(await response.read())
 
@@ -62,7 +60,7 @@ class ShibbolethLogin:
                 "fudis_web_authn_assertion_input": "",
             }
             if csrf_token_input := form.find("input", {"name": "csrf_token"}):
-                data["csrf_token"] = csrf_token_input["value"]  # type: ignore
+                data["csrf_token"] = csrf_token_input["value"]
             soup = await _post(sess, url, data)
 
             if soup.find(id="attributeRelease"):
@@ -81,7 +79,7 @@ class ShibbolethLogin:
         # (or clicking "Continue" if you have JS disabled)
         relay_state = cast(Tag, soup.find("input", {"name": "RelayState"}))
         saml_response = cast(Tag, soup.find("input", {"name": "SAMLResponse"}))
-        url = form = soup.find("form", {"method": "post"})["action"]  # type: ignore
+        url = form = soup.find("form", {"method": "post"})["action"]
         data = {  # using the info obtained in the while loop above
             "RelayState": cast(str, relay_state["value"]),
             "SAMLResponse": cast(str, saml_response["value"]),
@@ -110,7 +108,7 @@ class ShibbolethLogin:
             "fudis_otp_input": tfa_token,
         }
         if csrf_token_input := form.find("input", {"name": "csrf_token"}):
-            data["csrf_token"] = csrf_token_input["value"]  # type: ignore
+            data["csrf_token"] = csrf_token_input["value"]
         return await _post(session, url, data)
 
     @staticmethod

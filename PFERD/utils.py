@@ -131,10 +131,10 @@ class ReusableAsyncContextManager(ABC, Generic[T]):
         return result
 
     async def __aexit__(
-            self,
-            exc_type: Optional[Type[BaseException]],
-            exc_value: Optional[BaseException],
-            traceback: Optional[TracebackType],
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_value: Optional[BaseException],
+        traceback: Optional[TracebackType],
     ) -> Optional[bool]:
         if not self._active:
             raise RuntimeError("__aexit__ called too many times")

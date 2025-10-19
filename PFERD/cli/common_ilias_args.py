@@ -12,58 +12,60 @@ def configure_common_group_args(group: argparse._ArgumentGroup) -> None:
         "target",
         type=str,
         metavar="TARGET",
-        help="course id, 'desktop', or ILIAS URL to crawl"
+        help="course id, 'desktop', or ILIAS URL to crawl",
     )
     group.add_argument(
         "output",
         type=Path,
         metavar="OUTPUT",
-        help="output directory"
+        help="output directory",
     )
     group.add_argument(
-        "--username", "-u",
+        "--username",
+        "-u",
         type=str,
         metavar="USERNAME",
-        help="user name for authentication"
+        help="user name for authentication",
     )
     group.add_argument(
         "--keyring",
         action=BooleanOptionalAction,
-        help="use the system keyring to store and retrieve passwords"
+        help="use the system keyring to store and retrieve passwords",
     )
     group.add_argument(
         "--credential-file",
         type=Path,
         metavar="PATH",
-        help="read username and password from a credential file"
+        help="read username and password from a credential file",
     )
     group.add_argument(
         "--links",
         type=show_value_error(Links.from_string),
         metavar="OPTION",
-        help="how to represent external links"
+        help="how to represent external links",
     )
     group.add_argument(
         "--link-redirect-delay",
         type=int,
         metavar="SECONDS",
-        help="time before 'fancy' links redirect to to their target (-1 to disable)"
+        help="time before 'fancy' links redirect to to their target (-1 to disable)",
     )
     group.add_argument(
         "--videos",
         action=BooleanOptionalAction,
-        help="crawl and download videos"
+        help="crawl and download videos",
     )
     group.add_argument(
         "--forums",
         action=BooleanOptionalAction,
-        help="crawl and download forum posts"
+        help="crawl and download forum posts",
     )
     group.add_argument(
-        "--http-timeout", "-t",
+        "--http-timeout",
+        "-t",
         type=float,
         metavar="SECONDS",
-        help="timeout for all HTTP requests"
+        help="timeout for all HTTP requests",
     )
 
 

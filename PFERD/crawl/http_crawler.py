@@ -29,11 +29,11 @@ class HttpCrawler(Crawler):
     COOKIE_FILE = PurePath(".cookies")
 
     def __init__(
-            self,
-            name: str,
-            section: HttpCrawlerSection,
-            config: Config,
-            shared_auth: Optional[Authenticator] = None,
+        self,
+        name: str,
+        section: HttpCrawlerSection,
+        config: Config,
+        shared_auth: Optional[Authenticator] = None,
     ) -> None:
         super().__init__(name, section, config)
 
@@ -252,23 +252,23 @@ class HttpCrawler(Crawler):
         self._load_cookies()
 
         async with aiohttp.ClientSession(
-                headers={"User-Agent": f"{NAME}/{VERSION}"},
-                cookie_jar=self._cookie_jar,
-                connector=aiohttp.TCPConnector(ssl=ssl.create_default_context(cafile=certifi.where())),
-                timeout=ClientTimeout(
-                    # 30 minutes. No download in the history of downloads was longer than 30 minutes.
-                    # This is enough to transfer a 600 MB file over a 3 Mib/s connection.
-                    # Allowing an arbitrary value could be annoying for overnight batch jobs
-                    total=15 * 60,
-                    connect=self._http_timeout,
-                    sock_connect=self._http_timeout,
-                    sock_read=self._http_timeout,
-                ),
-                # See https://github.com/aio-libs/aiohttp/issues/6626
-                # Without this aiohttp will mangle the redirect header from Shibboleth, invalidating the
-                # passed signature. Shibboleth will not accept the broken signature and authentication will
-                # fail.
-                requote_redirect_url=False
+            headers={"User-Agent": f"{NAME}/{VERSION}"},
+            cookie_jar=self._cookie_jar,
+            connector=aiohttp.TCPConnector(ssl=ssl.create_default_context(cafile=certifi.where())),
+            timeout=ClientTimeout(
+                # 30 minutes. No download in the history of downloads was longer than 30 minutes.
+                # This is enough to transfer a 600 MB file over a 3 Mib/s connection.
+                # Allowing an arbitrary value could be annoying for overnight batch jobs
+                total=15 * 60,
+                connect=self._http_timeout,
+                sock_connect=self._http_timeout,
+                sock_read=self._http_timeout,
+            ),
+            # See https://github.com/aio-libs/aiohttp/issues/6626
+            # Without this aiohttp will mangle the redirect header from Shibboleth, invalidating the
+            # passed signature. Shibboleth will not accept the broken signature and authentication will
+            # fail.
+            requote_redirect_url=False,
         ) as session:
             self.session = session
             try:

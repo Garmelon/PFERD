@@ -53,10 +53,10 @@ class Section:
         raise ConfigOptionError(self.s.name, key, desc)
 
     def invalid_value(
-            self,
-            key: str,
-            value: Any,
-            reason: Optional[str],
+        self,
+        key: str,
+        value: Any,
+        reason: Optional[str],
     ) -> NoReturn:
         if reason is None:
             self.error(key, f"Invalid value {value!r}")
