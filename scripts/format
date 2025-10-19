@@ -2,4 +2,4 @@
 
 set -e
 
-ruff format
+uv run ruff format

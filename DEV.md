@@ -9,30 +9,25 @@ particular [this][ppug-1] and [this][ppug-2] guide).
 
 ## Setting up a dev environment
 
-The use of [venv][venv] is recommended. To initially set up a development
-environment, run these commands in the same directory as this file:
+The use of [venv][venv] and [uv][uv] is recommended. To initially set up a
+development environment, run these commands in the same directory as this file:
 
 ```
-$ python -m venv .venv
+$ uv sync
 $ . .venv/bin/activate
-$ ./scripts/setup
 ```
 
-The setup script installs a few required dependencies and tools. It also
-installs PFERD via `pip install --editable .`, which means that you can just run
-`pferd` as if it was installed normally. Since PFERD was installed with
-`--editable`, there is no need to re-run `pip install` when the source code is
-changed.
-
-If you get any errors because pip can't update itself, try running
-`./scripts/setup --no-pip` instead of `./scripts/setup`.
+This install all required dependencies and tools. It also installs PFERD as
+*editable*, which means that you can just run `pferd` as if it was installed
+normally. Since PFERD was installed with `--editable`, there is no need to
+re-run `uv sync` when the source code is changed.
 
 For more details, see [this part of the Python Tutorial][venv-tut] and
 [this section on "development mode"][ppug-dev].
 
 [venv]: <https://docs.python.org/3/library/venv.html> "venv - Creation of virtual environments"
 [venv-tut]: <https://docs.python.org/3/tutorial/venv.html> "12. Virtual Environments and Packages"
-[ppug-dev]: <https://packaging.python.org/guides/distributing-packages-using-setuptools/#working-in-development-mode> "Working in “development mode”"
+[uv]: <https://docs.astral.sh/uv/> "uv - An extremely fast Python package and project manager"
 
 ## Checking and formatting the code
 

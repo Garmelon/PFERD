@@ -2,5 +2,5 @@
 
 set -e
 
-mypy .
-ruff check
+uv run mypy .
+uv run ruff check

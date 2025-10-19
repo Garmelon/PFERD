@@ -53,3 +53,10 @@ warn_unused_ignores = true
 warn_unreachable = true
 show_error_context = true
 ignore_missing_imports = true
+
+[dependency-groups]
+dev = [
+    "mypy>=1.18.2",
+    "pyinstaller>=6.16.0",
+    "ruff>=0.14.1",
+]
