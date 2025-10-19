@@ -435,7 +435,7 @@ class IliasPage:
         return None
 
     def get_description(self) -> Optional[BeautifulSoup]:
-        def is_interesting_class(name: str) -> bool:
+        def is_interesting_class(name: str | None) -> bool:
             return name in [
                 "ilCOPageSection", "ilc_Paragraph", "ilc_va_ihcap_VAccordIHeadCap",
                 "ilc_va_ihcap_AccordIHeadCap", "ilc_media_cont_MediaContainer"
@@ -1243,7 +1243,7 @@ class IliasPage:
         # In a series of divs.
         # Find the parent containing all those divs, so we can filter our what we need
         properties_parent = cast(Tag, cast(Tag, link_element.find_parent(
-            "div", {"class": lambda x: "il_ContainerListItem" in x}
+            "div", {"class": lambda x: x is not None and "il_ContainerListItem" in x}
         )).select_one(".il_ItemProperties"))
         # The first one is always the filetype
         file_type = cast(Tag, properties_parent.select_one("span.il_ItemProperty")).get_text().strip()

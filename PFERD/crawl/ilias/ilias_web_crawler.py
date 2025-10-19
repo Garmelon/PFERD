@@ -985,8 +985,6 @@ instance's greatest bottleneck.
         """
         log.explain_topic("Internalizing images")
         for elem in tag.find_all(recursive=True):
-            if not isinstance(elem, Tag):
-                continue
             if elem.name == "img":
                 if src := elem.attrs.get("src", None):
                     url = urljoin(self._base_url, cast(str, src))
