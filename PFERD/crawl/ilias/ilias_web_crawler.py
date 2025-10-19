@@ -4,7 +4,7 @@ import os
 import re
 from collections.abc import Awaitable, Coroutine
 from pathlib import PurePath
-from typing import Any, Dict, List, Literal, Optional, Set, Union, cast
+from typing import Any, Literal, Optional, cast
 from urllib.parse import urljoin
 
 import aiohttp
@@ -33,7 +33,7 @@ from .kit_ilias_html import (
 )
 from .shibboleth_login import ShibbolethLogin
 
-TargetType = Union[str, int]
+TargetType = str | int
 
 
 class LoginTypeLocal:
@@ -49,7 +49,7 @@ class IliasWebCrawlerSection(HttpCrawlerSection):
 
         return base_url
 
-    def login(self) -> Union[Literal["shibboleth"], LoginTypeLocal]:
+    def login(self) -> Literal["shibboleth"] | LoginTypeLocal:
         login_type = self.s.get("login_type")
         if not login_type:
             self.missing_value("login_type")
@@ -63,7 +63,7 @@ class IliasWebCrawlerSection(HttpCrawlerSection):
 
         self.invalid_value("login_type", login_type, "Should be <shibboleth | local>")
 
-    def tfa_auth(self, authenticators: Dict[str, Authenticator]) -> Optional[Authenticator]:
+    def tfa_auth(self, authenticators: dict[str, Authenticator]) -> Optional[Authenticator]:
         value: Optional[str] = self.s.get("tfa_auth")
         if value is None:
             return None
@@ -110,7 +110,7 @@ class IliasWebCrawlerSection(HttpCrawlerSection):
         return self.s.getboolean("forums", fallback=False)
 
 
-_DIRECTORY_PAGES: Set[IliasElementType] = {
+_DIRECTORY_PAGES: set[IliasElementType] = {
     IliasElementType.EXERCISE,
     IliasElementType.EXERCISE_FILES,
     IliasElementType.EXERCISE_OVERVIEW,
@@ -122,7 +122,7 @@ _DIRECTORY_PAGES: Set[IliasElementType] = {
     IliasElementType.OPENCAST_VIDEO_FOLDER_MAYBE_PAGINATED,
 }
 
-_VIDEO_ELEMENTS: Set[IliasElementType] = {
+_VIDEO_ELEMENTS: set[IliasElementType] = {
     IliasElementType.MEDIACAST_VIDEO,
     IliasElementType.MEDIACAST_VIDEO_FOLDER,
     IliasElementType.OPENCAST_VIDEO,
@@ -172,7 +172,7 @@ class IliasWebCrawler(HttpCrawler):
         name: str,
         section: IliasWebCrawlerSection,
         config: Config,
-        authenticators: Dict[str, Authenticator],
+        authenticators: dict[str, Authenticator],
     ):
         # Setting a main authenticator for cookie sharing
         auth = section.auth(authenticators)
@@ -201,7 +201,7 @@ instance's greatest bottleneck.
         self._links = section.links()
         self._videos = section.videos()
         self._forums = section.forums()
-        self._visited_urls: Dict[str, PurePath] = dict()
+        self._visited_urls: dict[str, PurePath] = dict()
 
     async def _run(self) -> None:
         if isinstance(self._target, int):
@@ -264,9 +264,9 @@ instance's greatest bottleneck.
         expected_course_id: Optional[int] = None,
         crawl_nested_courses: bool = False,
     ) -> None:
-        elements: List[IliasPageElement] = []
+        elements: list[IliasPageElement] = []
         # A list as variable redefinitions are not propagated to outer scopes
-        description: List[BeautifulSoup] = []
+        description: list[BeautifulSoup] = []
 
         @_iorepeat(3, "crawling folder")
         async def gather_elements() -> None:
@@ -309,7 +309,7 @@ instance's greatest bottleneck.
 
         elements.sort(key=lambda e: e.id())
 
-        tasks: List[Awaitable[None]] = []
+        tasks: list[Awaitable[None]] = []
         for element in elements:
             if handle := await self._handle_ilias_element(cl.path, element, crawl_nested_courses):
                 tasks.append(asyncio.create_task(handle))
@@ -340,15 +340,14 @@ instance's greatest bottleneck.
             )
             return None
 
-        if element.type in _VIDEO_ELEMENTS:
-            if not self._videos:
-                log.status(
-                    "[bold bright_black]",
-                    "Ignored",
-                    fmt_path(element_path),
-                    "[bright_black](enable with option 'videos')",
-                )
-                return None
+        if element.type in _VIDEO_ELEMENTS and not self._videos:
+            log.status(
+                "[bold bright_black]",
+                "Ignored",
+                fmt_path(element_path),
+                "[bright_black](enable with option 'videos')",
+            )
+            return None
 
         if element.type == IliasElementType.FILE:
             return await self._handle_file(element, element_path)
@@ -522,8 +521,8 @@ instance's greatest bottleneck.
             sink.file.write(rendered.encode("utf-8"))
             sink.done()
 
-    async def _resolve_link_target(self, export_url: str) -> Union[BeautifulSoup, Literal["none"]]:
-        async def impl() -> Optional[Union[BeautifulSoup, Literal["none"]]]:
+    async def _resolve_link_target(self, export_url: str) -> BeautifulSoup | Literal["none"]:
+        async def impl() -> Optional[BeautifulSoup | Literal["none"]]:
             async with self.session.get(export_url, allow_redirects=False) as resp:
                 # No redirect means we were authenticated
                 if hdrs.LOCATION not in resp.headers:
@@ -658,7 +657,7 @@ instance's greatest bottleneck.
 
     def _previous_contained_opencast_videos(
         self, element: IliasPageElement, element_path: PurePath
-    ) -> List[PurePath]:
+    ) -> list[PurePath]:
         if not self.prev_report:
             return []
         custom_value = self.prev_report.get_custom_value(_get_video_cache_key(element))
@@ -714,7 +713,7 @@ instance's greatest bottleneck.
                 add_to_report([str(self._transformer.transform(dl.path))])
                 return
 
-        contained_video_paths: List[str] = []
+        contained_video_paths: list[str] = []
 
         for stream_element in stream_elements:
             video_path = dl.path.parent / stream_element.name
@@ -832,7 +831,7 @@ instance's greatest bottleneck.
 
             elements = parse_ilias_forum_export(soupify(export))
 
-        tasks: List[Awaitable[None]] = []
+        tasks: list[Awaitable[None]] = []
         for thread in elements:
             tasks.append(asyncio.create_task(self._download_forum_thread(cl.path, thread, element.url)))
 
@@ -842,7 +841,7 @@ instance's greatest bottleneck.
     @anoncritical
     @_iorepeat(3, "saving forum thread")
     async def _download_forum_thread(
-        self, parent_path: PurePath, thread: Union[IliasForumThread, IliasPageElement], forum_url: str
+        self, parent_path: PurePath, thread: IliasForumThread | IliasPageElement, forum_url: str
     ) -> None:
         path = parent_path / (_sanitize_path_name(thread.name) + ".html")
         maybe_dl = await self.download(path, mtime=thread.mtime)
@@ -871,7 +870,7 @@ instance's greatest bottleneck.
     @_iorepeat(3, "crawling learning module")
     @anoncritical
     async def _crawl_learning_module(self, element: IliasPageElement, cl: CrawlToken) -> None:
-        elements: List[IliasLearningModulePage] = []
+        elements: list[IliasLearningModulePage] = []
 
         async with cl:
             log.explain_topic(f"Parsing initial HTML page for {fmt_path(cl.path)}")
@@ -891,7 +890,7 @@ instance's greatest bottleneck.
         for index, lm_element in enumerate(elements):
             lm_element.title = f"{index:02}_{lm_element.title}"
 
-        tasks: List[Awaitable[None]] = []
+        tasks: list[Awaitable[None]] = []
         for index, elem in enumerate(elements):
             prev_url = elements[index - 1].title if index > 0 else None
             next_url = elements[index + 1].title if index < len(elements) - 1 else None
@@ -906,10 +905,10 @@ instance's greatest bottleneck.
         self,
         path: PurePath,
         start_url: Optional[str],
-        dir: Union[Literal["left"], Literal["right"]],
+        dir: Literal["left"] | Literal["right"],
         parent_element: IliasPageElement,
-    ) -> List[IliasLearningModulePage]:
-        elements: List[IliasLearningModulePage] = []
+    ) -> list[IliasLearningModulePage]:
+        elements: list[IliasLearningModulePage] = []
 
         if not start_url:
             return elements
@@ -923,10 +922,7 @@ instance's greatest bottleneck.
             page = IliasPage(soup, parent_element)
             if next := page.get_learning_module_data():
                 elements.append(next)
-                if dir == "left":
-                    next_element_url = next.previous_url
-                else:
-                    next_element_url = next.next_url
+                next_element_url = next.previous_url if dir == "left" else next.next_url
             counter += 1
 
         return elements
@@ -950,16 +946,10 @@ instance's greatest bottleneck.
 
         if prev:
             prev_p = self._transformer.transform(parent_path / (_sanitize_path_name(prev) + ".html"))
-            if prev_p:
-                prev = cast(str, os.path.relpath(prev_p, my_path.parent))
-            else:
-                prev = None
+            prev = cast(str, os.path.relpath(prev_p, my_path.parent)) if prev_p else None
         if next:
             next_p = self._transformer.transform(parent_path / (_sanitize_path_name(next) + ".html"))
-            if next_p:
-                next = cast(str, os.path.relpath(next_p, my_path.parent))
-            else:
-                next = None
+            next = cast(str, os.path.relpath(next_p, my_path.parent)) if next_p else None
 
         async with maybe_dl as (bar, sink):
             content = element.content
@@ -973,14 +963,13 @@ instance's greatest bottleneck.
         """
         log.explain_topic("Internalizing images")
         for elem in tag.find_all(recursive=True):
-            if elem.name == "img":
-                if src := elem.attrs.get("src", None):
-                    url = urljoin(self._base_url, cast(str, src))
-                    if not url.startswith(self._base_url):
-                        continue
-                    log.explain(f"Internalizing {url!r}")
-                    img = await self._get_authenticated(url)
-                    elem.attrs["src"] = "data:;base64," + base64.b64encode(img).decode()
+            if elem.name == "img" and (src := elem.attrs.get("src", None)):
+                url = urljoin(self._base_url, cast(str, src))
+                if not url.startswith(self._base_url):
+                    continue
+                log.explain(f"Internalizing {url!r}")
+                img = await self._get_authenticated(url)
+                elem.attrs["src"] = "data:;base64," + base64.b64encode(img).decode()
             if elem.name == "iframe" and cast(str, elem.attrs.get("src", "")).startswith("//"):
                 # For unknown reasons the protocol seems to be stripped.
                 elem.attrs["src"] = "https:" + cast(str, elem.attrs["src"])
@@ -1025,7 +1014,7 @@ instance's greatest bottleneck.
             )
         return soup
 
-    async def _post(self, url: str, data: dict[str, Union[str, List[str]]]) -> bytes:
+    async def _post(self, url: str, data: dict[str, str | list[str]]) -> bytes:
         form_data = aiohttp.FormData()
         for key, val in data.items():
             form_data.add_field(key, val)

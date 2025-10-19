@@ -297,9 +297,7 @@ class Links(Enum):
         raise ValueError("Missing switch case")
 
     def collection_as_one(self) -> bool:
-        if self == Links.FANCY:
-            return True
-        return False
+        return self == Links.FANCY
 
     def extension(self) -> Optional[str]:
         if self == Links.FANCY:
@@ -355,4 +353,4 @@ class Links(Enum):
             return Links(string)
         except ValueError:
             options = [f"'{option.value}'" for option in Links]
-            raise ValueError(f"must be one of {', '.join(options)}")
+            raise ValueError(f"must be one of {', '.join(options)}") from None

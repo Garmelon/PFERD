@@ -1,9 +1,11 @@
 import os
 import re
+from collections.abc import Awaitable, Generator, Iterable
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import PurePath
-from typing import Any, Awaitable, Generator, Iterable, List, Optional, Pattern, Tuple, Union, cast
+from re import Pattern
+from typing import Any, Optional, Union, cast
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup, Tag
@@ -44,7 +46,7 @@ class KitIpdFile:
 @dataclass
 class KitIpdFolder:
     name: str
-    entries: List[Union[KitIpdFile, "KitIpdFolder"]]
+    entries: list[Union[KitIpdFile, "KitIpdFolder"]]
 
     def explain(self) -> None:
         log.explain_topic(f"Folder {self.name!r}")
@@ -68,7 +70,7 @@ class KitIpdCrawler(HttpCrawler):
         if not maybe_cl:
             return
 
-        tasks: List[Awaitable[None]] = []
+        tasks: list[Awaitable[None]] = []
 
         async with maybe_cl:
             for item in await self._fetch_items():
@@ -120,9 +122,9 @@ class KitIpdCrawler(HttpCrawler):
         async with maybe_dl as (bar, sink):
             await self._stream_from_url(file.url, element_path, sink, bar)
 
-    async def _fetch_items(self) -> Iterable[Union[KitIpdFile, KitIpdFolder]]:
+    async def _fetch_items(self) -> Iterable[KitIpdFile | KitIpdFolder]:
         page, url = await self.get_page()
-        elements: List[Tag] = self._find_file_links(page)
+        elements: list[Tag] = self._find_file_links(page)
 
         # do not add unnecessary nesting for a single <h1> heading
         drop_h1: bool = len(page.find_all(name="h1")) <= 1
@@ -151,7 +153,7 @@ class KitIpdCrawler(HttpCrawler):
         name = os.path.basename(url)
         return KitIpdFile(name, url)
 
-    def _find_file_links(self, tag: Union[Tag, BeautifulSoup]) -> list[Tag]:
+    def _find_file_links(self, tag: Tag | BeautifulSoup) -> list[Tag]:
         return cast(list[Tag], tag.find_all(name="a", attrs={"href": self._file_regex}))
 
     def _abs_url_from_link(self, url: str, link_tag: Tag) -> str:
@@ -172,7 +174,7 @@ class KitIpdCrawler(HttpCrawler):
 
             self._add_etag_to_report(path, resp.headers.get("ETag"))
 
-    async def get_page(self) -> Tuple[BeautifulSoup, str]:
+    async def get_page(self) -> tuple[BeautifulSoup, str]:
         async with self.session.get(self._url) as request:
             # The web page for Algorithmen für Routenplanung contains some
             # weird comments that beautifulsoup doesn't parse correctly. This

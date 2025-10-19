@@ -1,8 +1,9 @@
 import argparse
 import configparser
 from argparse import ArgumentTypeError
+from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import Any, Callable, List, Optional, Sequence, Union
+from typing import Any, Optional
 
 from ..output_dir import OnConflict, Redownload
 from ..version import NAME, VERSION
@@ -16,7 +17,7 @@ class ParserLoadError(Exception):
 class BooleanOptionalAction(argparse.Action):
     def __init__(
         self,
-        option_strings: List[str],
+        option_strings: list[str],
         dest: Any,
         default: Any = None,
         type: Any = None,
@@ -51,7 +52,7 @@ class BooleanOptionalAction(argparse.Action):
         self,
         parser: argparse.ArgumentParser,
         namespace: argparse.Namespace,
-        values: Union[str, Sequence[Any], None],
+        values: str | Sequence[Any] | None,
         option_string: Optional[str] = None,
     ) -> None:
         if option_string and option_string in self.option_strings:
@@ -72,7 +73,7 @@ def show_value_error(inner: Callable[[str], Any]) -> Callable[[str], Any]:
         try:
             return inner(input)
         except ValueError as e:
-            raise ArgumentTypeError(e)
+            raise ArgumentTypeError(e) from e
 
     return wrapper
 

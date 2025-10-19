@@ -1,8 +1,9 @@
 import asyncio
 import sys
 import traceback
+from collections.abc import AsyncIterator, Iterator
 from contextlib import AbstractContextManager, asynccontextmanager, contextmanager
-from typing import AsyncIterator, Iterator, List, Optional
+from typing import Optional
 
 from rich.console import Console, Group
 from rich.live import Live
@@ -60,7 +61,7 @@ class Log:
         self._showing_progress = False
         self._progress_suspended = False
         self._lock = asyncio.Lock()
-        self._lines: List[str] = []
+        self._lines: list[str] = []
 
         # Whether different parts of the output are enabled or disabled
         self.output_explain = False

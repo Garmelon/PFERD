@@ -3,10 +3,11 @@ import getpass
 import sys
 import threading
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from contextlib import AsyncExitStack
 from pathlib import Path, PurePath
 from types import TracebackType
-from typing import Any, Callable, Dict, Generic, Optional, Type, TypeVar
+from typing import Any, Generic, Optional, TypeVar
 from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
 
 import bs4
@@ -79,7 +80,7 @@ def url_set_query_param(url: str, param: str, value: str) -> str:
     return urlunsplit((scheme, netloc, path, new_query_string, fragment))
 
 
-def url_set_query_params(url: str, params: Dict[str, str]) -> str:
+def url_set_query_params(url: str, params: dict[str, str]) -> str:
     """
     Sets multiple query parameters in an url, overwriting existing ones.
     """
@@ -132,7 +133,7 @@ class ReusableAsyncContextManager(ABC, Generic[T]):
 
     async def __aexit__(
         self,
-        exc_type: Optional[Type[BaseException]],
+        exc_type: Optional[type[BaseException]],
         exc_value: Optional[BaseException],
         traceback: Optional[TracebackType],
     ) -> Optional[bool]:

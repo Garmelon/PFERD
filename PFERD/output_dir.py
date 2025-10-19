@@ -4,12 +4,13 @@ import os
 import random
 import shutil
 import string
-from contextlib import contextmanager
+from collections.abc import Iterator
+from contextlib import contextmanager, suppress
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from pathlib import Path, PurePath
-from typing import BinaryIO, Iterator, Optional, Tuple
+from typing import BinaryIO, Optional
 
 from .logging import log
 from .report import Report, ReportLoadError
@@ -35,7 +36,7 @@ class Redownload(Enum):
         try:
             return Redownload(string)
         except ValueError:
-            raise ValueError("must be one of 'never', 'never-smart', 'always', 'always-smart'")
+            raise ValueError("must be one of 'never', 'never-smart', 'always', 'always-smart'") from None
 
 
 class OnConflict(Enum):
@@ -53,7 +54,7 @@ class OnConflict(Enum):
             raise ValueError(
                 "must be one of 'prompt', 'local-first',"
                 " 'remote-first', 'no-delete', 'no-delete-prompt-overwrite'"
-            )
+            ) from None
 
 
 @dataclass
@@ -177,8 +178,8 @@ class OutputDirectory:
 
         try:
             self._root.mkdir(parents=True, exist_ok=True)
-        except OSError:
-            raise OutputDirError("Failed to create base directory")
+        except OSError as e:
+            raise OutputDirError("Failed to create base directory") from e
 
     def register_reserved(self, path: PurePath) -> None:
         self._report.mark_reserved(path)
@@ -358,7 +359,7 @@ class OutputDirectory:
     async def _create_tmp_file(
         self,
         local_path: Path,
-    ) -> Tuple[Path, BinaryIO]:
+    ) -> tuple[Path, BinaryIO]:
         """
         May raise an OutputDirError.
         """
@@ -509,10 +510,8 @@ class OutputDirectory:
             await self._cleanup(child, pure_child)
 
         if delete_self:
-            try:
+            with suppress(OSError):
                 path.rmdir()
-            except OSError:
-                pass
 
     async def _cleanup_file(self, path: Path, pure: PurePath) -> None:
         if self._report.is_marked(pure):

@@ -3,7 +3,7 @@ import os
 import sys
 from configparser import ConfigParser, SectionProxy
 from pathlib import Path
-from typing import Any, List, NoReturn, Optional, Tuple
+from typing import Any, NoReturn, Optional
 
 from rich.markup import escape
 
@@ -126,13 +126,13 @@ class Config:
             with open(path, encoding="utf-8") as f:
                 parser.read_file(f, source=str(path))
         except FileNotFoundError:
-            raise ConfigLoadError(path, "File does not exist")
+            raise ConfigLoadError(path, "File does not exist") from None
         except IsADirectoryError:
-            raise ConfigLoadError(path, "That's a directory, not a file")
+            raise ConfigLoadError(path, "That's a directory, not a file") from None
         except PermissionError:
-            raise ConfigLoadError(path, "Insufficient permissions")
+            raise ConfigLoadError(path, "Insufficient permissions") from None
         except UnicodeDecodeError:
-            raise ConfigLoadError(path, "File is not encoded using UTF-8")
+            raise ConfigLoadError(path, "File is not encoded using UTF-8") from None
 
     def dump(self, path: Optional[Path] = None) -> None:
         """
@@ -150,8 +150,8 @@ class Config:
 
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
-        except PermissionError:
-            raise ConfigDumpError(path, "Could not create parent directory")
+        except PermissionError as e:
+            raise ConfigDumpError(path, "Could not create parent directory") from e
 
         try:
             # Ensuring we don't accidentally overwrite any existing files by
@@ -167,16 +167,16 @@ class Config:
                     with open(path, "w", encoding="utf-8") as f:
                         self._parser.write(f)
                 else:
-                    raise ConfigDumpError(path, "File already exists")
+                    raise ConfigDumpError(path, "File already exists") from None
         except IsADirectoryError:
-            raise ConfigDumpError(path, "That's a directory, not a file")
-        except PermissionError:
-            raise ConfigDumpError(path, "Insufficient permissions")
+            raise ConfigDumpError(path, "That's a directory, not a file") from None
+        except PermissionError as e:
+            raise ConfigDumpError(path, "Insufficient permissions") from e
 
     def dump_to_stdout(self) -> None:
         self._parser.write(sys.stdout)
 
-    def crawl_sections(self) -> List[Tuple[str, SectionProxy]]:
+    def crawl_sections(self) -> list[tuple[str, SectionProxy]]:
         result = []
         for name, proxy in self._parser.items():
             if name.startswith("crawl:"):
@@ -184,7 +184,7 @@ class Config:
 
         return result
 
-    def auth_sections(self) -> List[Tuple[str, SectionProxy]]:
+    def auth_sections(self) -> list[tuple[str, SectionProxy]]:
         result = []
         for name, proxy in self._parser.items():
             if name.startswith("auth:"):

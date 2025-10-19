@@ -1,10 +1,12 @@
 import ast
+import contextlib
 import re
 from abc import ABC, abstractmethod
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import PurePath
-from typing import Callable, Dict, List, Optional, Sequence, TypeVar, Union
+from typing import Optional, TypeVar
 
 from .logging import log
 from .utils import fmt_path, str_path
@@ -23,7 +25,7 @@ class Empty:
     pass
 
 
-RightSide = Union[str, Ignore, Empty]
+RightSide = str | Ignore | Empty
 
 
 @dataclass
@@ -35,7 +37,7 @@ class Ignored:
     pass
 
 
-TransformResult = Optional[Union[Transformed, Ignored]]
+TransformResult = Transformed | Ignored | None
 
 
 @dataclass
@@ -47,7 +49,7 @@ class Rule:
     right: RightSide
     right_index: int
 
-    def right_result(self, path: PurePath) -> Union[str, Transformed, Ignored]:
+    def right_result(self, path: PurePath) -> str | Transformed | Ignored:
         if isinstance(self.right, str):
             return self.right
         elif isinstance(self.right, Ignore):
@@ -93,24 +95,20 @@ class ExactReTf(Transformation):
         # since elements of "match.groups()" can be None, mypy is wrong.
         groups: Sequence[Optional[str]] = [match[0]] + list(match.groups())
 
-        locals_dir: Dict[str, Union[str, int, float]] = {}
+        locals_dir: dict[str, str | int | float] = {}
         for i, group in enumerate(groups):
             if group is None:
                 continue
 
             locals_dir[f"g{i}"] = group
 
-            try:
+            with contextlib.suppress(ValueError):
                 locals_dir[f"i{i}"] = int(group)
-            except ValueError:
-                pass
 
-            try:
+            with contextlib.suppress(ValueError):
                 locals_dir[f"f{i}"] = float(group)
-            except ValueError:
-                pass
 
-        named_groups: Dict[str, str] = match.groupdict()
+        named_groups: dict[str, str] = match.groupdict()
         for name, capture in named_groups.items():
             locals_dir[name] = capture
 
@@ -228,7 +226,7 @@ class Line:
         self.expect(string)
         return value
 
-    def one_of(self, parsers: List[Callable[[], T]], description: str) -> T:
+    def one_of(self, parsers: list[Callable[[], T]], description: str) -> T:
         for parser in parsers:
             index = self.index
             try:
@@ -315,7 +313,7 @@ def parse_left(line: Line) -> str:
         return parse_str(line)
 
 
-def parse_right(line: Line) -> Union[str, Ignore]:
+def parse_right(line: Line) -> str | Ignore:
     c = line.peek()
     if c in QUOTATION_MARKS:
         return parse_quoted_str(line)

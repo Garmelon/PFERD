@@ -1,5 +1,5 @@
+from collections.abc import Iterator
 from pathlib import PurePath
-from typing import Iterator, Set
 
 from .logging import log
 from .utils import fmt_path
@@ -43,7 +43,7 @@ class Deduplicator:
     def __init__(self, windows_paths: bool) -> None:
         self._windows_paths = windows_paths
 
-        self._known: Set[PurePath] = set()
+        self._known: set[PurePath] = set()
 
     def _add(self, path: PurePath) -> None:
         self._known.add(path)

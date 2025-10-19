@@ -3,7 +3,7 @@ import http.cookies
 import ssl
 from datetime import datetime
 from pathlib import Path, PurePath
-from typing import Any, Dict, List, Optional, Tuple, cast
+from typing import Any, Optional, cast
 
 import aiohttp
 import certifi
@@ -43,7 +43,7 @@ class HttpCrawler(Crawler):
         self._http_timeout = section.http_timeout()
 
         self._cookie_jar_path = self._output_dir.resolve(self.COOKIE_FILE)
-        self._shared_cookie_jar_paths: Optional[List[Path]] = None
+        self._shared_cookie_jar_paths: Optional[list[Path]] = None
         self._shared_auth = shared_auth
 
         self._output_dir.register_reserved(self.COOKIE_FILE)
@@ -98,7 +98,7 @@ class HttpCrawler(Crawler):
         """
         raise RuntimeError("_authenticate() was called but crawler doesn't provide an implementation")
 
-    def share_cookies(self, shared: Dict[Authenticator, List[Path]]) -> None:
+    def share_cookies(self, shared: dict[Authenticator, list[Path]]) -> None:
         if not self._shared_auth:
             return
 
@@ -219,7 +219,7 @@ class HttpCrawler(Crawler):
         etags[str(path)] = etag
         self._output_dir.report.add_custom_value(ETAGS_CUSTOM_REPORT_VALUE_KEY, etags)
 
-    async def _request_resource_version(self, resource_url: str) -> Tuple[Optional[str], Optional[datetime]]:
+    async def _request_resource_version(self, resource_url: str) -> tuple[Optional[str], Optional[datetime]]:
         """
         Requests the ETag and Last-Modified headers of a resource via a HEAD request.
         If no entity tag / modification date can be obtained, the according value will be None.

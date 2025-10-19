@@ -1,5 +1,5 @@
 from pathlib import Path, PurePath
-from typing import Dict, List, Optional
+from typing import Optional
 
 from rich.markup import escape
 
@@ -15,7 +15,7 @@ class PferdLoadError(Exception):
 
 
 class Pferd:
-    def __init__(self, config: Config, cli_crawlers: Optional[List[str]], cli_skips: Optional[List[str]]):
+    def __init__(self, config: Config, cli_crawlers: Optional[list[str]], cli_skips: Optional[list[str]]):
         """
         May throw PferdLoadError.
         """
@@ -23,10 +23,10 @@ class Pferd:
         self._config = config
         self._crawlers_to_run = self._find_crawlers_to_run(config, cli_crawlers, cli_skips)
 
-        self._authenticators: Dict[str, Authenticator] = {}
-        self._crawlers: Dict[str, Crawler] = {}
+        self._authenticators: dict[str, Authenticator] = {}
+        self._crawlers: dict[str, Crawler] = {}
 
-    def _find_config_crawlers(self, config: Config) -> List[str]:
+    def _find_config_crawlers(self, config: Config) -> list[str]:
         crawl_sections = []
 
         for name, section in config.crawl_sections():
@@ -37,7 +37,7 @@ class Pferd:
 
         return crawl_sections
 
-    def _find_cli_crawlers(self, config: Config, cli_crawlers: List[str]) -> List[str]:
+    def _find_cli_crawlers(self, config: Config, cli_crawlers: list[str]) -> list[str]:
         if len(cli_crawlers) != len(set(cli_crawlers)):
             raise PferdLoadError("Some crawlers were selected multiple times")
 
@@ -68,12 +68,12 @@ class Pferd:
     def _find_crawlers_to_run(
         self,
         config: Config,
-        cli_crawlers: Optional[List[str]],
-        cli_skips: Optional[List[str]],
-    ) -> List[str]:
+        cli_crawlers: Optional[list[str]],
+        cli_skips: Optional[list[str]],
+    ) -> list[str]:
         log.explain_topic("Deciding which crawlers to run")
 
-        crawlers: List[str]
+        crawlers: list[str]
         if cli_crawlers is None:
             log.explain("No crawlers specified on CLI")
             log.explain("Running crawlers specified in config")
@@ -104,7 +104,7 @@ class Pferd:
 
     def _load_crawlers(self) -> None:
         # Cookie sharing
-        kit_ilias_web_paths: Dict[Authenticator, List[Path]] = {}
+        kit_ilias_web_paths: dict[Authenticator, list[Path]] = {}
 
         for name, section in self._config.crawl_sections():
             log.print(f"[bold bright_cyan]Loading[/] {escape(name)}")
@@ -117,9 +117,8 @@ class Pferd:
             crawler = crawler_constructor(name, section, self._config, self._authenticators)
             self._crawlers[name] = crawler
 
-            if self._config.default_section.share_cookies():
-                if isinstance(crawler, KitIliasWebCrawler):
-                    crawler.share_cookies(kit_ilias_web_paths)
+            if self._config.default_section.share_cookies() and isinstance(crawler, KitIliasWebCrawler):
+                crawler.share_cookies(kit_ilias_web_paths)
 
     def debug_transforms(self) -> None:
         for name in self._crawlers_to_run:

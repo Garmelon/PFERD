@@ -1,6 +1,6 @@
 import json
 from pathlib import Path, PurePath
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Optional
 
 
 class ReportLoadError(Exception):
@@ -42,32 +42,32 @@ class Report:
 
     def __init__(self) -> None:
         # Paths found by the crawler, untransformed
-        self.found_paths: Set[PurePath] = set()
+        self.found_paths: set[PurePath] = set()
 
         # Files reserved for metadata files (e. g. the report file or cookies)
         # that can't be overwritten by user transforms and won't be cleaned up
         # at the end.
-        self.reserved_files: Set[PurePath] = set()
+        self.reserved_files: set[PurePath] = set()
 
         # Files found by the crawler, transformed. Only includes files that
         # were downloaded (or a download was attempted)
-        self.known_files: Set[PurePath] = set()
+        self.known_files: set[PurePath] = set()
 
-        self.added_files: Set[PurePath] = set()
-        self.changed_files: Set[PurePath] = set()
-        self.deleted_files: Set[PurePath] = set()
+        self.added_files: set[PurePath] = set()
+        self.changed_files: set[PurePath] = set()
+        self.deleted_files: set[PurePath] = set()
         # Files that should have been deleted by the cleanup but weren't
-        self.not_deleted_files: Set[PurePath] = set()
+        self.not_deleted_files: set[PurePath] = set()
 
         # Custom crawler-specific data
-        self.custom: Dict[str, Any] = dict()
+        self.custom: dict[str, Any] = dict()
 
         # Encountered errors and warnings
-        self.encountered_warnings: List[str] = []
-        self.encountered_errors: List[str] = []
+        self.encountered_warnings: list[str] = []
+        self.encountered_errors: list[str] = []
 
     @staticmethod
-    def _get_list_of_strs(data: Dict[str, Any], key: str) -> List[str]:
+    def _get_list_of_strs(data: dict[str, Any], key: str) -> list[str]:
         result: Any = data.get(key, [])
 
         if not isinstance(result, list):
@@ -80,8 +80,8 @@ class Report:
         return result
 
     @staticmethod
-    def _get_str_dictionary(data: Dict[str, Any], key: str) -> Dict[str, Any]:
-        result: Dict[str, Any] = data.get(key, {})
+    def _get_str_dictionary(data: dict[str, Any], key: str) -> dict[str, Any]:
+        result: dict[str, Any] = data.get(key, {})
 
         if not isinstance(result, dict):
             raise ReportLoadError(f"Incorrect format: {key!r} is not a dictionary")
@@ -170,7 +170,7 @@ class Report:
         self.known_files.add(path)
 
     @property
-    def marked(self) -> Set[PurePath]:
+    def marked(self) -> set[PurePath]:
         return self.known_files | self.reserved_files
 
     def is_marked(self, path: PurePath) -> bool:

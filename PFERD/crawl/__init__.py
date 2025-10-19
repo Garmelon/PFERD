@@ -1,5 +1,5 @@
+from collections.abc import Callable
 from configparser import SectionProxy
-from typing import Callable, Dict
 
 from ..auth import Authenticator
 from ..config import Config
@@ -13,12 +13,12 @@ CrawlerConstructor = Callable[
         str,  # Name (without the "crawl:" prefix)
         SectionProxy,  # Crawler's section of global config
         Config,  # Global config
-        Dict[str, Authenticator],  # Loaded authenticators by name
+        dict[str, Authenticator],  # Loaded authenticators by name
     ],
     Crawler,
 ]
 
-CRAWLERS: Dict[str, CrawlerConstructor] = {
+CRAWLERS: dict[str, CrawlerConstructor] = {
     "local": lambda n, s, c, a: LocalCrawler(n, LocalCrawlerSection(s), c),
     "ilias-web": lambda n, s, c, a: IliasWebCrawler(n, IliasWebCrawlerSection(s), c, a),
     "kit-ilias-web": lambda n, s, c, a: KitIliasWebCrawler(n, KitIliasWebCrawlerSection(s), c, a),

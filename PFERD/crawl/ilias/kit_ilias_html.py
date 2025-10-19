@@ -1,9 +1,10 @@
 import json
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from enum import Enum
-from typing import Callable, Dict, Optional, Union, cast
+from typing import Optional, cast
 from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup, Tag
@@ -13,7 +14,7 @@ from PFERD.crawl.crawler import CrawlWarning
 from PFERD.logging import log
 from PFERD.utils import url_set_query_params
 
-TargetType = Union[str, int]
+TargetType = str | int
 
 
 class TypeMatcher:
@@ -308,7 +309,7 @@ class IliasPageElement:
         """
 
         # This checks whether we can reach a `:` without passing a `-`
-        if re.search(r"^[^-]+: ", meeting_name):
+        if re.search(r"^[^-]+: ", meeting_name):  # noqa: SIM108
             # Meeting name only contains date: "05. Jan 2000:"
             split_delimiter = ":"
         else:
@@ -331,7 +332,7 @@ class IliasPageElement:
 @dataclass
 class IliasDownloadForumData:
     url: str
-    form_data: Dict[str, Union[str, list[str]]]
+    form_data: dict[str, str | list[str]]
     empty: bool
 
 
@@ -433,21 +434,20 @@ class IliasPage:
         for p in paragraphs:
             if p.find_parent(class_=is_interesting_class):
                 continue
-            if "ilc_media_cont_MediaContainer" in p["class"]:
+            if "ilc_media_cont_MediaContainer" in p["class"] and (video := p.select_one("video")):
                 # We have an embedded video which should be downloaded by _find_mob_videos
-                if video := p.select_one("video"):
-                    url, title = self._find_mob_video_url_title(video, p)
-                    raw_html += '<div style="min-width: 100px; min-height: 100px; border: 1px solid black;'
-                    raw_html += "display: flex; justify-content: center; align-items: center;"
-                    raw_html += ' margin: 0.5rem;">'
-                    if url is not None and urlparse(url).hostname != urlparse(self._page_url).hostname:
-                        if url.startswith("//"):
-                            url = "https:" + url
-                        raw_html += f'<a href="{url}" target="_blank">External Video: {title}</a>'
-                    else:
-                        raw_html += f"Video elided. Filename: '{title}'."
-                    raw_html += "</div>\n"
-                    continue
+                url, title = self._find_mob_video_url_title(video, p)
+                raw_html += '<div style="min-width: 100px; min-height: 100px; border: 1px solid black;'
+                raw_html += "display: flex; justify-content: center; align-items: center;"
+                raw_html += ' margin: 0.5rem;">'
+                if url is not None and urlparse(url).hostname != urlparse(self._page_url).hostname:
+                    if url.startswith("//"):
+                        url = "https:" + url
+                    raw_html += f'<a href="{url}" target="_blank">External Video: {title}</a>'
+                else:
+                    raw_html += f"Video elided. Filename: '{title}'."
+                raw_html += "</div>\n"
+                continue
 
             # Ignore special listings (like folder groupings)
             if "ilc_section_Special" in p["class"]:
@@ -794,7 +794,7 @@ class IliasPage:
 
         is_paginated = self._soup.find(id=re.compile(r"tab_page_sel.+")) is not None
 
-        if is_paginated and not self._page_type == IliasElementType.OPENCAST_VIDEO_FOLDER:
+        if is_paginated and self._page_type != IliasElementType.OPENCAST_VIDEO_FOLDER:
             # We are in stage 2 - try to break pagination
             return self._find_opencast_video_entries_paginated()
 
@@ -1164,6 +1164,9 @@ class IliasPage:
         """
         found_titles = []
 
+        if None == "hey":
+            pass
+
         outer_accordion_content: Optional[Tag] = None
 
         parents: list[Tag] = list(tag.parents)
@@ -1302,10 +1305,7 @@ class IliasPage:
                 ),
             )
             caption_container = caption_parent.find_next_sibling("div")
-            if caption_container:
-                description = caption_container.get_text().strip()
-            else:
-                description = None
+            description = caption_container.get_text().strip() if caption_container else None
 
             if not typ:
                 _unexpected_html_warning()
@@ -1444,9 +1444,7 @@ class IliasPage:
             return True
         # The individual video player wrapper page has nothing of the above.
         # Match it by its playerContainer.
-        if soup.select_one("#playerContainer") is not None:
-            return True
-        return False
+        return soup.select_one("#playerContainer") is not None
 
     @staticmethod
     def _find_date_in_text(text: str) -> Optional[datetime]:
@@ -1505,11 +1503,11 @@ def demangle_date(date_str: str, fail_silently: bool = False) -> Optional[dateti
         # Normalize whitespace because users
         date_str = re.sub(r"\s+", " ", date_str)
 
-        date_str = re.sub("Gestern|Yesterday", _format_date_english(_yesterday()), date_str, re.I)
-        date_str = re.sub("Heute|Today", _format_date_english(date.today()), date_str, re.I)
-        date_str = re.sub("Morgen|Tomorrow", _format_date_english(_tomorrow()), date_str, re.I)
+        date_str = re.sub("Gestern|Yesterday", _format_date_english(_yesterday()), date_str, flags=re.I)
+        date_str = re.sub("Heute|Today", _format_date_english(date.today()), date_str, flags=re.I)
+        date_str = re.sub("Morgen|Tomorrow", _format_date_english(_tomorrow()), date_str, flags=re.I)
         date_str = date_str.strip()
-        for german, english in zip(german_months, english_months):
+        for german, english in zip(german_months, english_months, strict=True):
             date_str = date_str.replace(german, english)
             # Remove trailing dots for abbreviations, e.g. "20. Apr. 2020" -> "20. Apr 2020"
             date_str = date_str.replace(english + ".", english)

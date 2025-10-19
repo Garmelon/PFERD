@@ -1,4 +1,4 @@
-from typing import Optional, Tuple, cast
+from typing import Optional, cast
 
 import keyring
 
@@ -27,7 +27,7 @@ class KeyringAuthenticator(Authenticator):
         self._password_invalidated = False
         self._username_fixed = section.username() is not None
 
-    async def credentials(self) -> Tuple[str, str]:
+    async def credentials(self) -> tuple[str, str]:
         # Request the username
         if self._username is None:
             async with log.exclusive_output():
