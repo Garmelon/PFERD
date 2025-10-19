@@ -1,4 +1,4 @@
-from typing import Optional, cast
+from typing import Optional
 
 import keyring
 
@@ -13,7 +13,7 @@ class KeyringAuthSection(AuthSection):
         return self.s.get("username")
 
     def keyring_name(self) -> str:
-        return cast(str, self.s.get("keyring_name", fallback=NAME))
+        return self.s.get("keyring_name", fallback=NAME)
 
 
 class KeyringAuthenticator(Authenticator):

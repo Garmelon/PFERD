@@ -60,7 +60,7 @@ class ShibbolethLogin:
                 "fudis_web_authn_assertion_input": "",
             }
             if csrf_token_input := form.find("input", {"name": "csrf_token"}):
-                data["csrf_token"] = csrf_token_input["value"]
+                data["csrf_token"] = csrf_token_input["value"]  # type: ignore
             soup = await _post(sess, url, data)
 
             if soup.find(id="attributeRelease"):
@@ -79,7 +79,7 @@ class ShibbolethLogin:
         # (or clicking "Continue" if you have JS disabled)
         relay_state = cast(Tag, soup.find("input", {"name": "RelayState"}))
         saml_response = cast(Tag, soup.find("input", {"name": "SAMLResponse"}))
-        url = form = soup.find("form", {"method": "post"})["action"]
+        url = cast(str, cast(Tag, soup.find("form", {"method": "post"}))["action"])
         data = {  # using the info obtained in the while loop above
             "RelayState": cast(str, relay_state["value"]),
             "SAMLResponse": cast(str, saml_response["value"]),
@@ -108,7 +108,7 @@ class ShibbolethLogin:
             "fudis_otp_input": tfa_token,
         }
         if csrf_token_input := form.find("input", {"name": "csrf_token"}):
-            data["csrf_token"] = csrf_token_input["value"]
+            data["csrf_token"] = csrf_token_input["value"]  # type: ignore
         return await _post(session, url, data)
 
     @staticmethod

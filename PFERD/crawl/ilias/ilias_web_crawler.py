@@ -548,7 +548,7 @@ instance's greatest bottleneck.
 
     @staticmethod
     def _parse_link_content(element: IliasPageElement, content: BeautifulSoup) -> list[LinkData]:
-        links = cast(list[Tag], list(content.select("a")))
+        links = list(content.select("a"))
         if len(links) == 1:
             url = str(links[0].get("href")).strip()
             return [LinkData(name=element.name, description=element.description or "", url=url)]
@@ -598,7 +598,7 @@ instance's greatest bottleneck.
         async with dl as (_bar, sink):
             description = clean(insert_base_markup(description))
             description_tag = await self.internalize_images(description)
-            sink.file.write(cast(str, description_tag.prettify()).encode("utf-8"))
+            sink.file.write(description_tag.prettify().encode("utf-8"))
             sink.done()
 
     @anoncritical
@@ -946,10 +946,10 @@ instance's greatest bottleneck.
 
         if prev:
             prev_p = self._transformer.transform(parent_path / (_sanitize_path_name(prev) + ".html"))
-            prev = cast(str, os.path.relpath(prev_p, my_path.parent)) if prev_p else None
+            prev = os.path.relpath(prev_p, my_path.parent) if prev_p else None
         if next:
             next_p = self._transformer.transform(parent_path / (_sanitize_path_name(next) + ".html"))
-            next = cast(str, os.path.relpath(next_p, my_path.parent)) if next_p else None
+            next = os.path.relpath(next_p, my_path.parent) if next_p else None
 
         async with maybe_dl as (bar, sink):
             content = element.content
@@ -1052,7 +1052,7 @@ instance's greatest bottleneck.
             async with self.session.get(urljoin(self._base_url, "/login.php"), params=params) as request:
                 login_page = soupify(await request.read())
 
-            login_form = cast(Optional[Tag], login_page.find("form", attrs={"name": "login_form"}))
+            login_form = login_page.find("form", attrs={"name": "login_form"})
             if login_form is None:
                 raise CrawlError("Could not find the login form! Specified client id might be invalid.")
 

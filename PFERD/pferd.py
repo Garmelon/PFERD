@@ -160,9 +160,10 @@ class Pferd:
 
     def print_report(self) -> None:
         for name in self._crawlers_to_run:
-            crawler = self._crawlers.get(name)
-            if crawler is None:
+            crawlerOpt = self._crawlers.get(name)
+            if crawlerOpt is None:
                 continue  # Crawler failed to load
+            crawler = crawlerOpt
 
             log.report("")
             log.report(f"[bold bright_cyan]Report[/] for {escape(name)}")

@@ -3,7 +3,7 @@ import http.cookies
 import ssl
 from datetime import datetime
 from pathlib import Path, PurePath
-from typing import Any, Optional, cast
+from typing import Any, Optional
 
 import aiohttp
 import certifi
@@ -187,7 +187,7 @@ class HttpCrawler(Crawler):
             if level == 0 or (level == 1 and drop_h1):
                 return PurePath()
 
-            level_heading = cast(Optional[Tag], tag.find_previous(name=f"h{level}"))
+            level_heading = tag.find_previous(name=f"h{level}")
 
             if level_heading is None:
                 return find_associated_headings(tag, level - 1)

@@ -125,11 +125,11 @@ class ReusableAsyncContextManager(ABC, Generic[T]):
         # See https://stackoverflow.com/a/13075071
         try:
             result: T = await self._on_aenter()
-        except:  # noqa: E722 do not use bare 'except'
+            return result
+        except:
             if not await self.__aexit__(*sys.exc_info()):
                 raise
-
-        return result
+            raise
 
     async def __aexit__(
         self,

@@ -3,7 +3,7 @@ import sys
 import traceback
 from collections.abc import AsyncIterator, Iterator
 from contextlib import AbstractContextManager, asynccontextmanager, contextmanager
-from typing import Optional
+from typing import Any, Optional
 
 from rich.console import Console, Group
 from rich.live import Live
@@ -122,7 +122,7 @@ class Log:
         for line in self._lines:
             self.print(line)
 
-    def print(self, text: str) -> None:
+    def print(self, text: Any) -> None:
         """
         Print a normal message. Allows markup.
         """

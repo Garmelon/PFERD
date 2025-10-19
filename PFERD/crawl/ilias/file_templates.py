@@ -258,17 +258,17 @@ def learning_module_template(body: bs4.Tag, name: str, prev: Optional[str], next
             soupify(nav_template.replace("{{left}}", left).replace("{{right}}", right).encode())
         )
 
-    body_str = cast(str, body.prettify())
+    body_str = body.prettify()
     return _learning_module_template.replace("{{body}}", body_str).replace("{{name}}", name)
 
 
 def forum_thread_template(name: str, url: str, heading: bs4.Tag, content: bs4.Tag) -> str:
-    if title := cast(Optional[bs4.Tag], heading.find(name="b")):
+    if title := heading.find(name="b"):
         title.wrap(bs4.Tag(name="a", attrs={"href": url}))
     return (
         _forum_thread_template.replace("{{name}}", name)
-        .replace("{{heading}}", cast(str, heading.prettify()))
-        .replace("{{content}}", cast(str, content.prettify()))
+        .replace("{{heading}}", heading.prettify())
+        .replace("{{content}}", content.prettify())
     )
 
 
