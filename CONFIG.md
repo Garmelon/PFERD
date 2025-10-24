@@ -172,6 +172,7 @@ out of the box for the corresponding universities:
 | Uni Stuttgart   | https://ilias3.uni-stuttgart.de         | local        | Uni_Stuttgart |
 | Uni Tübingen    | https://ovidius.uni-tuebingen.de/ilias3 | shibboleth   |               |
 | KIT ILIAS Pilot | https://pilot.ilias.studium.kit.edu     | shibboleth   | pilot         |
+| FAU StudOn      | https://www.studon.fau.de/studon        | simple-saml  | StudOn        |
 
 If your university isn't listed, try navigating to your instance's login page.
 Assuming no custom login service is used, the URL will look something like this:
@@ -186,8 +187,9 @@ If the values work, feel free to submit a PR and add them to the table above.
 - `login_type`: How you authenticate. (Required)
     - `local`: Use `client_id` for authentication.
     - `shibboleth`: Use shibboleth for authentication.
+    - `simple-saml`: Use SimpleSAML based authentication.
 - `client_id`: An ID used for authentication if `login_type` is `local`. Is
-  ignored if `login_type` is `shibboleth`.
+  ignored if `login_type` is `shibboleth` or `simple-saml`.
 - `target`: The ILIAS element to crawl. (Required)
     - `desktop`: Crawl your personal desktop / dashboard
     - `<course id>`: Crawl the course with the given id

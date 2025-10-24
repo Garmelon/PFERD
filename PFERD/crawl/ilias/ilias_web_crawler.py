@@ -32,6 +32,7 @@ from .kit_ilias_html import (
     parse_ilias_forum_export,
 )
 from .shibboleth_login import ShibbolethLogin
+from .simplesaml_login import SimpleSAMLLogin
 
 TargetType = str | int
 
@@ -49,12 +50,14 @@ class IliasWebCrawlerSection(HttpCrawlerSection):
 
         return base_url
 
-    def login(self) -> Literal["shibboleth"] | LoginTypeLocal:
+    def login(self) -> Literal["shibboleth", "simple-saml"] | LoginTypeLocal:
         login_type = self.s.get("login_type")
         if not login_type:
             self.missing_value("login_type")
         if login_type == "shibboleth":
             return "shibboleth"
+        if login_type == "simple-saml":
+            return "simple-saml"
         if login_type == "local":
             client_id = self.s.get("client_id")
             if not client_id:
@@ -194,7 +197,14 @@ instance's greatest bottleneck.
         if isinstance(self._login_type, LoginTypeLocal):
             self._client_id = self._login_type.client_id
         else:
-            self._shibboleth_login = ShibbolethLogin(self._base_url, self._auth, self._tfa_auth)
+            # Allow multiple remote login backends
+            if self._login_type == "shibboleth":
+                self._shibboleth_login = ShibbolethLogin(self._base_url, self._auth, self._tfa_auth)
+            elif self._login_type == "simple-saml":
+                self._simplesaml_login = SimpleSAMLLogin(self._base_url, self._auth, self._tfa_auth)
+            else:
+                # Fallback to shibboleth to avoid breaking older configs
+                self._shibboleth_login = ShibbolethLogin(self._base_url, self._auth, self._tfa_auth)
 
         self._target = section.target()
         self._link_file_redirect_delay = section.link_redirect_delay()
@@ -1044,6 +1054,8 @@ instance's greatest bottleneck.
         # fill the session with the correct cookies
         if self._login_type == "shibboleth":
             await self._shibboleth_login.login(self.session)
+        elif self._login_type == "simple-saml":
+            await self._simplesaml_login.login(self.session)
         else:
             params = {
                 "client_id": self._client_id,
