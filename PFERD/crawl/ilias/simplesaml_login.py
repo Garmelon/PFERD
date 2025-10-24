@@ -14,7 +14,7 @@ class SimpleSAMLLogin:
     """
     Login via a SimpleSAML system.
 
-    It performs a basic authentication by following the login redirect 
+    It performs a basic authentication by following the login redirect
     and posting credentials to the indicated form. It also supports TFA similar to Shibboleth.
     """
 
@@ -36,7 +36,7 @@ class SimpleSAMLLogin:
             saml_url = response.url
             # If the redirect stayed on the ILIAS host, assume we're already logged in
             if str(saml_url).startswith(self._ilias_url):
-                log.explain("ILIAS recognized our simple-saml token and logged us in in the background, returning")
+                log.explain("ILIAS recognized our SAML token and logged us in in the background, returning")
                 return
             soup: BeautifulSoup = soupify(await response.read())
 
@@ -45,10 +45,8 @@ class SimpleSAMLLogin:
         while not self._login_successful(soup):
             form = cast(Tag, soup.find("form", {"method": "post"}))
             action = cast(str, form["action"])
-            if action.startswith("https"): # FAU uses full URL here
-                url = action
-            else:
-                url = str(saml_url.origin()) + action #KIT uses relative URL here
+            # dynamically determine full URL from action (FAU uses full URL here, KIT uses relative URL)
+            url = action if action.startswith("https") else str(saml_url.origin()) + action
 
             username, password = await self._auth.credentials()
             data = {
@@ -63,7 +61,7 @@ class SimpleSAMLLogin:
             # Detect attribute release prompt
             if soup.find(id="attributeRelease"):
                 raise CrawlError(
-                    "ILIAS SimpleSAML entitlements changed! Please log in once in your browser and review them"
+                    "ILIAS SAML entitlements changed! Please log in once in your browser and review them"
                 )
 
             if self._tfa_required(soup):
@@ -95,12 +93,10 @@ class SimpleSAMLLogin:
         # credentials rather than after asking.
         form = cast(Tag, soup.find("form", {"method": "post"}))
         action = cast(str, form["action"])
+        # dynamically determine full URL from action (FAU uses full URL here, KIT uses relative URL)
+        url = action if action.startswith("https") else str(saml_url.origin()) + action
 
-        if action.startswith("https"): # FAU uses full URL here
-                url = action
-        else:
-            url = str(saml_url.origin()) + action #KIT uses relative URL here
-        data = { # for www.sso.uni-erlangen.de/simplesaml/module.php/mfa/otp?...
+        data = {  # for www.sso.uni-erlangen.de/simplesaml/module.php/mfa/otp?...
             "otp": tfa_token
         }
         if csrf_token_input := form.find("input", {"name": "csrf_token"}):
