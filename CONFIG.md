@@ -153,6 +153,7 @@ requests is likely a good idea.
 - `link_regex`: A regex that is matched against the `href` part of links. If it
   matches, the given link is downloaded as a file. This is used to extract
   files from KIT-IPD pages. (Default: `^.*?[^/]+\.(pdf|zip|c|cpp|java)$`)
+- `auth`: Name of auth section to use for basic authentication. (Optional)
 
 ### The `ilias-web` crawler
 

@@ -22,5 +22,5 @@ CRAWLERS: dict[str, CrawlerConstructor] = {
     "local": lambda n, s, c, a: LocalCrawler(n, LocalCrawlerSection(s), c),
     "ilias-web": lambda n, s, c, a: IliasWebCrawler(n, IliasWebCrawlerSection(s), c, a),
     "kit-ilias-web": lambda n, s, c, a: KitIliasWebCrawler(n, KitIliasWebCrawlerSection(s), c, a),
-    "kit-ipd": lambda n, s, c, a: KitIpdCrawler(n, KitIpdCrawlerSection(s), c),
+    "kit-ipd": lambda n, s, c, a: KitIpdCrawler(n, KitIpdCrawlerSection(s), c, a),
 }

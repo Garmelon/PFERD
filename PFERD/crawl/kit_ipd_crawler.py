@@ -8,8 +8,10 @@ from re import Pattern
 from typing import Any, Optional, Union, cast
 from urllib.parse import urljoin
 
+import aiohttp
 from bs4 import BeautifulSoup, Tag
 
+from ..auth import Authenticator
 from ..config import Config
 from ..logging import ProgressBar, log
 from ..output_dir import FileSink
@@ -32,6 +34,15 @@ class KitIpdCrawlerSection(HttpCrawlerSection):
     def link_regex(self) -> Pattern[str]:
         regex = self.s.get("link_regex", r"^.*?[^/]+\.(pdf|zip|c|cpp|java)$")
         return re.compile(regex)
+
+    def basic_auth(self, authenticators: dict[str, Authenticator]) -> Optional[Authenticator]:
+        value: Optional[str] = self.s.get("auth")
+        if value is None:
+            return None
+        auth = authenticators.get(value)
+        if auth is None:
+            self.invalid_value("auth", value, "No such auth section exists")
+        return auth
 
 
 @dataclass
@@ -60,12 +71,19 @@ class KitIpdCrawler(HttpCrawler):
         name: str,
         section: KitIpdCrawlerSection,
         config: Config,
+        authenticators: dict[str, Authenticator],
     ):
         super().__init__(name, section, config)
         self._url = section.target()
         self._file_regex = section.link_regex()
+        self._authenticator = section.basic_auth(authenticators)
+        self._basic_auth: Optional[aiohttp.BasicAuth] = None
 
     async def _run(self) -> None:
+        if self._authenticator:
+            username, password = await self._authenticator.credentials()
+            self._basic_auth = aiohttp.BasicAuth(username, password)
+
         maybe_cl = await self.crawl(PurePath("."))
         if not maybe_cl:
             return
@@ -160,9 +178,14 @@ class KitIpdCrawler(HttpCrawler):
         return urljoin(url, cast(str, link_tag.get("href")))
 
     async def _stream_from_url(self, url: str, path: PurePath, sink: FileSink, bar: ProgressBar) -> None:
-        async with self.session.get(url, allow_redirects=False) as resp:
+        async with self.session.get(url, allow_redirects=False, auth=self._basic_auth) as resp:
             if resp.status == 403:
                 raise CrawlError("Received a 403. Are you within the KIT network/VPN?")
+            if resp.status == 401:
+                raise CrawlError("Received a 401. Do you maybe need credentials?")
+            if resp.status >= 400:
+                raise CrawlError(f"Received HTTP {resp.status} when trying to download {url!r}")
+
             if resp.content_length:
                 bar.set_total(resp.content_length)
 
@@ -175,7 +198,7 @@ class KitIpdCrawler(HttpCrawler):
             self._add_etag_to_report(path, resp.headers.get("ETag"))
 
     async def get_page(self) -> tuple[BeautifulSoup, str]:
-        async with self.session.get(self._url) as request:
+        async with self.session.get(self._url, auth=self._basic_auth) as request:
             # The web page for Algorithmen für Routenplanung contains some
             # weird comments that beautifulsoup doesn't parse correctly. This
             # hack enables those pages to be crawled, and should hopefully not

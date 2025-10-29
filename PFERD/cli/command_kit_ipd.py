@@ -21,6 +21,11 @@ GROUP.add_argument(
     help="href-matching regex to identify downloadable files",
 )
 GROUP.add_argument(
+    "--basic-auth",
+    action="store_true",
+    help="enable basic authentication",
+)
+GROUP.add_argument(
     "target",
     type=str,
     metavar="TARGET",
@@ -49,6 +54,12 @@ def load(
     section["output_dir"] = str(args.output)
     if args.link_regex:
         section["link_regex"] = str(args.link_regex)
+
+    if args.basic_auth:
+        section["auth"] = "auth:kit-ipd"
+        parser["auth:kit-ipd"] = {}
+        auth_section = parser["auth:kit-ipd"]
+        auth_section["type"] = "simple"
 
 
 SUBPARSER.set_defaults(command=load)
