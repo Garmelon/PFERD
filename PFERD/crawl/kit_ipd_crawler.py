@@ -15,7 +15,7 @@ from ..auth import Authenticator
 from ..config import Config
 from ..logging import ProgressBar, log
 from ..output_dir import FileSink
-from ..utils import soupify
+from ..utils import sanitize_path_name, soupify
 from .crawler import CrawlError
 from .http_crawler import HttpCrawler, HttpCrawlerSection
 
@@ -106,7 +106,7 @@ class KitIpdCrawler(HttpCrawler):
         await self.gather(tasks)
 
     async def _crawl_folder(self, parent: PurePath, folder: KitIpdFolder) -> None:
-        path = parent / folder.name
+        path = parent / sanitize_path_name(folder.name)
         if not await self.crawl(path):
             return
 
@@ -125,7 +125,7 @@ class KitIpdCrawler(HttpCrawler):
     async def _download_file(
         self, parent: PurePath, file: KitIpdFile, etag: Optional[str], mtime: Optional[datetime]
     ) -> None:
-        element_path = parent / file.name
+        element_path = parent / sanitize_path_name(file.name)
 
         prev_etag = self._get_previous_etag_from_report(element_path)
         etag_differs = None if prev_etag is None else prev_etag != etag

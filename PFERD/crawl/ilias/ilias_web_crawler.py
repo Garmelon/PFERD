@@ -15,7 +15,7 @@ from ...auth import Authenticator
 from ...config import Config
 from ...logging import ProgressBar, log
 from ...output_dir import FileSink, Redownload
-from ...utils import fmt_path, soupify, url_set_query_param
+from ...utils import fmt_path, sanitize_path_name, soupify, url_set_query_param
 from ..crawler import CrawlError, CrawlToken, CrawlWarning, DownloadToken, anoncritical
 from ..http_crawler import HttpCrawler, HttpCrawlerSection
 from .async_helper import _iorepeat
@@ -28,7 +28,6 @@ from .kit_ilias_html import (
     IliasPage,
     IliasPageElement,
     IliasSoup,
-    _sanitize_path_name,
     parse_ilias_forum_export,
 )
 from .shibboleth_login import ShibbolethLogin
@@ -505,7 +504,7 @@ instance's greatest bottleneck.
 
         async def download_all() -> None:
             for link in links:
-                path = cl.path / (_sanitize_path_name(link.name) + extension)
+                path = cl.path / (sanitize_path_name(link.name) + extension)
                 if dl := await self.download(path, mtime=element.mtime):
                     await self._download_link(self._links, element.name, [link], dl)
 
@@ -843,7 +842,7 @@ instance's greatest bottleneck.
     async def _download_forum_thread(
         self, parent_path: PurePath, thread: IliasForumThread | IliasPageElement, forum_url: str
     ) -> None:
-        path = parent_path / (_sanitize_path_name(thread.name) + ".html")
+        path = parent_path / (sanitize_path_name(thread.name) + ".html")
         maybe_dl = await self.download(path, mtime=thread.mtime)
         if not maybe_dl or not isinstance(thread, IliasForumThread):
             return
@@ -936,7 +935,7 @@ instance's greatest bottleneck.
         prev: Optional[str],
         next: Optional[str],
     ) -> None:
-        path = parent_path / (_sanitize_path_name(element.title) + ".html")
+        path = parent_path / (sanitize_path_name(element.title) + ".html")
         maybe_dl = await self.download(path)
         if not maybe_dl:
             return
@@ -945,10 +944,10 @@ instance's greatest bottleneck.
             return
 
         if prev:
-            prev_p = self._transformer.transform(parent_path / (_sanitize_path_name(prev) + ".html"))
+            prev_p = self._transformer.transform(parent_path / (sanitize_path_name(prev) + ".html"))
             prev = os.path.relpath(prev_p, my_path.parent) if prev_p else None
         if next:
-            next_p = self._transformer.transform(parent_path / (_sanitize_path_name(next) + ".html"))
+            next_p = self._transformer.transform(parent_path / (sanitize_path_name(next) + ".html"))
             next = os.path.relpath(next_p, my_path.parent) if next_p else None
 
         async with maybe_dl as (bar, sink):

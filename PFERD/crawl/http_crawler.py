@@ -13,7 +13,7 @@ from bs4 import Tag
 from ..auth import Authenticator
 from ..config import Config
 from ..logging import log
-from ..utils import fmt_real_path
+from ..utils import fmt_real_path, sanitize_path_name
 from ..version import NAME, VERSION
 from .crawler import Crawler, CrawlerSection
 
@@ -192,7 +192,7 @@ class HttpCrawler(Crawler):
             if level_heading is None:
                 return find_associated_headings(tag, level - 1)
 
-            folder_name = level_heading.get_text().strip()
+            folder_name = sanitize_path_name(level_heading.get_text().strip())
             return find_associated_headings(level_heading, level - 1) / folder_name
 
         # start at level <h3> because paragraph-level headings are usually too granular for folder names

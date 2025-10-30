@@ -106,6 +106,10 @@ def fmt_real_path(path: Path) -> str:
     return repr(str(path.absolute()))
 
 
+def sanitize_path_name(name: str) -> str:
+    return name.replace("/", "-").replace("\\", "-").strip()
+
+
 class ReusableAsyncContextManager(ABC, Generic[T]):
     def __init__(self) -> None:
         self._active = False
