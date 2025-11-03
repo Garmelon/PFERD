@@ -96,10 +96,12 @@ class SimpleSAMLLogin:
         form = cast(Tag, soup.find("form", {"method": "post"}))
         action = cast(str, form["action"])
 
-        url = str(saml_url.origin()) + action
-        data = {
-            "_eventId_proceed": "",
-            "fudis_otp_input": tfa_token,
+        if action.startswith("https"): # FAU uses full URL here
+                url = action
+        else:
+            url = str(saml_url.origin()) + action #KIT uses relative URL here
+        data = { # for www.sso.uni-erlangen.de/simplesaml/module.php/mfa/otp?...
+            "otp": tfa_token
         }
         if csrf_token_input := form.find("input", {"name": "csrf_token"}):
             data["csrf_token"] = csrf_token_input["value"]  # type: ignore
@@ -113,7 +115,9 @@ class SimpleSAMLLogin:
 
     @staticmethod
     def _tfa_required(soup: BeautifulSoup) -> bool:
-        return soup.find(id="fudiscr-form") is not None
+        # Also treat a body with id="mfa:otp" as TFA required (for FAU)
+        body = soup.find("body")
+        return body is not None and body.get("id") == "mfa:otp"
 
 
 async def _post(session: aiohttp.ClientSession, url: str, data: Any) -> BeautifulSoup:
