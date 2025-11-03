@@ -4,7 +4,7 @@ from typing import Callable, Dict
 from ..auth import Authenticator
 from ..config import Config
 from .crawler import Crawler, CrawlError, CrawlerSection  # noqa: F401
-from .ilias import IliasWebCrawler, IliasWebCrawlerSection, KitIliasWebCrawler, KitIliasWebCrawlerSection, FauIliasWebCrawler, FauIliasWebCrawlerSection
+from .ilias import IliasWebCrawler, IliasWebCrawlerSection, KitIliasWebCrawler, KitIliasWebCrawlerSection
 from .kit_ipd_crawler import KitIpdCrawler, KitIpdCrawlerSection
 from .local_crawler import LocalCrawler, LocalCrawlerSection
 
@@ -22,8 +22,6 @@ CRAWLERS: Dict[str, CrawlerConstructor] = {
         IliasWebCrawler(n, IliasWebCrawlerSection(s), c, a),
     "kit-ilias-web": lambda n, s, c, a:
         KitIliasWebCrawler(n, KitIliasWebCrawlerSection(s), c, a),
-    "fau-ilias-web": lambda n, s, c, a:
-        FauIliasWebCrawler(n, FauIliasWebCrawlerSection(s), c, a),
     "kit-ipd": lambda n, s, c, a:
         KitIpdCrawler(n, KitIpdCrawlerSection(s), c),
 }
