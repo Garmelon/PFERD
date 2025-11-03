@@ -4,12 +4,13 @@ import os
 import random
 import shutil
 import string
-from contextlib import contextmanager
+from collections.abc import Iterator
+from contextlib import contextmanager, suppress
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from pathlib import Path, PurePath
-from typing import BinaryIO, Iterator, Optional, Tuple
+from typing import BinaryIO, Optional
 
 from .logging import log
 from .report import Report, ReportLoadError
@@ -35,8 +36,7 @@ class Redownload(Enum):
         try:
             return Redownload(string)
         except ValueError:
-            raise ValueError("must be one of 'never', 'never-smart',"
-                             " 'always', 'always-smart'")
+            raise ValueError("must be one of 'never', 'never-smart', 'always', 'always-smart'") from None
 
 
 class OnConflict(Enum):
@@ -51,8 +51,10 @@ class OnConflict(Enum):
         try:
             return OnConflict(string)
         except ValueError:
-            raise ValueError("must be one of 'prompt', 'local-first',"
-                             " 'remote-first', 'no-delete', 'no-delete-prompt-overwrite'")
+            raise ValueError(
+                "must be one of 'prompt', 'local-first',"
+                " 'remote-first', 'no-delete', 'no-delete-prompt-overwrite'"
+            ) from None
 
 
 @dataclass
@@ -96,13 +98,13 @@ class FileSinkToken(ReusableAsyncContextManager[FileSink]):
     # download handed back to the OutputDirectory.
 
     def __init__(
-            self,
-            output_dir: "OutputDirectory",
-            remote_path: PurePath,
-            path: PurePath,
-            local_path: Path,
-            heuristics: Heuristics,
-            on_conflict: OnConflict,
+        self,
+        output_dir: "OutputDirectory",
+        remote_path: PurePath,
+        path: PurePath,
+        local_path: Path,
+        heuristics: Heuristics,
+        on_conflict: OnConflict,
     ):
         super().__init__()
 
@@ -118,15 +120,17 @@ class FileSinkToken(ReusableAsyncContextManager[FileSink]):
         sink = FileSink(file)
 
         async def after_download() -> None:
-            await self._output_dir._after_download(DownloadInfo(
-                self._remote_path,
-                self._path,
-                self._local_path,
-                tmp_path,
-                self._heuristics,
-                self._on_conflict,
-                sink.is_done(),
-            ))
+            await self._output_dir._after_download(
+                DownloadInfo(
+                    self._remote_path,
+                    self._path,
+                    self._local_path,
+                    tmp_path,
+                    self._heuristics,
+                    self._on_conflict,
+                    sink.is_done(),
+                )
+            )
 
         self._stack.push_async_callback(after_download)
         self._stack.enter_context(file)
@@ -138,10 +142,10 @@ class OutputDirectory:
     REPORT_FILE = PurePath(".report")
 
     def __init__(
-            self,
-            root: Path,
-            redownload: Redownload,
-            on_conflict: OnConflict,
+        self,
+        root: Path,
+        redownload: Redownload,
+        on_conflict: OnConflict,
     ):
         if os.name == "nt":
             # Windows limits the path length to 260 for some historical reason.
@@ -174,8 +178,8 @@ class OutputDirectory:
 
         try:
             self._root.mkdir(parents=True, exist_ok=True)
-        except OSError:
-            raise OutputDirError("Failed to create base directory")
+        except OSError as e:
+            raise OutputDirError("Failed to create base directory") from e
 
     def register_reserved(self, path: PurePath) -> None:
         self._report.mark_reserved(path)
@@ -193,11 +197,11 @@ class OutputDirectory:
         return self._root / path
 
     def _should_download(
-            self,
-            local_path: Path,
-            heuristics: Heuristics,
-            redownload: Redownload,
-            on_conflict: OnConflict,
+        self,
+        local_path: Path,
+        heuristics: Heuristics,
+        redownload: Redownload,
+        on_conflict: OnConflict,
     ) -> bool:
         if not local_path.exists():
             log.explain("No corresponding file present locally")
@@ -270,9 +274,9 @@ class OutputDirectory:
     # files.
 
     async def _conflict_lfrf(
-            self,
-            on_conflict: OnConflict,
-            path: PurePath,
+        self,
+        on_conflict: OnConflict,
+        path: PurePath,
     ) -> bool:
         if on_conflict in {OnConflict.PROMPT, OnConflict.NO_DELETE_PROMPT_OVERWRITE}:
             async with log.exclusive_output():
@@ -289,9 +293,9 @@ class OutputDirectory:
         raise ValueError(f"{on_conflict!r} is not a valid conflict policy")
 
     async def _conflict_ldrf(
-            self,
-            on_conflict: OnConflict,
-            path: PurePath,
+        self,
+        on_conflict: OnConflict,
+        path: PurePath,
     ) -> bool:
         if on_conflict in {OnConflict.PROMPT, OnConflict.NO_DELETE_PROMPT_OVERWRITE}:
             async with log.exclusive_output():
@@ -308,10 +312,10 @@ class OutputDirectory:
         raise ValueError(f"{on_conflict!r} is not a valid conflict policy")
 
     async def _conflict_lfrd(
-            self,
-            on_conflict: OnConflict,
-            path: PurePath,
-            parent: PurePath,
+        self,
+        on_conflict: OnConflict,
+        path: PurePath,
+        parent: PurePath,
     ) -> bool:
         if on_conflict in {OnConflict.PROMPT, OnConflict.NO_DELETE_PROMPT_OVERWRITE}:
             async with log.exclusive_output():
@@ -328,9 +332,9 @@ class OutputDirectory:
         raise ValueError(f"{on_conflict!r} is not a valid conflict policy")
 
     async def _conflict_delete_lf(
-            self,
-            on_conflict: OnConflict,
-            path: PurePath,
+        self,
+        on_conflict: OnConflict,
+        path: PurePath,
     ) -> bool:
         if on_conflict == OnConflict.PROMPT:
             async with log.exclusive_output():
@@ -353,9 +357,9 @@ class OutputDirectory:
         return base.parent / name
 
     async def _create_tmp_file(
-            self,
-            local_path: Path,
-    ) -> Tuple[Path, BinaryIO]:
+        self,
+        local_path: Path,
+    ) -> tuple[Path, BinaryIO]:
         """
         May raise an OutputDirError.
         """
@@ -388,14 +392,14 @@ class OutputDirectory:
         return self._should_download(local_path, heuristics, redownload, on_conflict)
 
     async def download(
-            self,
-            remote_path: PurePath,
-            path: PurePath,
-            *,
-            etag_differs: Optional[bool] = None,
-            mtime: Optional[datetime] = None,
-            redownload: Optional[Redownload] = None,
-            on_conflict: Optional[OnConflict] = None,
+        self,
+        remote_path: PurePath,
+        path: PurePath,
+        *,
+        etag_differs: Optional[bool] = None,
+        mtime: Optional[datetime] = None,
+        redownload: Optional[Redownload] = None,
+        on_conflict: Optional[OnConflict] = None,
     ) -> Optional[FileSinkToken]:
         """
         May throw an OutputDirError, a MarkDuplicateError or a
@@ -506,10 +510,8 @@ class OutputDirectory:
             await self._cleanup(child, pure_child)
 
         if delete_self:
-            try:
+            with suppress(OSError):
                 path.rmdir()
-            except OSError:
-                pass
 
     async def _cleanup_file(self, path: Path, pure: PurePath) -> None:
         if self._report.is_marked(pure):

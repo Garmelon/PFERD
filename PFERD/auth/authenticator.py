@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from typing import Tuple
 
 from ..config import Section
 
@@ -35,7 +34,7 @@ class Authenticator(ABC):
         self.name = name
 
     @abstractmethod
-    async def credentials(self) -> Tuple[str, str]:
+    async def credentials(self) -> tuple[str, str]:
         pass
 
     async def username(self) -> str:

@@ -1,10 +1,10 @@
 import asyncio
 import os
 from abc import ABC, abstractmethod
-from collections.abc import Awaitable, Coroutine
+from collections.abc import Awaitable, Callable, Coroutine, Sequence
 from datetime import datetime
 from pathlib import Path, PurePath
-from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple, TypeVar
+from typing import Any, Optional, TypeVar
 
 from ..auth import Authenticator
 from ..config import Config, Section
@@ -116,7 +116,7 @@ class CrawlToken(ReusableAsyncContextManager[ProgressBar]):
         return bar
 
 
-class DownloadToken(ReusableAsyncContextManager[Tuple[ProgressBar, FileSink]]):
+class DownloadToken(ReusableAsyncContextManager[tuple[ProgressBar, FileSink]]):
     def __init__(self, limiter: Limiter, fs_token: FileSinkToken, path: PurePath):
         super().__init__()
 
@@ -128,12 +128,13 @@ class DownloadToken(ReusableAsyncContextManager[Tuple[ProgressBar, FileSink]]):
     def path(self) -> PurePath:
         return self._path
 
-    async def _on_aenter(self) -> Tuple[ProgressBar, FileSink]:
+    async def _on_aenter(self) -> tuple[ProgressBar, FileSink]:
         await self._stack.enter_async_context(self._limiter.limit_download())
         sink = await self._stack.enter_async_context(self._fs_token)
         # The "Downloaded ..." message is printed in the output dir, not here
-        bar = self._stack.enter_context(log.download_bar("[bold bright_cyan]", "Downloading",
-                                                         fmt_path(self._path)))
+        bar = self._stack.enter_context(
+            log.download_bar("[bold bright_cyan]", "Downloading", fmt_path(self._path))
+        )
 
         return bar, sink
 
@@ -204,7 +205,7 @@ class CrawlerSection(Section):
         on_windows = os.name == "nt"
         return self.s.getboolean("windows_paths", fallback=on_windows)
 
-    def auth(self, authenticators: Dict[str, Authenticator]) -> Authenticator:
+    def auth(self, authenticators: dict[str, Authenticator]) -> Authenticator:
         value = self.s.get("auth")
         if value is None:
             self.missing_value("auth")
@@ -216,10 +217,10 @@ class CrawlerSection(Section):
 
 class Crawler(ABC):
     def __init__(
-            self,
-            name: str,
-            section: CrawlerSection,
-            config: Config,
+        self,
+        name: str,
+        section: CrawlerSection,
+        config: Config,
     ) -> None:
         """
         Initialize a crawler from its name and its section in the config file.
@@ -261,7 +262,7 @@ class Crawler(ABC):
         return self._output_dir
 
     @staticmethod
-    async def gather(awaitables: Sequence[Awaitable[Any]]) -> List[Any]:
+    async def gather(awaitables: Sequence[Awaitable[Any]]) -> list[Any]:
         """
         Similar to asyncio.gather. However, in the case of an exception, all
         still running tasks are cancelled and the exception is rethrown.
@@ -293,13 +294,13 @@ class Crawler(ABC):
         return CrawlToken(self._limiter, path)
 
     def should_try_download(
-            self,
-            path: PurePath,
-            *,
-            etag_differs: Optional[bool] = None,
-            mtime: Optional[datetime] = None,
-            redownload: Optional[Redownload] = None,
-            on_conflict: Optional[OnConflict] = None,
+        self,
+        path: PurePath,
+        *,
+        etag_differs: Optional[bool] = None,
+        mtime: Optional[datetime] = None,
+        redownload: Optional[Redownload] = None,
+        on_conflict: Optional[OnConflict] = None,
     ) -> bool:
         log.explain_topic(f"Decision: Should Download {fmt_path(path)}")
 
@@ -308,11 +309,7 @@ class Crawler(ABC):
             return False
 
         should_download = self._output_dir.should_try_download(
-            path,
-            etag_differs=etag_differs,
-            mtime=mtime,
-            redownload=redownload,
-            on_conflict=on_conflict
+            path, etag_differs=etag_differs, mtime=mtime, redownload=redownload, on_conflict=on_conflict
         )
         if should_download:
             log.explain("Answer: Yes")
@@ -322,13 +319,13 @@ class Crawler(ABC):
             return False
 
     async def download(
-            self,
-            path: PurePath,
-            *,
-            etag_differs: Optional[bool] = None,
-            mtime: Optional[datetime] = None,
-            redownload: Optional[Redownload] = None,
-            on_conflict: Optional[OnConflict] = None,
+        self,
+        path: PurePath,
+        *,
+        etag_differs: Optional[bool] = None,
+        mtime: Optional[datetime] = None,
+        redownload: Optional[Redownload] = None,
+        on_conflict: Optional[OnConflict] = None,
     ) -> Optional[DownloadToken]:
         log.explain_topic(f"Decision: Download {fmt_path(path)}")
         path = self._deduplicator.mark(path)
@@ -346,7 +343,7 @@ class Crawler(ABC):
             etag_differs=etag_differs,
             mtime=mtime,
             redownload=redownload,
-            on_conflict=on_conflict
+            on_conflict=on_conflict,
         )
         if fs_token is None:
             log.explain("Answer: No")
@@ -397,7 +394,7 @@ class Crawler(ABC):
             log.warn("Couldn't find or load old report")
             return
 
-        seen: Set[PurePath] = set()
+        seen: set[PurePath] = set()
         for known in sorted(self.prev_report.found_paths):
             looking_at = list(reversed(known.parents)) + [known]
             for path in looking_at:

@@ -1,4 +1,4 @@
-from typing import Optional, Tuple, cast
+from typing import Optional
 
 import keyring
 
@@ -13,11 +13,10 @@ class KeyringAuthSection(AuthSection):
         return self.s.get("username")
 
     def keyring_name(self) -> str:
-        return cast(str, self.s.get("keyring_name", fallback=NAME))
+        return self.s.get("keyring_name", fallback=NAME)
 
 
 class KeyringAuthenticator(Authenticator):
-
     def __init__(self, name: str, section: KeyringAuthSection) -> None:
         super().__init__(name)
 
@@ -28,7 +27,7 @@ class KeyringAuthenticator(Authenticator):
         self._password_invalidated = False
         self._username_fixed = section.username() is not None
 
-    async def credentials(self) -> Tuple[str, str]:
+    async def credentials(self) -> tuple[str, str]:
         # Request the username
         if self._username is None:
             async with log.exclusive_output():

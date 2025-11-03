@@ -38,9 +38,7 @@ class ShibbolethLogin:
         async with sess.get(url) as response:
             shib_url = response.url
             if str(shib_url).startswith(self._ilias_url):
-                log.explain(
-                    "ILIAS recognized our shib token and logged us in in the background, returning"
-                )
+                log.explain("ILIAS recognized our shib token and logged us in in the background, returning")
                 return
             soup: BeautifulSoup = soupify(await response.read())
 
@@ -81,7 +79,7 @@ class ShibbolethLogin:
         # (or clicking "Continue" if you have JS disabled)
         relay_state = cast(Tag, soup.find("input", {"name": "RelayState"}))
         saml_response = cast(Tag, soup.find("input", {"name": "SAMLResponse"}))
-        url = form = soup.find("form", {"method": "post"})["action"]  # type: ignore
+        url = cast(str, cast(Tag, soup.find("form", {"method": "post"}))["action"])
         data = {  # using the info obtained in the while loop above
             "RelayState": cast(str, relay_state["value"]),
             "SAMLResponse": cast(str, saml_response["value"]),

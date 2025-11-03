@@ -166,6 +166,7 @@ out of the box for the corresponding universities:
 | University      | `base_url`                              | `login_type` | `client_id`   |
 |-----------------|-----------------------------------------|--------------|---------------|
 | FH Aachen       | https://www.ili.fh-aachen.de            | local        | elearning     |
+| HHU Düsseldorf  | https://ilias.hhu.de                    | local        | UniRZ         |
 | Uni Köln        | https://www.ilias.uni-koeln.de/ilias    | local        | uk            |
 | Uni Konstanz    | https://ilias.uni-konstanz.de           | local        | ILIASKONSTANZ |
 | Uni Stuttgart   | https://ilias3.uni-stuttgart.de         | local        | Uni_Stuttgart |

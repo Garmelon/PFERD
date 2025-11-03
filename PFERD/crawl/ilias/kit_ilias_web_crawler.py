@@ -1,4 +1,4 @@
-from typing import Dict, Literal
+from typing import Literal
 
 from ...auth import Authenticator
 from ...config import Config
@@ -26,7 +26,7 @@ class KitIliasWebCrawler(IliasWebCrawler):
         name: str,
         section: KitIliasWebCrawlerSection,
         config: Config,
-        authenticators: Dict[str, Authenticator],
+        authenticators: dict[str, Authenticator],
     ):
         super().__init__(name, section, config, authenticators)
 

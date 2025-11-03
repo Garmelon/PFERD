@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Tuple
 
 from ..config import Config
 from ..utils import fmt_real_path
@@ -23,7 +22,9 @@ class CredentialFileAuthenticator(Authenticator):
             with open(path, encoding="utf-8") as f:
                 lines = list(f)
         except UnicodeDecodeError:
-            raise AuthLoadError(f"Credential file at {fmt_real_path(path)} is not encoded using UTF-8")
+            raise AuthLoadError(
+                f"Credential file at {fmt_real_path(path)} is not encoded using UTF-8"
+            ) from None
         except OSError as e:
             raise AuthLoadError(f"No credential file at {fmt_real_path(path)}") from e
 
@@ -42,5 +43,5 @@ class CredentialFileAuthenticator(Authenticator):
         self._username = uline[9:]
         self._password = pline[9:]
 
-    async def credentials(self) -> Tuple[str, str]:
+    async def credentials(self) -> tuple[str, str]:
         return self._username, self._password
