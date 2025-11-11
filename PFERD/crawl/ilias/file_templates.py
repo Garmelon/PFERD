@@ -111,6 +111,7 @@ _link_template_fancy = """
 _link_template_internet_shortcut = """
 [InternetShortcut]
 URL={{link}}
+Desc={{description}}
 """.strip()
 
 _learning_module_template = """
@@ -253,21 +254,22 @@ def learning_module_template(body: bs4.Tag, name: str, prev: Optional[str], next
         )
 
     if bot_nav := body.select_one(".ilc_page_bnav_BottomNavigation"):
-        bot_nav.replace_with(soupify(nav_template.replace(
-            "{{left}}", left).replace("{{right}}", right).encode())
+        bot_nav.replace_with(
+            soupify(nav_template.replace("{{left}}", left).replace("{{right}}", right).encode())
         )
 
-    body_str = cast(str, body.prettify())
+    body_str = body.prettify()
     return _learning_module_template.replace("{{body}}", body_str).replace("{{name}}", name)
 
 
 def forum_thread_template(name: str, url: str, heading: bs4.Tag, content: bs4.Tag) -> str:
-    if title := cast(Optional[bs4.Tag], heading.find(name="b")):
+    if title := heading.find(name="b"):
         title.wrap(bs4.Tag(name="a", attrs={"href": url}))
-    return _forum_thread_template \
-        .replace("{{name}}", name) \
-        .replace("{{heading}}", cast(str, heading.prettify())) \
-        .replace("{{content}}", cast(str, content.prettify()))
+    return (
+        _forum_thread_template.replace("{{name}}", name)
+        .replace("{{heading}}", heading.prettify())
+        .replace("{{content}}", content.prettify())
+    )
 
 
 @dataclasses.dataclass
@@ -295,9 +297,7 @@ class Links(Enum):
         raise ValueError("Missing switch case")
 
     def collection_as_one(self) -> bool:
-        if self == Links.FANCY:
-            return True
-        return False
+        return self == Links.FANCY
 
     def extension(self) -> Optional[str]:
         if self == Links.FANCY:
@@ -329,8 +329,7 @@ class Links(Enum):
         # All others get coerced to fancy
         content = cast(str, Links.FANCY.template())
         repeated_content = cast(
-            re.Match[str],
-            re.search(r"<!-- REPEAT START -->([\s\S]+)<!-- REPEAT END -->", content)
+            re.Match[str], re.search(r"<!-- REPEAT START -->([\s\S]+)<!-- REPEAT END -->", content)
         ).group(1)
 
         parts = []
@@ -354,4 +353,4 @@ class Links(Enum):
             return Links(string)
         except ValueError:
             options = [f"'{option.value}'" for option in Links]
-            raise ValueError(f"must be one of {', '.join(options)}")
+            raise ValueError(f"must be one of {', '.join(options)}") from None

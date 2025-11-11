@@ -153,6 +153,7 @@ requests is likely a good idea.
 - `link_regex`: A regex that is matched against the `href` part of links. If it
   matches, the given link is downloaded as a file. This is used to extract
   files from KIT-IPD pages. (Default: `^.*?[^/]+\.(pdf|zip|c|cpp|java)$`)
+- `auth`: Name of auth section to use for basic authentication. (Optional)
 
 ### The `ilias-web` crawler
 
@@ -166,6 +167,7 @@ out of the box for the corresponding universities:
 | University      | `base_url`                              | `login_type` | `client_id`   |
 |-----------------|-----------------------------------------|--------------|---------------|
 | FH Aachen       | https://www.ili.fh-aachen.de            | local        | elearning     |
+| HHU Düsseldorf  | https://ilias.hhu.de                    | local        | UniRZ         |
 | Uni Köln        | https://www.ilias.uni-koeln.de/ilias    | local        | uk            |
 | Uni Konstanz    | https://ilias.uni-konstanz.de           | local        | ILIASKONSTANZ |
 | Uni Stuttgart   | https://ilias3.uni-stuttgart.de         | local        | Uni_Stuttgart |

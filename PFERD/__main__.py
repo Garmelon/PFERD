@@ -133,7 +133,8 @@ def main() -> None:
             # https://bugs.python.org/issue39232
             # https://github.com/encode/httpx/issues/914#issuecomment-780023632
             # TODO Fix this properly
-            loop = asyncio.get_event_loop()
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
             loop.run_until_complete(pferd.run(args.debug_transforms))
             loop.run_until_complete(asyncio.sleep(1))
             loop.close()

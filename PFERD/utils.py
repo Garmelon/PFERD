@@ -3,10 +3,11 @@ import getpass
 import sys
 import threading
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from contextlib import AsyncExitStack
 from pathlib import Path, PurePath
 from types import TracebackType
-from typing import Any, Callable, Dict, Generic, Optional, Type, TypeVar
+from typing import Any, Generic, Optional, TypeVar
 from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
 
 import bs4
@@ -79,7 +80,7 @@ def url_set_query_param(url: str, param: str, value: str) -> str:
     return urlunsplit((scheme, netloc, path, new_query_string, fragment))
 
 
-def url_set_query_params(url: str, params: Dict[str, str]) -> str:
+def url_set_query_params(url: str, params: dict[str, str]) -> str:
     """
     Sets multiple query parameters in an url, overwriting existing ones.
     """
@@ -105,6 +106,10 @@ def fmt_real_path(path: Path) -> str:
     return repr(str(path.absolute()))
 
 
+def sanitize_path_name(name: str) -> str:
+    return name.replace("/", "-").replace("\\", "-").strip()
+
+
 class ReusableAsyncContextManager(ABC, Generic[T]):
     def __init__(self) -> None:
         self._active = False
@@ -124,17 +129,17 @@ class ReusableAsyncContextManager(ABC, Generic[T]):
         # See https://stackoverflow.com/a/13075071
         try:
             result: T = await self._on_aenter()
-        except:  # noqa: E722 do not use bare 'except'
+            return result
+        except:
             if not await self.__aexit__(*sys.exc_info()):
                 raise
-
-        return result
+            raise
 
     async def __aexit__(
-            self,
-            exc_type: Optional[Type[BaseException]],
-            exc_value: Optional[BaseException],
-            traceback: Optional[TracebackType],
+        self,
+        exc_type: Optional[type[BaseException]],
+        exc_value: Optional[BaseException],
+        traceback: Optional[TracebackType],
     ) -> Optional[bool]:
         if not self._active:
             raise RuntimeError("__aexit__ called too many times")

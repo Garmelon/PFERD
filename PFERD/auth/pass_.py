@@ -1,6 +1,5 @@
 import re
 import subprocess
-from typing import List, Tuple
 
 from ..logging import log
 from .authenticator import Authenticator, AuthError, AuthSection
@@ -12,11 +11,11 @@ class PassAuthSection(AuthSection):
             self.missing_value("passname")
         return value
 
-    def username_prefixes(self) -> List[str]:
+    def username_prefixes(self) -> list[str]:
         value = self.s.get("username_prefixes", "login,username,user")
         return [prefix.lower() for prefix in value.split(",")]
 
-    def password_prefixes(self) -> List[str]:
+    def password_prefixes(self) -> list[str]:
         value = self.s.get("password_prefixes", "password,pass,secret")
         return [prefix.lower() for prefix in value.split(",")]
 
@@ -31,14 +30,14 @@ class PassAuthenticator(Authenticator):
         self._username_prefixes = section.username_prefixes()
         self._password_prefixes = section.password_prefixes()
 
-    async def credentials(self) -> Tuple[str, str]:
+    async def credentials(self) -> tuple[str, str]:
         log.explain_topic("Obtaining credentials from pass")
 
         try:
             log.explain(f"Calling 'pass show {self._passname}'")
             result = subprocess.check_output(["pass", "show", self._passname], text=True)
         except subprocess.CalledProcessError as e:
-            raise AuthError(f"Failed to get password info from {self._passname}: {e}")
+            raise AuthError(f"Failed to get password info from {self._passname}: {e}") from e
 
         prefixed = {}
         unprefixed = []

@@ -18,19 +18,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
         with:
           python-version: ${{ matrix.python }}
 
       - name: Set up project
-        if: matrix.os != 'windows-latest'
-        run: ./scripts/setup
-
-      - name: Set up project on windows
-        if: matrix.os == 'windows-latest'
-        # For some reason, `pip install --upgrade pip` doesn't work on
-        # 'windows-latest'. The installed pip version works fine however.
-        run: ./scripts/setup --no-pip
+        run: uv sync
 
       - name: Run checks
         run: |

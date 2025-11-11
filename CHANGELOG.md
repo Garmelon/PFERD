@@ -23,6 +23,16 @@ ambiguous situations.
 ## Unreleased
 
 ## Added
+- Store the description when using the `internet-shortcut` link format
+- Support for basic auth with the kit-ipd crawler
+
+## Fixed
+- Event loop errors on Windows with Python 3.14
+- Sanitize `/` in headings in kit-ipd crawler
+
+## 3.8.3 - 2025-07-01
+
+## Added
 - Support for link collections.  
   In "fancy" mode, a single HTML file with multiple links is generated.
   In all other modes, PFERD creates a folder for the collection and a new file
@@ -33,6 +43,7 @@ ambiguous situations.
 - Don't download unavailable elements.  
   Elements that are unavailable (for example, because their availability is
   time restricted) will not download the HTML for the info page anymore.
+- `base_url` argument for `ilias-web` crawler causing crashes
 
 ## 3.8.2 - 2025-04-29
 

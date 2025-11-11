@@ -1,8 +1,9 @@
 import asyncio
 import time
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from typing import AsyncIterator, Optional
+from typing import Optional
 
 
 @dataclass
@@ -12,12 +13,7 @@ class Slot:
 
 
 class Limiter:
-    def __init__(
-            self,
-            task_limit: int,
-            download_limit: int,
-            task_delay: float
-    ):
+    def __init__(self, task_limit: int, download_limit: int, task_delay: float):
         if task_limit <= 0:
             raise ValueError("task limit must be at least 1")
         if download_limit <= 0:

@@ -18,25 +18,30 @@ GROUP.add_argument(
     "--link-regex",
     type=str,
     metavar="REGEX",
-    help="href-matching regex to identify downloadable files"
+    help="href-matching regex to identify downloadable files",
+)
+GROUP.add_argument(
+    "--basic-auth",
+    action="store_true",
+    help="enable basic authentication",
 )
 GROUP.add_argument(
     "target",
     type=str,
     metavar="TARGET",
-    help="url to crawl"
+    help="url to crawl",
 )
 GROUP.add_argument(
     "output",
     type=Path,
     metavar="OUTPUT",
-    help="output directory"
+    help="output directory",
 )
 
 
 def load(
-        args: argparse.Namespace,
-        parser: configparser.ConfigParser,
+    args: argparse.Namespace,
+    parser: configparser.ConfigParser,
 ) -> None:
     log.explain("Creating config for command 'kit-ipd'")
 
@@ -49,6 +54,12 @@ def load(
     section["output_dir"] = str(args.output)
     if args.link_regex:
         section["link_regex"] = str(args.link_regex)
+
+    if args.basic_auth:
+        section["auth"] = "auth:kit-ipd"
+        parser["auth:kit-ipd"] = {}
+        auth_section = parser["auth:kit-ipd"]
+        auth_section["type"] = "simple"
 
 
 SUBPARSER.set_defaults(command=load)

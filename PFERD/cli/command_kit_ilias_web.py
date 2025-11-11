@@ -21,8 +21,8 @@ configure_common_group_args(GROUP)
 
 
 def load(
-        args: argparse.Namespace,
-        parser: configparser.ConfigParser,
+    args: argparse.Namespace,
+    parser: configparser.ConfigParser,
 ) -> None:
     log.explain(f"Creating config for command '{COMMAND_NAME}'")
 

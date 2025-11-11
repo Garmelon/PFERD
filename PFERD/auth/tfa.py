@@ -1,5 +1,3 @@
-from typing import Tuple
-
 from ..logging import log
 from ..utils import ainput
 from .authenticator import Authenticator, AuthError
@@ -17,7 +15,7 @@ class TfaAuthenticator(Authenticator):
             code = await ainput("TFA code: ")
             return code
 
-    async def credentials(self) -> Tuple[str, str]:
+    async def credentials(self) -> tuple[str, str]:
         raise AuthError("TFA authenticator does not support usernames")
 
     def invalidate_username(self) -> None:

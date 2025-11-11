@@ -2,5 +2,5 @@
 
 set -e
 
-mypy .
-flake8 PFERD
+uv run pyright .
+uv run ruff check

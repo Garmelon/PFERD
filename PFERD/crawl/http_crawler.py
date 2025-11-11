@@ -3,7 +3,7 @@ import http.cookies
 import ssl
 from datetime import datetime
 from pathlib import Path, PurePath
-from typing import Any, Dict, List, Optional, Tuple, cast
+from typing import Any, Optional
 
 import aiohttp
 import certifi
@@ -13,7 +13,7 @@ from bs4 import Tag
 from ..auth import Authenticator
 from ..config import Config
 from ..logging import log
-from ..utils import fmt_real_path
+from ..utils import fmt_real_path, sanitize_path_name
 from ..version import NAME, VERSION
 from .crawler import Crawler, CrawlerSection
 
@@ -29,11 +29,11 @@ class HttpCrawler(Crawler):
     COOKIE_FILE = PurePath(".cookies")
 
     def __init__(
-            self,
-            name: str,
-            section: HttpCrawlerSection,
-            config: Config,
-            shared_auth: Optional[Authenticator] = None,
+        self,
+        name: str,
+        section: HttpCrawlerSection,
+        config: Config,
+        shared_auth: Optional[Authenticator] = None,
     ) -> None:
         super().__init__(name, section, config)
 
@@ -43,7 +43,7 @@ class HttpCrawler(Crawler):
         self._http_timeout = section.http_timeout()
 
         self._cookie_jar_path = self._output_dir.resolve(self.COOKIE_FILE)
-        self._shared_cookie_jar_paths: Optional[List[Path]] = None
+        self._shared_cookie_jar_paths: Optional[list[Path]] = None
         self._shared_auth = shared_auth
 
         self._output_dir.register_reserved(self.COOKIE_FILE)
@@ -98,7 +98,7 @@ class HttpCrawler(Crawler):
         """
         raise RuntimeError("_authenticate() was called but crawler doesn't provide an implementation")
 
-    def share_cookies(self, shared: Dict[Authenticator, List[Path]]) -> None:
+    def share_cookies(self, shared: dict[Authenticator, list[Path]]) -> None:
         if not self._shared_auth:
             return
 
@@ -187,12 +187,12 @@ class HttpCrawler(Crawler):
             if level == 0 or (level == 1 and drop_h1):
                 return PurePath()
 
-            level_heading = cast(Optional[Tag], tag.find_previous(name=f"h{level}"))
+            level_heading = tag.find_previous(name=f"h{level}")
 
             if level_heading is None:
                 return find_associated_headings(tag, level - 1)
 
-            folder_name = level_heading.get_text().strip()
+            folder_name = sanitize_path_name(level_heading.get_text().strip())
             return find_associated_headings(level_heading, level - 1) / folder_name
 
         # start at level <h3> because paragraph-level headings are usually too granular for folder names
@@ -219,7 +219,7 @@ class HttpCrawler(Crawler):
         etags[str(path)] = etag
         self._output_dir.report.add_custom_value(ETAGS_CUSTOM_REPORT_VALUE_KEY, etags)
 
-    async def _request_resource_version(self, resource_url: str) -> Tuple[Optional[str], Optional[datetime]]:
+    async def _request_resource_version(self, resource_url: str) -> tuple[Optional[str], Optional[datetime]]:
         """
         Requests the ETag and Last-Modified headers of a resource via a HEAD request.
         If no entity tag / modification date can be obtained, the according value will be None.
@@ -252,23 +252,23 @@ class HttpCrawler(Crawler):
         self._load_cookies()
 
         async with aiohttp.ClientSession(
-                headers={"User-Agent": f"{NAME}/{VERSION}"},
-                cookie_jar=self._cookie_jar,
-                connector=aiohttp.TCPConnector(ssl=ssl.create_default_context(cafile=certifi.where())),
-                timeout=ClientTimeout(
-                    # 30 minutes. No download in the history of downloads was longer than 30 minutes.
-                    # This is enough to transfer a 600 MB file over a 3 Mib/s connection.
-                    # Allowing an arbitrary value could be annoying for overnight batch jobs
-                    total=15 * 60,
-                    connect=self._http_timeout,
-                    sock_connect=self._http_timeout,
-                    sock_read=self._http_timeout,
-                ),
-                # See https://github.com/aio-libs/aiohttp/issues/6626
-                # Without this aiohttp will mangle the redirect header from Shibboleth, invalidating the
-                # passed signature. Shibboleth will not accept the broken signature and authentication will
-                # fail.
-                requote_redirect_url=False
+            headers={"User-Agent": f"{NAME}/{VERSION}"},
+            cookie_jar=self._cookie_jar,
+            connector=aiohttp.TCPConnector(ssl=ssl.create_default_context(cafile=certifi.where())),
+            timeout=ClientTimeout(
+                # 30 minutes. No download in the history of downloads was longer than 30 minutes.
+                # This is enough to transfer a 600 MB file over a 3 Mib/s connection.
+                # Allowing an arbitrary value could be annoying for overnight batch jobs
+                total=15 * 60,
+                connect=self._http_timeout,
+                sock_connect=self._http_timeout,
+                sock_read=self._http_timeout,
+            ),
+            # See https://github.com/aio-libs/aiohttp/issues/6626
+            # Without this aiohttp will mangle the redirect header from Shibboleth, invalidating the
+            # passed signature. Shibboleth will not accept the broken signature and authentication will
+            # fail.
+            requote_redirect_url=False,
         ) as session:
             self.session = session
             try:

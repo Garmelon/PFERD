@@ -1,5 +1,6 @@
 import asyncio
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any, Optional
 
 import aiohttp
 
@@ -15,9 +16,9 @@ def _iorepeat(attempts: int, name: str, failure_is_error: bool = False) -> Calla
                 try:
                     return await f(*args, **kwargs)
                 except aiohttp.ContentTypeError:  # invalid content type
-                    raise CrawlWarning("ILIAS returned an invalid content type")
+                    raise CrawlWarning("ILIAS returned an invalid content type") from None
                 except aiohttp.TooManyRedirects:
-                    raise CrawlWarning("Got stuck in a redirect loop")
+                    raise CrawlWarning("Got stuck in a redirect loop") from None
                 except aiohttp.ClientPayloadError as e:  # encoding or not enough bytes
                     last_exception = e
                 except aiohttp.ClientConnectionError as e:  # e.g. timeout, disconnect, resolve failed, etc.
