@@ -7,6 +7,7 @@ from .crawler import Crawler, CrawlError, CrawlerSection  # noqa: F401
 from .ilias import IliasWebCrawler, IliasWebCrawlerSection, KitIliasWebCrawler, KitIliasWebCrawlerSection
 from .kit_ipd_crawler import KitIpdCrawler, KitIpdCrawlerSection
 from .local_crawler import LocalCrawler, LocalCrawlerSection
+from .language_translator_crawler import LanguageTranslatorCrawler, LanguageTranslatorCrawlerSection
 
 CrawlerConstructor = Callable[
     [
@@ -23,4 +24,5 @@ CRAWLERS: dict[str, CrawlerConstructor] = {
     "ilias-web": lambda n, s, c, a: IliasWebCrawler(n, IliasWebCrawlerSection(s), c, a),
     "kit-ilias-web": lambda n, s, c, a: KitIliasWebCrawler(n, KitIliasWebCrawlerSection(s), c, a),
     "kit-ipd": lambda n, s, c, a: KitIpdCrawler(n, KitIpdCrawlerSection(s), c, a),
+    "language-translator": lambda n, s, c, a: LanguageTranslatorCrawler(n, LanguageTranslatorCrawlerSection(s), c, a),
 }
