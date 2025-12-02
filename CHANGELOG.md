@@ -29,6 +29,7 @@ ambiguous situations.
 ## Fixed
 - Event loop errors on Windows with Python 3.14
 - Sanitize `/` in headings in kit-ipd crawler
+- Crawl info tab again
 
 ## 3.8.3 - 2025-07-01
 

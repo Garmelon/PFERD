@@ -739,9 +739,10 @@ class IliasPage:
         links: list[Tag] = self._soup.select("a.il_ContainerItemCommand")
 
         for link in links:
-            if "cmdClass=ilobjcoursegui" not in link["href"]:
+            log.explain(f"Found info tab link: {self._abs_url_from_link(link)}")
+            if "cmdclass=ilobjcoursegui" not in cast(str, link["href"]).lower():
                 continue
-            if "cmd=sendfile" not in link["href"]:
+            if "cmd=sendfile" not in cast(str, link["href"]).lower():
                 continue
             items.append(
                 IliasPageElement.create_new(
@@ -749,6 +750,7 @@ class IliasPage:
                 )
             )
 
+        log.explain(f"Found {len(items)} info tab entries {items}")
         return items
 
     def _find_opencast_video_entries(self) -> list[IliasPageElement]:

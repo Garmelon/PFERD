@@ -297,6 +297,8 @@ instance's greatest bottleneck.
 
                 page = cast(IliasPage, page)
                 elements.extend(page.get_child_elements())
+                if current_element is None and (info_tab := page.get_info_tab()):
+                    elements.append(info_tab)
                 if description_string := page.get_description():
                     description.append(description_string)
 
