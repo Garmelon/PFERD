@@ -524,13 +524,12 @@ instance's greatest bottleneck.
 
     async def _resolve_link_target(self, export_url: str) -> BeautifulSoup | Literal["none"]:
         async def impl() -> Optional[BeautifulSoup | Literal["none"]]:
-            async with self.session.get(export_url, allow_redirects=False) as resp:
-                # No redirect means we were authenticated
-                if hdrs.LOCATION not in resp.headers:
-                    return soupify(await resp.read())  # .select_one("a").get("href").strip()  # type: ignore
+            async with self.session.get(export_url) as resp:
+                final_url = str(resp.url).lower()
+                if "cmdnode" in final_url and "exporthtml" in final_url:
+                    return soupify(await resp.read())
                 # We are either unauthenticated or the link is not active
-                new_url = resp.headers[hdrs.LOCATION].lower()
-                if "baseclass=illinkresourcehandlergui" in new_url and "cmd=infoscreen" in new_url:
+                if "baseclass=illinkresourcehandlergui" in final_url and "cmd=infoscreen" in final_url:
                     return "none"
                 return None
 
@@ -825,10 +824,7 @@ instance's greatest bottleneck.
                 log.warn("Could not extract forum export url")
                 return
 
-            export = await self._post(
-                export_url,
-                {"format": "html", "cmd[createExportFile]": ""},
-            )
+            export = await self._get_authenticated(export_url)
 
             elements = parse_ilias_forum_export(soupify(export))
 
@@ -964,13 +960,14 @@ instance's greatest bottleneck.
         """
         log.explain_topic("Internalizing images")
         for elem in tag.find_all(recursive=True):
-            if elem.name == "img" and (src := elem.attrs.get("src", None)):
+            if elem.name in {"img", "embed"} and (src := elem.attrs.get("src", None)):
                 url = urljoin(self._base_url, cast(str, src))
                 if not url.startswith(self._base_url):
                     continue
                 log.explain(f"Internalizing {url!r}")
                 img = await self._get_authenticated(url)
-                elem.attrs["src"] = "data:;base64," + base64.b64encode(img).decode()
+                mime = "image/svg+xml" if ".svg" in url else "image/png"
+                elem.attrs["src"] = f"data:{mime};base64," + base64.b64encode(img).decode()
             if elem.name == "iframe" and cast(str, elem.attrs.get("src", "")).startswith("//"):
                 # For unknown reasons the protocol seems to be stripped.
                 elem.attrs["src"] = "https:" + cast(str, elem.attrs["src"])
@@ -1014,16 +1011,6 @@ instance's greatest bottleneck.
                 f"The redirect came from {url}"
             )
         return soup
-
-    async def _post(self, url: str, data: dict[str, str | list[str]]) -> bytes:
-        form_data = aiohttp.FormData()
-        for key, val in data.items():
-            form_data.add_field(key, val)
-
-        async with self.session.post(url, data=form_data()) as request:
-            if request.status == 200:
-                return await request.read()
-            raise CrawlError(f"post failed with status {request.status}")
 
     async def _get_authenticated(self, url: str) -> bytes:
         auth_id = await self._current_auth_id()

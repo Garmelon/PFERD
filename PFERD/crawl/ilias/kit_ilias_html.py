@@ -489,25 +489,10 @@ class IliasPage:
             log.explain("Found no forum link")
             return None
 
-        base_url = self._abs_url_from_link(forum_link)
-        base_url = re.sub(r"cmd=\w+", "cmd=post", base_url)
-        base_url = re.sub(r"cmdClass=\w+", "cmdClass=ilExportGUI", base_url)
-
-        rtoken_form = self._soup.find("form", attrs={"action": lambda x: x is not None and "rtoken=" in x})
-        if not rtoken_form:
-            log.explain("Found no rtoken anywhere")
-            return None
-        match = cast(re.Match[str], re.search(r"rtoken=(\w+)", str(rtoken_form.attrs["action"])))
-        rtoken = match.group(1)
-
-        base_url = base_url + "&rtoken=" + rtoken
-
-        return base_url
+        forum_url = self._abs_url_from_link(forum_link)
+        return url_set_query_params(forum_url, {"cmd": "exportHTML", "cmdClass": "ilForumExportGUI"})
 
     def get_next_stage_element(self) -> Optional[IliasPageElement]:
-        if self._is_ilias_opencast_embedding():
-            log.explain("Unwrapping opencast embedding")
-            return self.get_child_elements()[0]
         if self._page_type == IliasElementType.OPENCAST_VIDEO_FOLDER_MAYBE_PAGINATED:
             log.explain("Unwrapping video pagination")
             return self._find_opencast_video_entries_paginated()[0]
@@ -528,19 +513,9 @@ class IliasPage:
         return "paella_config_file" in str(self._soup)
 
     def _is_opencast_video_listing(self) -> bool:
-        if self._is_ilias_opencast_embedding():
-            return True
-
-        # Raw listing without ILIAS fluff
-        video_element_table = self._soup.find(name="table", id=re.compile(r"tbl_xoct_.+"))
-        return video_element_table is not None
-
-    def _is_ilias_opencast_embedding(self) -> bool:
         # ILIAS fluff around the real opencast html
-        if self._soup.find(id="headerimage"):
-            element: Tag = cast(Tag, self._soup.find(id="headerimage"))
-            if "opencast" in cast(str, element.attrs["src"]).lower():
-                return True
+        if header := self._soup.find(id="headerimage"):
+            return "opencast" in cast(str, header.attrs["src"]).lower()
         return False
 
     def _is_exercise_file(self) -> bool:
@@ -754,53 +729,22 @@ class IliasPage:
         return items
 
     def _find_opencast_video_entries(self) -> list[IliasPageElement]:
-        # ILIAS has three stages for video pages
-        # 1. The initial dummy page without any videos. This page contains the link to the listing
-        # 2. The video listing which might be paginated
-        # 3. An unpaginated video listing (or at least one that includes 800 videos)
+        # ILIAS has two stages for video pages
+        # 1. The video listing which might be paginated
+        # 2. An unpaginated video listing (Or at least one that includes 50 videos.
+        #    We want more, but we don't get more...)
         #
         # We need to figure out where we are.
 
-        video_element_table = self._soup.find(name="table", id=re.compile(r"tbl_xoct_.+"))
-
-        if video_element_table is None:
-            # We are in stage 1
-            # The page is actually emtpy but contains the link to stage 2
-            content_link: Tag = cast(Tag, self._soup.select_one("#tab_series a"))
-            url: str = self._abs_url_from_link(content_link)
-            query_params = {"limit": "800", "cmd": "asyncGetTableGUI", "cmdMode": "asynch"}
-            url = url_set_query_params(url, query_params)
-            log.explain("Found ILIAS video frame page, fetching actual content next")
-            return [
-                IliasPageElement.create_new(IliasElementType.OPENCAST_VIDEO_FOLDER_MAYBE_PAGINATED, url, "")
-            ]
-
-        is_paginated = self._soup.find(id=re.compile(r"tab_page_sel.+")) is not None
-
-        if is_paginated and self._page_type != IliasElementType.OPENCAST_VIDEO_FOLDER:
-            # We are in stage 2 - try to break pagination
-            return self._find_opencast_video_entries_paginated()
+        is_paginated = self._soup.find(class_="il-viewcontrol-pagination") is not None
+        if is_paginated:
+            log.warn("Video listing is paginated. This might mean that I miss videos.")
 
         return self._find_opencast_video_entries_no_paging()
 
     def _find_opencast_video_entries_paginated(self) -> list[IliasPageElement]:
-        table_element = self._soup.find(name="table", id=re.compile(r"tbl_xoct_.+"))
-
-        if table_element is None:
-            log.warn("Couldn't increase elements per page (table not found). I might miss elements.")
-            return self._find_opencast_video_entries_no_paging()
-
-        id_match = re.match(r"tbl_xoct_(.+)", cast(str, table_element.attrs["id"]))
-        if id_match is None:
-            log.warn("Couldn't increase elements per page (table id not found). I might miss elements.")
-            return self._find_opencast_video_entries_no_paging()
-
-        table_id = id_match.group(1)
-
-        query_params = {f"tbl_xoct_{table_id}_trows": "800", "cmd": "asyncGetTableGUI", "cmdMode": "asynch"}
-        url = url_set_query_params(self._page_url, query_params)
-
-        log.explain("Disabled pagination, retrying folder as a new entry")
+        url = url_set_query_params(self._page_url, {"page_size": "50"})
+        log.explain("Set pagination to 50, retrying folder as a new entry")
         return [IliasPageElement.create_new(IliasElementType.OPENCAST_VIDEO_FOLDER, url, "")]
 
     def _find_opencast_video_entries_no_paging(self) -> list[IliasPageElement]:
@@ -809,34 +753,35 @@ class IliasPage:
         """
         # Video start links are marked with an "Abspielen" link
         video_links = cast(
-            list[Tag], self._soup.find_all(name="a", text=re.compile(r"\s*(Abspielen|Play)\s*"))
+            list[Tag], self._soup.find_all(name="a", attrs={"href": re.compile(r".+cmd=streamVideo.+", re.I)})
         )
 
         results: list[IliasPageElement] = []
 
         for link in video_links:
+            if link.find("img"):
+                continue
             results.append(self._listed_opencast_video_to_element(link))
 
         return results
 
     def _listed_opencast_video_to_element(self, link: Tag) -> IliasPageElement:
-        # The link is part of a table with multiple columns, describing metadata.
-        # 6th or 7th child (1 indexed) is the modification time string. Try to find it
-        # by parsing backwards from the end and finding something that looks like a date
+        # The link is part of a card (__container) with a td for metadata
+        parent = cast(Tag, link.find_parent(class_="__container"))
+        metadata = parent.select_one(".__main-details > dl")
+
         modification_time = None
-        row: Tag = link.parent.parent.parent  # type: ignore
-        column_count = len(row.select("td.std"))
-        for index in range(column_count, 0, -1):
-            modification_string = cast(Tag, row.select_one(f"td.std:nth-child({index})")).get_text().strip()
-            if match := re.search(r"\d+\.\d+.\d+ \d+:\d+", modification_string):
-                modification_time = datetime.strptime(match.group(0), "%d.%m.%Y %H:%M")
-                break
+        if metadata is not None:
+            for col in metadata.find_all("dd"):
+                if match := demangle_date(col.text.strip(), fail_silently=True):
+                    modification_time = match
+                    break
 
         if modification_time is None:
             log.warn(f"Could not determine upload time for {link}")
             modification_time = datetime.now()
 
-        title = cast(Tag, row.select_one("td.std:nth-child(3)")).get_text().strip()
+        title = link.get_text().strip()
         title += ".mp4"
 
         video_name: str = sanitize_path_name(title)
