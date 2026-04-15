@@ -1,3 +1,4 @@
+import re
 from typing import cast
 
 from bs4 import BeautifulSoup, Comment, Tag
@@ -104,5 +105,10 @@ def clean(soup: BeautifulSoup) -> BeautifulSoup:
 
     for hrule_imposter in cast(list[Tag], soup.find_all(class_="ilc_section_Separator")):
         hrule_imposter.insert(0, soup.new_tag("hr"))
+
+    for elem in soup.find_all(id=re.compile(r"il_ui_fw_.+")):
+        del elem["id"]
+    for elem in soup.find_all(attrs={"aria-controls": re.compile(r"il_ui_fw_.+")}):
+        del elem.attrs["aria-controls"]
 
     return soup

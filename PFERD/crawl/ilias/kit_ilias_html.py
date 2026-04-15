@@ -384,7 +384,7 @@ class IliasPage:
             return self._player_to_video()
         if self._is_opencast_video_listing():
             log.explain("Page is an opencast video listing, searching for elements")
-            return self._find_opencast_video_entries()
+            return self._find_opencast_video_entries_no_paging()
         if self._is_exercise_file():
             log.explain("Page is an exercise, searching for elements")
             return self._find_exercise_entries()
@@ -495,7 +495,7 @@ class IliasPage:
     def get_next_stage_element(self) -> Optional[IliasPageElement]:
         if self._page_type == IliasElementType.OPENCAST_VIDEO_FOLDER_MAYBE_PAGINATED:
             log.explain("Unwrapping video pagination")
-            return self._find_opencast_video_entries_paginated()[0]
+            return self._find_opencast_video_entries_paginated()
         if self._contains_collapsed_future_meetings():
             log.explain("Requesting *all* future meetings")
             return self._uncollapse_future_meetings_url()
@@ -508,6 +508,19 @@ class IliasPage:
             else:
                 log.explain("Crawling info tab, skipping content select")
         return None
+
+    def get_next_page_element(self) -> Optional[IliasPageElement]:
+        if not self._is_opencast_video_listing():
+            return None
+        pagination_controls = self._soup.find(class_="il-viewcontrol-pagination")
+        if not pagination_controls:
+            return None
+        buttons = pagination_controls.find_all("button")
+        if "engaged" in buttons[-1].attrs.get("class", ""):
+            return None
+
+        next_url = self._abs_url_from_relative(cast(str, buttons[-1].attrs.get("data-action")))
+        return IliasPageElement.create_new(IliasElementType.OPENCAST_VIDEO_FOLDER, next_url, "")
 
     def _is_video_player(self) -> bool:
         return "paella_config_file" in str(self._soup)
@@ -728,24 +741,12 @@ class IliasPage:
         log.explain(f"Found {len(items)} info tab entries {items}")
         return items
 
-    def _find_opencast_video_entries(self) -> list[IliasPageElement]:
-        # ILIAS has two stages for video pages
-        # 1. The video listing which might be paginated
-        # 2. An unpaginated video listing (Or at least one that includes 50 videos.
-        #    We want more, but we don't get more...)
-        #
-        # We need to figure out where we are.
-
-        is_paginated = self._soup.find(class_="il-viewcontrol-pagination") is not None
-        if is_paginated:
-            log.warn("Video listing is paginated. This might mean that I miss videos.")
-
-        return self._find_opencast_video_entries_no_paging()
-
-    def _find_opencast_video_entries_paginated(self) -> list[IliasPageElement]:
-        url = url_set_query_params(self._page_url, {"page_size": "50"})
-        log.explain("Set pagination to 50, retrying folder as a new entry")
-        return [IliasPageElement.create_new(IliasElementType.OPENCAST_VIDEO_FOLDER, url, "")]
+    def _find_opencast_video_entries_paginated(self) -> IliasPageElement:
+        # We need to set the page size to 10 as everything else is broken in (at least KIT) ILIAS
+        # and silently drops videos...
+        url = url_set_query_params(self._page_url, {"page_size": "10"})
+        log.explain("Set pagination to 10, retrying folder as a new entry")
+        return IliasPageElement.create_new(IliasElementType.OPENCAST_VIDEO_FOLDER, url, "")
 
     def _find_opencast_video_entries_no_paging(self) -> list[IliasPageElement]:
         """

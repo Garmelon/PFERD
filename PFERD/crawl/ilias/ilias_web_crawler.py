@@ -263,15 +263,14 @@ instance's greatest bottleneck.
         expected_course_id: Optional[int] = None,
         crawl_nested_courses: bool = False,
     ) -> None:
-        elements: list[IliasPageElement] = []
-        # A list as variable redefinitions are not propagated to outer scopes
-        description: list[BeautifulSoup] = []
-
         @_iorepeat(3, "crawling folder")
-        async def gather_elements() -> None:
-            elements.clear()
+        async def gather_elements(
+            initial_url: str,
+        ) -> tuple[list[IliasPageElement], Optional[BeautifulSoup], Optional[IliasPageElement]]:
+            found_elements: list[IliasPageElement] = []
+            found_description: Optional[BeautifulSoup] = None
             async with cl:
-                next_stage_url: Optional[str] = url
+                next_stage_url: Optional[str] = initial_url
                 current_parent = current_element
                 page = None
 
@@ -296,17 +295,31 @@ instance's greatest bottleneck.
                         next_stage_url = None
 
                 page = cast(IliasPage, page)
-                elements.extend(page.get_child_elements())
+                found_elements.extend(page.get_child_elements())
                 if current_element is None and (info_tab := page.get_info_tab()):
-                    elements.append(info_tab)
+                    found_elements.append(info_tab)
                 if description_string := page.get_description():
-                    description.append(description_string)
+                    found_description = description_string
+
+            return found_elements, found_description, page.get_next_page_element()
+
+        elements: list[IliasPageElement] = []
+        # A list as variable redefinitions are not propagated to outer scopes
+        description: Optional[BeautifulSoup] = None
 
         # Fill up our task list with the found elements
-        await gather_elements()
+        while True:
+            elems, desc, next_page = await gather_elements(url)
+            elements.extend(elems)
+            description = description or desc
+            if next_page:
+                log.explain(f"Continuing with next page for {current_element} {next_page}")
+                url = next_page.url
+            else:
+                break
 
         if description:
-            await self._download_description(cl.path, description[0])
+            await self._download_description(cl.path, description)
 
         elements.sort(key=lambda e: e.id())
 
