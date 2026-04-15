@@ -675,7 +675,7 @@ class IliasPage:
     def _find_personal_desktop_entries(self) -> list[IliasPageElement]:
         items: list[IliasPageElement] = []
 
-        titles: list[Tag] = self._soup.select("#block_pditems_0 .il-item-title")
+        titles: list[Tag] = self._soup.select("#block_dash_fav_0 .il-item-title")
         for title in titles:
             link = title.find("a")
 
