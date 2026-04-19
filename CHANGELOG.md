@@ -24,25 +24,25 @@ ambiguous situations.
 
 ## 3.9.0 - 2026-04-19
 
-## Added
+### Added
 - Store the description when using the `internet-shortcut` link format
 - Support for basic auth with the kit-ipd crawler
 - Support for ILIAS 10
 
-## Fixed
+### Fixed
 - Event loop errors on Windows with Python 3.14
 - Sanitize `/` in headings in kit-ipd crawler
 - Crawl info tab again
 
 ## 3.8.3 - 2025-07-01
 
-## Added
+### Added
 - Support for link collections.  
   In "fancy" mode, a single HTML file with multiple links is generated.
   In all other modes, PFERD creates a folder for the collection and a new file
   for every link inside.
 
-## Fixed
+### Fixed
 - Crawling of exercises with instructions
 - Don't download unavailable elements.  
   Elements that are unavailable (for example, because their availability is
@@ -51,16 +51,16 @@ ambiguous situations.
 
 ## 3.8.2 - 2025-04-29
 
-## Changed
+### Changed
 - Explicitly mention that wikis are not supported at the moment and ignore them
 
-## Fixed
+### Fixed
 - Ilias-native login
 - Exercise crawling
 
 ## 3.8.1 - 2025-04-17
 
-## Fixed
+### Fixed
 - Description html files now specify at UTF-8 encoding
 - Images in descriptions now always have a white background
 
@@ -75,7 +75,7 @@ ambiguous situations.
 - Increase minimum supported Python version to 3.11
 - Do not crawl nested courses (courses linked in other courses)
 
-## Fixed
+### Fixed
 - File links in report on Windows
 - TOTP authentication in KIT Shibboleth
 - Forum crawling only considering the first 20 entries
