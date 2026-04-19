@@ -2,4 +2,4 @@
 
 set -e
 
-uv run pyinstaller --onefile pferd.py
+uv run pyinstaller --onefile --copy-metadata PFERD pferd.py
