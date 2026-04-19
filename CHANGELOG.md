@@ -22,9 +22,12 @@ ambiguous situations.
 
 ## Unreleased
 
+## 3.9.0 - 2026-04-19
+
 ## Added
 - Store the description when using the `internet-shortcut` link format
 - Support for basic auth with the kit-ipd crawler
+- Support for ILIAS 10
 
 ## Fixed
 - Event loop errors on Windows with Python 3.14
