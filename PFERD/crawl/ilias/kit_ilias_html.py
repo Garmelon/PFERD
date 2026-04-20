@@ -1417,6 +1417,18 @@ class IliasPage:
         return None
 
     @staticmethod
+    def is_course_available(ilias_soup: IliasSoup) -> bool:
+        link = ilias_soup.soup.find(
+            "a",
+            attrs={
+                "href": lambda x: x is not None
+                and "cmdclass=ilobjcoursegui" in x.lower()
+                and "cmd=view" in x.lower()
+            },
+        )
+        return link is not None
+
+    @staticmethod
     def get_file_download_url(base_url: str, file_id: str):
         return urljoin(base_url, f"goto.php/file/{file_id}/download")
 

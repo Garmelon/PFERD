@@ -286,6 +286,8 @@ instance's greatest bottleneck.
                             raise CrawlError("Invalid course id? Didn't find anything looking like a course")
                         if str(expected_course_id) not in perma_link:
                             raise CrawlError(f"Expected course id {expected_course_id} but got {perma_link}")
+                        if not IliasPage.is_course_available(soup):
+                            raise CrawlError("Course likely not available (no content tab found)")
 
                     page = IliasPage(soup, current_parent)
                     if next_element := page.get_next_stage_element():
