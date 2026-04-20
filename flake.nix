@@ -17,7 +17,7 @@
         rec {
           default = pkgs.python3Packages.buildPythonApplication rec {
             pname = "pferd";
-            version = (pkgs.lib.importTOML ./pyproject.toml).package.version;
+            version = (pkgs.lib.importTOML ./pyproject.toml).project.version;
             format = "pyproject";
 
             src = ./.;
