@@ -505,6 +505,10 @@ class OutputDirectory:
             await self._cleanup_file(path, pure)
 
     async def _cleanup_dir(self, path: Path, pure: PurePath, delete_self: bool = True) -> None:
+        if self._on_conflict in {OnConflict.NO_DELETE, OnConflict.NO_DELETE_PROMPT_OVERWRITE} and not self.report.contains_marked(pure):
+            self._report_not_deleted(pure)
+            return
+
         for child in sorted(path.iterdir()):
             pure_child = pure / child.name
             await self._cleanup(child, pure_child)
@@ -525,8 +529,11 @@ class OutputDirectory:
             except OSError:
                 pass
         else:
-            log.not_deleted("[bold bright_magenta]", "Not deleted", fmt_path(pure))
-            self._report.not_delete_file(pure)
+            self._report_not_deleted(pure)
+
+    def _report_not_deleted(self, path: PurePath) -> None:
+        log.not_deleted("[bold bright_magenta]", "Not deleted", fmt_path(path))
+        self._report.not_delete_file(path)
 
     def load_prev_report(self) -> None:
         log.explain_topic(f"Loading previous report from {fmt_real_path(self._report_path)}")
