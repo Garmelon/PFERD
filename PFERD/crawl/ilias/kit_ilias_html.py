@@ -152,6 +152,8 @@ class IliasElementType(Enum):
                     TypeMatcher.query("cmd=sendfile"),
                     TypeMatcher.path("_file_"),
                     TypeMatcher.img_src("/filedelivery/"),
+                    TypeMatcher.img_alt("inline datei"),
+                    TypeMatcher.img_alt("inline file"),
                 )
             case IliasElementType.FOLDER:
                 return TypeMatcher.any(
@@ -493,6 +495,11 @@ class IliasPage:
         return url_set_query_params(forum_url, {"cmd": "exportHTML", "cmdClass": "ilForumExportGUI"})
 
     def get_next_stage_element(self) -> Optional[IliasPageElement]:
+        if self._page_type == IliasElementType.FILE and "showsummary" in self._page_url.lower():
+            if btn := self._soup.select_one(".c-launcher button[data-action]"):
+                url = self._abs_url_from_relative(cast(str, btn.attrs["data-action"]))
+                return IliasPageElement.create_new(IliasElementType.FILE, url, self._source_name, None, None)
+            return None
         if self._page_type == IliasElementType.OPENCAST_VIDEO_FOLDER_MAYBE_PAGINATED:
             log.explain("Unwrapping video pagination")
             return self._find_opencast_video_entries_paginated()
@@ -1408,6 +1415,10 @@ class IliasPage:
                 url = url.replace(r"\/", "/")
                 return url
         return None
+
+    @staticmethod
+    def get_file_download_url(base_url: str, file_id: str):
+        return urljoin(base_url, f"goto.php/file/{file_id}/download")
 
 
 def _unexpected_html_warning() -> None:

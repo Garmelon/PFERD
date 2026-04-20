@@ -22,6 +22,9 @@ ambiguous situations.
 
 ## Unreleased
 
+### Fixed
+- Crawling of files defaulting to the info tab (which can be set by the owner)
+
 ## 3.9.0 - 2026-04-19
 
 ### Added

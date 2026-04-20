@@ -347,7 +347,13 @@ instance's greatest bottleneck.
 
         # This is symptomatic of no access to the element, for example, because
         # of time availability restrictions.
-        if "cmdClass=ilInfoScreenGUI" in element.url and "cmd=showSummary" in element.url:
+        # We handle files separately, as the ILIAS admin can decide to show the summary tab on click,
+        # even if the file is available...
+        if (
+            "cmdClass=ilInfoScreenGUI" in element.url
+            and "cmd=showSummary" in element.url
+            and element.type != IliasElementType.FILE
+        ):
             log.explain(
                 "Skipping element as url points to info screen, "
                 "this should only happen with not-yet-released elements"
@@ -751,6 +757,19 @@ instance's greatest bottleneck.
         if not maybe_dl:
             return None
         self._ensure_not_seen(element, element_path)
+
+        if "cmdClass=ilInfoScreenGUI" in element.url and "cmd=showSummary" in element.url:
+            info_page = IliasPage(await self._get_page(element.url), element)
+            if next_elem := info_page.get_next_stage_element():
+                element.url = next_elem.url
+            else:
+                log.explain(
+                    f"Skipping element {fmt_path(element_path)} as url points to info screen, "
+                    "this should only happen with not-yet-released elements"
+                )
+                return None
+
+            element.url = IliasPage.get_file_download_url(self._base_url, element.id())
 
         return self._download_file(element, maybe_dl, is_video)
 
