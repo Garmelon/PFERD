@@ -999,7 +999,11 @@ instance's greatest bottleneck.
                 if not url.startswith(self._base_url):
                     continue
                 log.explain(f"Internalizing {url!r}")
-                img = await self._get_authenticated(url)
+                try:
+                    img = await self._get_authenticated(url)
+                except (CrawlError, CrawlWarning):
+                    log.warn(f"Failed to fetch image {url!r}, leaving as is")
+                    continue
                 mime = "image/svg+xml" if ".svg" in url else "image/png"
                 elem.attrs["src"] = f"data:{mime};base64," + base64.b64encode(img).decode()
             if elem.name == "iframe" and cast(str, elem.attrs.get("src", "")).startswith("//"):

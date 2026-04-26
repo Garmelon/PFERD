@@ -25,6 +25,7 @@ ambiguous situations.
 ### Fixed
 - Crawling of files defaulting to the info tab (which can be set by the owner)
 - Crawling of unavailable courses succeeding
+- Ignore authentication and network errors when internalizing images
 
 ## 3.9.0 - 2026-04-19
 
