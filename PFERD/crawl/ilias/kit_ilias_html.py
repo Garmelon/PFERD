@@ -96,6 +96,7 @@ IliasElementMatcher = (
 class IliasElementType(Enum):
     BLOG = "blog"
     BOOKING = "booking"
+    CHAT_BOT = "chat_bot"
     COURSE = "course"
     DCL_RECORD_LIST = "dcl_record_list"
     EXERCISE_OVERVIEW = "exercise_overview"
@@ -131,6 +132,12 @@ class IliasElementType(Enum):
                 return TypeMatcher.any(TypeMatcher.img_src("_blog.svg"))
             case IliasElementType.BOOKING:
                 return TypeMatcher.any(TypeMatcher.path("/book/"), TypeMatcher.img_src("_book.svg"))
+            case IliasElementType.CHAT_BOT:
+                return TypeMatcher.any(
+                    TypeMatcher.query("cmdClass=illfassistantpresentationgui"),
+                    TypeMatcher.img_src("lfassistantobject"),
+                    TypeMatcher.img_alt("assistant"),
+                )
             case IliasElementType.COURSE:
                 return TypeMatcher.any(TypeMatcher.path("/crs/"), TypeMatcher.img_src("_crsr.svg"))
             case IliasElementType.DCL_RECORD_LIST:

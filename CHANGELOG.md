@@ -22,6 +22,9 @@ ambiguous situations.
 
 ## Unreleased
 
+### Added
+- Ignore chatbot ILIAS elements (as they contain no relevant data)
+
 ### Fixed
 - Crawling of files defaulting to the info tab (which can be set by the owner)
 - Crawling of unavailable courses succeeding

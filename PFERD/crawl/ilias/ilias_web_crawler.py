@@ -457,6 +457,14 @@ instance's greatest bottleneck.
                 "[bright_black](not descending into linked course)",
             )
             return None
+        elif element.type == IliasElementType.CHAT_BOT:
+            log.status(
+                "[bold bright_black]",
+                "Ignored",
+                fmt_path(element_path),
+                "[bright_black](chat bots do not contain any relevant data and are not currently supported)",
+            )
+            return None
         elif element.type == IliasElementType.WIKI:
             log.status(
                 "[bold bright_black]",
