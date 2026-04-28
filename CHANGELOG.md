@@ -22,6 +22,8 @@ ambiguous situations.
 
 ## Unreleased
 
+## 3.9.1 - 2026-04-28
+
 ### Added
 - Ignore chatbot ILIAS elements (as they contain no relevant data)
 
