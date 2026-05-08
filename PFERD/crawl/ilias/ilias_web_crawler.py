@@ -16,6 +16,7 @@ from ...config import Config
 from ...logging import ProgressBar, log
 from ...output_dir import FileSink, Redownload
 from ...utils import fmt_path, sanitize_path_name, soupify, url_set_query_param
+from .. import kit_media_portal
 from ..crawler import CrawlError, CrawlToken, CrawlWarning, DownloadToken, anoncritical
 from ..http_crawler import HttpCrawler, HttpCrawlerSection
 from .async_helper import _iorepeat
@@ -489,6 +490,8 @@ instance's greatest bottleneck.
             return await self._handle_file(element, element_path)
         elif element.type == IliasElementType.MOB_VIDEO:
             return await self._handle_file(element, element_path, is_video=True)
+        elif element.type == IliasElementType.KIT_MEDIA_PORTAL_VIDEO_PLAYER:
+            return await self._handle_kit_media_portal_video(element, element_path)
         elif element.type in _DIRECTORY_PAGES:
             return await self._handle_ilias_page(element.url, element, element_path)
         else:
@@ -756,6 +759,13 @@ instance's greatest bottleneck.
                 await self._stream_from_url(stream_element, sink, bar, is_video=True)
 
         add_to_report(contained_video_paths)
+
+    async def _handle_kit_media_portal_video(
+        self, element: IliasPageElement, element_path: PurePath
+    ) -> Optional[Coroutine[Any, Any, None]]:
+        page = await kit_media_portal.MediaPortal(self.session).get_page(element.url)
+        element.url = page.get_video_url()
+        return await self._handle_file(element, element_path, is_video=True)
 
     async def _handle_file(
         self,

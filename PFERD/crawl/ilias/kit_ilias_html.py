@@ -121,6 +121,7 @@ class IliasElementType(Enum):
     OPENCAST_VIDEO_FOLDER = "opencast_video_folder"
     OPENCAST_VIDEO_FOLDER_MAYBE_PAGINATED = "opencast_video_folder_maybe_paginated"
     OPENCAST_VIDEO_PLAYER = "opencast_video_player"
+    KIT_MEDIA_PORTAL_VIDEO_PLAYER = "kit_media_portal_video_player"
     SCORM_LEARNING_MODULE = "scorm_learning_module"
     SURVEY = "survey"
     TEST = "test"  # an online test. Will be ignored currently.
@@ -231,6 +232,8 @@ class IliasElementType(Enum):
                 return TypeMatcher.img_alt("opencast")
             case IliasElementType.OPENCAST_VIDEO_PLAYER:
                 return TypeMatcher.never()
+            case IliasElementType.KIT_MEDIA_PORTAL_VIDEO_PLAYER:
+                return TypeMatcher.never()
             case IliasElementType.SCORM_LEARNING_MODULE:
                 return TypeMatcher.any(
                     TypeMatcher.query("baseclass=ilsahspresentationgui"), TypeMatcher.img_src("_sahs.svg")
@@ -278,6 +281,7 @@ class IliasPageElement:
             r"sess/(?P<id>\d+)",  # session
             r"webr/(?P<id>\d+)",  # web referene (link)
             r"thr_pk=(?P<id>\d+)",  # forums
+            r"/details/(?P<id>[0-9a-z\-]+)",  # opencast media
             r"ref_id=(?P<id>\d+)",
             r"target=[a-z]+_(?P<id>\d+)",
             r"mm_(?P<id>\d+)",
@@ -770,13 +774,18 @@ class IliasPage:
         video_links = cast(
             list[Tag], self._soup.find_all(name="a", attrs={"href": re.compile(r".+cmd=streamVideo.+", re.I)})
         )
+        # For kit-library videos
+        video_links += cast(list[Tag], self._soup.select(".c-entity.__primary-identifier > a"))
 
         results: list[IliasPageElement] = []
 
         for link in video_links:
             if link.find("img"):
                 continue
-            results.append(self._listed_opencast_video_to_element(link))
+            elem = self._listed_opencast_video_to_element(link)
+            if "ilias-medien.bibliothek.kit.edu" in elem.url:
+                elem.type = IliasElementType.KIT_MEDIA_PORTAL_VIDEO_PLAYER
+            results.append(elem)
 
         return results
 
