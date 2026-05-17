@@ -21,6 +21,9 @@ Ensure you have at least Python 3.11 installed. Run the following command to
 install PFERD or upgrade it to the latest version:
 
 ```
+# install from PyPi
+$ pip install PFERD
+# install from GitHub
 $ pip install --upgrade git+https://github.com/Garmelon/PFERD@latest
 ```
 
