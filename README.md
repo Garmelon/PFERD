@@ -31,7 +31,7 @@ The use of [venv](https://docs.python.org/3/library/venv.html) is recommended.
 
 ### With package managers
 
-Packages are available for:
+Unofficial packages are available for:
 - [AUR](https://aur.archlinux.org/packages/pferd)
 - [brew](https://formulae.brew.sh/formula/pferd)
 - [conda-forge](https://github.com/conda-forge/pferd-feedstock)
