@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "PFERD"
 description = "Programm zum Flotten Einfachen Runterladen von Dateien"
-version = "3.9.1"
+version = "3.9.2"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]

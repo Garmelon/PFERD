@@ -22,6 +22,8 @@ ambiguous situations.
 
 ## Unreleased
 
+## 3.9.2 - 2026-05-17
+
 ### Added
 - Support KIT Library Media Portal
 
