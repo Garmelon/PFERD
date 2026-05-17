@@ -21,6 +21,9 @@ Ensure you have at least Python 3.11 installed. Run the following command to
 install PFERD or upgrade it to the latest version:
 
 ```
+# install from PyPi
+$ pip install PFERD
+# install from GitHub
 $ pip install --upgrade git+https://github.com/Garmelon/PFERD@latest
 ```
 
@@ -28,7 +31,7 @@ The use of [venv](https://docs.python.org/3/library/venv.html) is recommended.
 
 ### With package managers
 
-Unofficial packages are available for:
+Packages are available for:
 - [AUR](https://aur.archlinux.org/packages/pferd)
 - [brew](https://formulae.brew.sh/formula/pferd)
 - [conda-forge](https://github.com/conda-forge/pferd-feedstock)
