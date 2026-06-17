@@ -818,16 +818,14 @@ class IliasPage:
         )
 
     def _find_exercise_entries(self) -> list[IliasPageElement]:
-        if self._soup.find(id="tab_submission"):
-            log.explain("Found submission tab. This is an exercise detail or files page")
-            if self._soup.select_one("#tab_submission.active") is None:
-                log.explain("  This is a details page")
-                return self._find_exercise_entries_detail_page()
-            else:
-                log.explain("  This is a files page")
-                return self._find_exercise_entries_files_page()
+        if "cmdClass=ilAssignmentPresentationGUI".lower() in self._page_url.lower():
+            log.explain("Found details page (judged by URL)")
+            return self._find_exercise_entries_detail_page()
+        if "cmdClass=ilExSubmissionFileGUI".lower() in self._page_url.lower():
+            log.explain("Found files page (judged by URL)")
+            return self._find_exercise_entries_files_page()
 
-        log.explain("Found no submission tab. This is an exercise root page")
+        log.explain("Found no recognized URL pattern. This is an exercise root page")
         return self._find_exercise_entries_root_page()
 
     def _find_exercise_entries_detail_page(self) -> list[IliasPageElement]:

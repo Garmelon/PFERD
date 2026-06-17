@@ -22,6 +22,9 @@ ambiguous situations.
 
 ## Unreleased
 
+### Fixed
+- Crawling of exercise files in team-exercises without a team
+
 ## 3.9.2 - 2026-05-17
 
 ### Added
