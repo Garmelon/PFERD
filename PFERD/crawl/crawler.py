@@ -11,7 +11,15 @@ from ..config import Config, Section
 from ..deduplicator import Deduplicator
 from ..limiter import Limiter
 from ..logging import ProgressBar, log
-from ..output_dir import FileSink, FileSinkToken, OnConflict, OutputDirectory, OutputDirError, Redownload
+from ..output_dir import (
+    FileSink,
+    FileSinkToken,
+    OnConflict,
+    OutputDirectory,
+    OutputDirError,
+    Redownload,
+    UnicodeNormalization,
+)
 from ..report import MarkConflictError, MarkDuplicateError, Report
 from ..transformer import Transformer
 from ..utils import ReusableAsyncContextManager, fmt_path
@@ -175,6 +183,17 @@ class CrawlerSection(Section):
                 str(e).capitalize(),
             )
 
+    def unicode_normalization(self) -> UnicodeNormalization:
+        value = self.s.get("unicode_normalization", "none")
+        try:
+            return UnicodeNormalization.from_string(value)
+        except ValueError as e:
+            self.invalid_value(
+                "unicode_normalization",
+                value,
+                str(e).capitalize(),
+            )
+
     def transform(self) -> str:
         return self.s.get("transform", "")
 
@@ -247,6 +266,7 @@ class Crawler(ABC):
             config.default_section.working_dir() / section.output_dir(name),
             section.redownload(),
             section.on_conflict(),
+            section.unicode_normalization(),
         )
 
     @property
