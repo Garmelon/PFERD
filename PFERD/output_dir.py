@@ -4,6 +4,7 @@ import os
 import random
 import shutil
 import string
+import unicodedata
 from collections.abc import Iterator
 from contextlib import contextmanager, suppress
 from dataclasses import dataclass
@@ -55,6 +56,27 @@ class OnConflict(Enum):
                 "must be one of 'prompt', 'local-first',"
                 " 'remote-first', 'no-delete', 'no-delete-prompt-overwrite'"
             ) from None
+
+
+class UnicodeNormalization(Enum):
+    NONE = "none"
+    NFC = "nfc"
+    NFD = "nfd"
+    NFKC = "nfkc"
+    NFKD = "nfkd"
+
+    @staticmethod
+    def from_string(string: str) -> "UnicodeNormalization":
+        try:
+            return UnicodeNormalization(string)
+        except ValueError:
+            raise ValueError("must be one of 'none', 'nfc', 'nfd', 'nfkc', 'nfkd'") from None
+
+    def normalize(self, path: PurePath) -> PurePath:
+        if self == UnicodeNormalization.NONE:
+            return path
+        form = self.name  # "NFC", "NFD", "NFKC" or "NFKD"
+        return PurePath(*(unicodedata.normalize(form, part) for part in path.parts))
 
 
 @dataclass
@@ -146,6 +168,7 @@ class OutputDirectory:
         root: Path,
         redownload: Redownload,
         on_conflict: OnConflict,
+        unicode_normalization: UnicodeNormalization = UnicodeNormalization.NONE,
     ):
         if os.name == "nt":
             # Windows limits the path length to 260 for some historical reason.
@@ -158,6 +181,7 @@ class OutputDirectory:
 
         self._redownload = redownload
         self._on_conflict = on_conflict
+        self._unicode_normalization = unicode_normalization
 
         self._report_path = self.resolve(self.REPORT_FILE)
         self._report = Report()
@@ -384,6 +408,7 @@ class OutputDirectory:
         redownload: Optional[Redownload] = None,
         on_conflict: Optional[OnConflict] = None,
     ) -> bool:
+        path = self._unicode_normalization.normalize(path)
         heuristics = Heuristics(etag_differs, mtime)
         redownload = self._redownload if redownload is None else redownload
         on_conflict = self._on_conflict if on_conflict is None else on_conflict
@@ -406,6 +431,7 @@ class OutputDirectory:
         MarkConflictError.
         """
 
+        path = self._unicode_normalization.normalize(path)
         heuristics = Heuristics(etag_differs, mtime)
         redownload = self._redownload if redownload is None else redownload
         on_conflict = self._on_conflict if on_conflict is None else on_conflict

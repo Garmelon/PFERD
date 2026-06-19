@@ -92,6 +92,20 @@ common to all crawlers:
   load for the crawl target. (Default: `0.0`)
 - `windows_paths`: Whether PFERD should find alternative names for paths that
   are invalid on Windows. (Default: `yes` on Windows, `no` otherwise)
+- `unicode_normalization`: Which [Unicode normalization form][unicode-norm] to
+  apply to file and directory names before they are written to disk. This is
+  useful on macOS/iOS, where AirDrop silently drops files whose path crosses a
+  precomposed (NFC) non-ASCII directory name; normalizing to `nfd` avoids this.
+  (Default: `none`)
+    - `none`: Names are written as-is, in whatever form the crawler produced
+      (usually NFC).
+    - `nfc`, `nfd`, `nfkc`, `nfkd`: Names are normalized to the respective form.
+
+  Note: changing this option on an already-downloaded directory may cause a
+  one-time re-download and cleanup, since the on-disk names and the previous
+  report use the old form. Starting from a fresh `output_dir` avoids the churn.
+
+[unicode-norm]: <https://docs.python.org/3/library/unicodedata.html#unicodedata.normalize> "unicodedata.normalize"
 
 Some crawlers may also require credentials for authentication. To configure how
 the crawler obtains its credentials, the `auth` option is used. It is set to the
