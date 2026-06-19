@@ -22,6 +22,10 @@ ambiguous situations.
 
 ## Unreleased
 
+### Added
+- Allow specifying the unicode normalization form for path components to work
+  around weird AirDrop behaviour (#141)
+
 ### Fixed
 - Crawling of exercise files in team-exercises without a team
 
