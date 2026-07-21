@@ -466,6 +466,14 @@ instance's greatest bottleneck.
                 "[bright_black](chat bots do not contain any relevant data and are not currently supported)",
             )
             return None
+        elif element.type == IliasElementType.INDIVIDUAL_ASSESSMENT:
+            log.status(
+                "[bold bright_black]",
+                "Ignored",
+                fmt_path(element_path),
+                "[bright_black](individual assessments are not currently supported)",
+            )
+            return None
         elif element.type == IliasElementType.WIKI:
             log.status(
                 "[bold bright_black]",

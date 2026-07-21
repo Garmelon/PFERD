@@ -25,6 +25,7 @@ ambiguous situations.
 ### Added
 - Allow specifying the unicode normalization form for path components to work
   around weird AirDrop behaviour (#141)
+- Parse but ignore individual assessments
 
 ### Fixed
 - Crawling of exercise files in team-exercises without a team

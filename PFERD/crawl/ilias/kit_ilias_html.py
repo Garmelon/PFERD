@@ -107,6 +107,7 @@ class IliasElementType(Enum):
     FORUM = "forum"
     FORUM_THREAD = "forum_thread"
     INFO_TAB = "info_tab"
+    INDIVIDUAL_ASSESSMENT = "individual_assessment"
     LEARNING_MODULE = "learning_module"
     LEARNING_MODULE_HTML = "learning_module_html"
     LITERATURE_LIST = "literature_list"
@@ -187,6 +188,11 @@ class IliasElementType(Enum):
                 return TypeMatcher.never()
             case IliasElementType.INFO_TAB:
                 return TypeMatcher.never()
+            case IliasElementType.INDIVIDUAL_ASSESSMENT:
+                return TypeMatcher.any(
+                    TypeMatcher.path("/iass/"),
+                    TypeMatcher.img_src("_iass.svg"),
+                )
             case IliasElementType.LITERATURE_LIST:
                 return TypeMatcher.img_src("_bibl.svg")
             case IliasElementType.LEARNING_MODULE:
@@ -270,6 +276,7 @@ class IliasPageElement:
             r"copa/(?P<id>\d+)",  # content page
             r"crs/(?P<id>\d+)",  # course
             r"exc/(?P<id>\d+)",  # exercise
+            r"iass/(?P<id>\d+)",  # individual assessment
             r"file/(?P<id>\d+)",  # file
             r"fold/(?P<id>\d+)",  # folder
             r"frm/(?P<id>\d+)",  # forum
