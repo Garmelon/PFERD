@@ -22,6 +22,8 @@ ambiguous situations.
 
 ## Unreleased
 
+## 3.9.3 - 2026-07-29
+
 ### Added
 - Allow specifying the unicode normalization form for path components to work
   around weird AirDrop behaviour (#141)
