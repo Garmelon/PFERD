@@ -782,7 +782,7 @@ class IliasPage:
             list[Tag], self._soup.find_all(name="a", attrs={"href": re.compile(r".+cmd=streamVideo.+", re.I)})
         )
         # For kit-library videos
-        video_links += cast(list[Tag], self._soup.select(".c-entity.__primary-identifier > a"))
+        video_links += cast(list[Tag], self._soup.select(".c-entity__primary-identifier > a"))
 
         results: list[IliasPageElement] = []
 
@@ -798,8 +798,8 @@ class IliasPage:
 
     def _listed_opencast_video_to_element(self, link: Tag) -> IliasPageElement:
         # The link is part of a card (__container) with a td for metadata
-        parent = cast(Tag, link.find_parent(class_="__container"))
-        metadata = parent.select_one(".__main-details > dl")
+        parent = cast(Tag, link.find_parent(class_="c-entity__container"))
+        metadata = parent.select_one(".c-entity__main-details > dl")
 
         modification_time = None
         if metadata is not None:
