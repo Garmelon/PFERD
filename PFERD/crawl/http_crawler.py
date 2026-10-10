@@ -193,6 +193,13 @@ class HttpCrawler(Crawler):
             if level_heading is None:
                 return find_associated_headings(tag, level - 1)
 
+            # A more prominent heading between the file link and this one means this heading belongs to an
+            # earlier section and must not be applied.
+            for parent_level in range(1, level):
+                boundary = tag.find_previous(name=f"h{parent_level}")
+                if boundary is not None and level_heading.find_next(name=f"h{parent_level}") is boundary:
+                    return find_associated_headings(tag, level - 1)
+
             folder_name = sanitize_path_name(level_heading.get_text().strip())
             return find_associated_headings(level_heading, level - 1) / folder_name
 
