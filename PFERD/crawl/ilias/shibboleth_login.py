@@ -43,7 +43,10 @@ class ShibbolethLogin:
             soup: BeautifulSoup = soupify(await response.read())
 
         # Attempt to login using credentials, if necessary
-        while not self._login_successful(soup):
+        for _ in range(10):  # Step limit so unknown IdP pages can't loop forever
+            if self._login_successful(soup):
+                break
+
             # Searching the form here so that this fails before asking for
             # credentials rather than after asking.
             form = cast(Tag, soup.find("form", {"method": "post"}))
@@ -74,6 +77,8 @@ class ShibbolethLogin:
 
             if not self._login_successful(soup):
                 self._auth.invalidate_credentials()
+        if not self._login_successful(soup):
+            raise CrawlError("Shibboleth login did not finish after 10 attempts")
 
         # Equivalent: Being redirected via JS automatically
         # (or clicking "Continue" if you have JS disabled)
