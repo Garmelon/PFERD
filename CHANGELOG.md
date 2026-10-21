@@ -22,6 +22,9 @@ ambiguous situations.
 
 ## Unreleased
 
+### Added
+- Shibboleth login for Uni Freiburg (`mylogin.ub.uni-freiburg.de`) in the `ilias-web` crawler
+
 ### Fixed
 - Shibboleth login looping forever on wrong credentials or unknown IdP pages
 

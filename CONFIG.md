@@ -203,6 +203,7 @@ out of the box for the corresponding universities:
 |-----------------|-----------------------------------------|--------------|---------------|
 | FH Aachen       | https://www.ili.fh-aachen.de            | local        | elearning     |
 | HHU Düsseldorf  | https://ilias.hhu.de                    | local        | UniRZ         |
+| Uni Freiburg    | https://ilias.uni-freiburg.de           | shibboleth   |               |
 | Uni Köln        | https://www.ilias.uni-koeln.de/ilias    | local        | uk            |
 | Uni Konstanz    | https://ilias.uni-konstanz.de           | local        | ILIASKONSTANZ |
 | Uni Stuttgart   | https://ilias3.uni-stuttgart.de         | local        | Uni_Stuttgart |
