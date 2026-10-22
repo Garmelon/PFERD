@@ -139,6 +139,7 @@ _DIRECTORY_PAGES: set[IliasElementType] = {
 
 _VIDEO_ELEMENTS: set[IliasElementType] = {
     IliasElementType.H5P_VIDEO,
+    IliasElementType.INTERACTIVE_VIDEO,
     IliasElementType.MEDIACAST_VIDEO,
     IliasElementType.MEDIACAST_VIDEO_FOLDER,
     IliasElementType.MOB_VIDEO,
@@ -521,6 +522,8 @@ instance's greatest bottleneck.
             return await self._handle_opencast_video(element, element_path)
         elif element.type == IliasElementType.MEDIACAST_VIDEO:
             return await self._handle_file(element, element_path)
+        elif element.type == IliasElementType.INTERACTIVE_VIDEO:
+            return await self._handle_interactive_video(element, element_path)
         elif element.type == IliasElementType.MOB_VIDEO:
             return await self._handle_file(element, element_path, is_video=True)
         elif element.type == IliasElementType.H5P_VIDEO:
@@ -794,6 +797,23 @@ instance's greatest bottleneck.
                 await self._stream_from_url(stream_element, sink, bar, is_video=True)
 
         add_to_report(contained_video_paths)
+
+    async def _handle_interactive_video(
+        self,
+        element: IliasPageElement,
+        element_path: PurePath,
+    ) -> Optional[Coroutine[Any, Any, None]]:
+        # One video (plus subtitles) per object, stored next to its siblings instead of in a folder
+        page = IliasPage(await self._get_page(element.url), element)
+        handles = []
+        for child in page.get_child_elements():
+            if handle := await self._handle_file(child, element_path.parent / child.name, is_video=True):
+                handles.append(handle)
+
+        async def download_all() -> None:
+            await asyncio.gather(*handles)
+
+        return download_all() if handles else None
 
     async def _handle_kit_media_portal_video(
         self, element: IliasPageElement, element_path: PurePath
