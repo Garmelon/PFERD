@@ -22,6 +22,9 @@ ambiguous situations.
 
 ## Unreleased
 
+### Added
+- `no-delete-backup` conflict resolution strategy
+
 ## 3.9.4 - 2026-08-31
 
 ### Fixed

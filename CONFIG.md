@@ -81,6 +81,10 @@ common to all crawlers:
     - `no-delete-prompt-overwrite`: Never delete local files, but prompt to
       overwrite local files if the remote file is different. Combines nicely
       with the `show_not_deleted` option.
+    - `no-delete-backup`: Never delete local files. If the remote file is
+      different, rename the local file to `<name> (local <date>).<ext>` (its
+      modification date) and download the remote file in its place. Useful
+      when other tools or you also put files into the output directory.
 - `transform`: Rules for renaming and excluding certain files and directories.
   For more details, see [this section](#transformation-rules). (Default: empty)
 - `tasks`: The maximum number of concurrent tasks (such as crawling or

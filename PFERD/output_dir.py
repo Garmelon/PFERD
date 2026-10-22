@@ -46,6 +46,7 @@ class OnConflict(Enum):
     REMOTE_FIRST = "remote-first"
     NO_DELETE = "no-delete"
     NO_DELETE_PROMPT_OVERWRITE = "no-delete-prompt-overwrite"
+    NO_DELETE_BACKUP = "no-delete-backup"
 
     @staticmethod
     def from_string(string: str) -> "OnConflict":
@@ -54,7 +55,8 @@ class OnConflict(Enum):
         except ValueError:
             raise ValueError(
                 "must be one of 'prompt', 'local-first',"
-                " 'remote-first', 'no-delete', 'no-delete-prompt-overwrite'"
+                 " 'remote-first', 'no-delete', 'no-delete-prompt-overwrite',"
+                " 'no-delete-backup'"
             ) from None
 
 
@@ -241,11 +243,11 @@ class OutputDirectory:
             # We know that there is *something* here that's not a file.
             log.explain("Non-file (probably a directory) present locally")
 
-            # If on_conflict is LOCAL_FIRST or NO_DELETE, we know that it would
+            # If on_conflict is LOCAL_FIRST or NO_DELETE(_BACKUP), we know that it would
             # never be overwritten. It also doesn't have any relevant stats to
             # update. This means that we don't have to download the file
             # because we'd just always throw it away again.
-            if on_conflict in {OnConflict.LOCAL_FIRST, OnConflict.NO_DELETE}:
+            if on_conflict in {OnConflict.LOCAL_FIRST, OnConflict.NO_DELETE, OnConflict.NO_DELETE_BACKUP}:
                 log.explain(f"Conflict resolution is {on_conflict.value!r}")
                 return False
 
@@ -310,7 +312,7 @@ class OutputDirectory:
             return False
         elif on_conflict == OnConflict.REMOTE_FIRST:
             return True
-        elif on_conflict == OnConflict.NO_DELETE:
+        elif on_conflict in {OnConflict.NO_DELETE, OnConflict.NO_DELETE_BACKUP}:
             return True
 
         # This should never be reached
@@ -329,7 +331,7 @@ class OutputDirectory:
             return False
         elif on_conflict == OnConflict.REMOTE_FIRST:
             return True
-        elif on_conflict == OnConflict.NO_DELETE:
+        elif on_conflict in {OnConflict.NO_DELETE, OnConflict.NO_DELETE_BACKUP}:
             return False
 
         # This should never be reached
@@ -349,7 +351,7 @@ class OutputDirectory:
             return False
         elif on_conflict == OnConflict.REMOTE_FIRST:
             return True
-        elif on_conflict == OnConflict.NO_DELETE:
+        elif on_conflict in {OnConflict.NO_DELETE, OnConflict.NO_DELETE_BACKUP}:
             return False
 
         # This should never be reached
@@ -368,11 +370,28 @@ class OutputDirectory:
             return False
         elif on_conflict == OnConflict.REMOTE_FIRST:
             return True
-        elif on_conflict in {OnConflict.NO_DELETE, OnConflict.NO_DELETE_PROMPT_OVERWRITE}:
+        elif on_conflict in {
+            OnConflict.NO_DELETE,
+            OnConflict.NO_DELETE_PROMPT_OVERWRITE,
+            OnConflict.NO_DELETE_BACKUP,
+        }:
             return False
 
         # This should never be reached
         raise ValueError(f"{on_conflict!r} is not a valid conflict policy")
+
+    def _backup_path(self, path: Path) -> Path:
+        """
+        A free name for a backup of a local file, with its modification date:
+        "slides.pdf" -> "slides (local 2026-04-21).pdf", then "... 2026-04-21-2)" etc.
+        """
+        date = datetime.fromtimestamp(path.stat().st_mtime).strftime("%Y-%m-%d")
+        for i in range(1, 1000):
+            tag = date if i == 1 else f"{date}-{i}"
+            backup = path.with_name(f"{path.stem} (local {tag}){path.suffix}")
+            if not backup.exists():
+                return backup
+        raise OutputDirError(f"Could not find a free backup name for {fmt_real_path(path)}")
 
     def _tmp_path(self, base: Path, suffix_length: int) -> Path:
         prefix = "" if base.name.startswith(".") else "."
@@ -505,6 +524,10 @@ class OutputDirectory:
 
                 log.explain("Conflict: The local and remote versions differ")
                 if await self._conflict_lfrf(info.on_conflict, info.path):
+                    if info.on_conflict == OnConflict.NO_DELETE_BACKUP:
+                        backup = self._backup_path(info.local_path)
+                        info.local_path.rename(backup)
+                        log.explain(f"Moved local version to {fmt_real_path(backup)}")
                     log.explain("Result: Replacing local with remote version")
                 else:
                     log.explain("Result: Keeping local version")
@@ -534,6 +557,7 @@ class OutputDirectory:
         if self._on_conflict in {
             OnConflict.NO_DELETE,
             OnConflict.NO_DELETE_PROMPT_OVERWRITE,
+            OnConflict.NO_DELETE_BACKUP,
         } and not self.report.contains_marked(pure):
             self._report_not_deleted(pure)
             return
