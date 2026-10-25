@@ -1371,6 +1371,10 @@ class IliasPage:
     @staticmethod
     def is_logged_in(ilias_soup: IliasSoup) -> bool:
         soup = ilias_soup.soup
+        # The login page itself. Stock ILIAS has no login link in its metabar there.
+        if soup.find("form", attrs={"name": "login_form"}):
+            return False
+
         # Normal ILIAS pages
         mainbar = soup.find(class_="il-maincontrols-metabar")
         if mainbar is not None:
