@@ -61,6 +61,12 @@ def configure_common_group_args(group: argparse._ArgumentGroup) -> None:
         help="crawl and download forum posts",
     )
     group.add_argument(
+        "--dump-pages",
+        type=Path,
+        metavar="PATH",
+        help="save every crawled ILIAS page to this directory for debugging",
+    )
+    group.add_argument(
         "--http-timeout",
         "-t",
         type=float,
@@ -86,6 +92,8 @@ def load_common(
         section["videos"] = "yes" if args.videos else "no"
     if args.forums is not None:
         section["forums"] = "yes" if args.forums else "no"
+    if args.dump_pages is not None:
+        section["dump_pages"] = str(args.dump_pages)
     if args.http_timeout is not None:
         section["http_timeout"] = str(args.http_timeout)
 

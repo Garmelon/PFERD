@@ -1,9 +1,11 @@
 import asyncio
 import base64
+import json
 import os
 import re
 from collections.abc import Awaitable, Coroutine
-from pathlib import PurePath
+from datetime import datetime
+from pathlib import Path, PurePath
 from typing import Any, Literal, Optional, cast
 from urllib.parse import urljoin
 
@@ -15,7 +17,14 @@ from ...auth import Authenticator
 from ...config import Config
 from ...logging import ProgressBar, log
 from ...output_dir import FileSink, Redownload
-from ...utils import fmt_path, is_whole_file, sanitize_path_name, soupify, url_set_query_param
+from ...utils import (
+    fmt_path,
+    fmt_real_path,
+    is_whole_file,
+    sanitize_path_name,
+    soupify,
+    url_set_query_param,
+)
 from .. import kit_media_portal
 from ..crawler import CrawlError, CrawlToken, CrawlWarning, DownloadToken, anoncritical
 from ..http_crawler import HttpCrawler, HttpCrawlerSection
@@ -108,6 +117,12 @@ class IliasWebCrawlerSection(HttpCrawlerSection):
 
     def forums(self) -> bool:
         return self.s.getboolean("forums", fallback=False)
+
+    def dump_pages(self) -> Optional[Path]:
+        value = self.s.get("dump_pages")
+        if value is None:
+            return None
+        return Path(value).expanduser()
 
 
 _DIRECTORY_PAGES: set[IliasElementType] = {
@@ -204,6 +219,14 @@ instance's greatest bottleneck.
         self._videos = section.videos()
         self._forums = section.forums()
         self._visited_urls: dict[str, PurePath] = dict()
+
+        self._dump_dir: Optional[Path] = None
+        if dump_pages := section.dump_pages():
+            # One directory per crawler and run, so neither overwrites the pages of another
+            crawler_dir = sanitize_path_name(name.removeprefix("crawl:"))
+            run_dir = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            self._dump_dir = config.default_section.working_dir() / dump_pages / crawler_dir / run_dir
+        self._dumped_pages = 0
 
     async def _run(self) -> None:
         if isinstance(self._target, int):
@@ -1069,8 +1092,10 @@ instance's greatest bottleneck.
     async def _get_page(self, url: str, root_page_allowed: bool = False) -> IliasSoup:
         auth_id = await self._current_auth_id()
         async with self.session.get(url) as request:
-            soup = IliasSoup(soupify(await request.read()), str(request.url))
+            data = await request.read()
+            soup = IliasSoup(soupify(data), str(request.url))
             if IliasPage.is_logged_in(soup):
+                self._dump_page(url, str(request.url), data)
                 return self._verify_page(soup, url, root_page_allowed)
 
         # We weren't authenticated, so try to do that
@@ -1078,10 +1103,28 @@ instance's greatest bottleneck.
 
         # Retry once after authenticating. If this fails, we will die.
         async with self.session.get(url) as request:
-            soup = IliasSoup(soupify(await request.read()), str(request.url))
+            data = await request.read()
+            soup = IliasSoup(soupify(data), str(request.url))
             if IliasPage.is_logged_in(soup):
+                self._dump_page(url, str(request.url), data)
                 return self._verify_page(soup, url, root_page_allowed)
         raise CrawlError(f"get_page failed even after authenticating on {url!r}")
+
+    def _dump_page(self, url: str, final_url: str, data: bytes) -> None:
+        """
+        Saves a crawled page for debugging, if the dump_pages option is set. The pages are numbered in
+        the order they were crawled and index.jsonl maps their numbers to their URLs.
+        """
+        if self._dump_dir is None:
+            return
+
+        self._dumped_pages += 1
+        name = f"{self._dumped_pages:04}.html"
+        self._dump_dir.mkdir(parents=True, exist_ok=True)
+        (self._dump_dir / name).write_bytes(data)
+        with open(self._dump_dir / "index.jsonl", "a", encoding="utf-8") as index:
+            index.write(json.dumps({"file": name, "url": url, "final_url": final_url}) + "\n")
+        log.explain(f"Dumped page {url!r} to {fmt_real_path(self._dump_dir / name)}")
 
     @staticmethod
     def _verify_page(soup: IliasSoup, url: str, root_page_allowed: bool) -> IliasSoup:
