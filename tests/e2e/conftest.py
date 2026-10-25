@@ -3,6 +3,7 @@ Fixtures for the end-to-end tests, which crawl a local ILIAS instance running in
 """
 
 import json
+import os
 import subprocess
 import sys
 from collections.abc import Iterator
@@ -115,6 +116,8 @@ def run_pferd(ilias: Ilias) -> RunPferd:
 
         result = subprocess.run(
             [sys.executable, "-m", "PFERD", "-c", str(config)],
+            # Relative dates must use the same calendar day as ILIAS (Europe/Berlin).
+            env={**os.environ, "TZ": "Europe/Berlin"},
             capture_output=True,
             text=True,
             # Fail instead of waiting forever if PFERD prompts for something
