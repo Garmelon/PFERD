@@ -23,6 +23,7 @@ ambiguous situations.
 ## Unreleased
 
 ### Added
+- `--login-type` option for the `ilias-web` command
 - Tell the user about new PFERD releases. Disable with the `check_for_updates` option or the `PFERD_NO_UPDATE_CHECK` environment variable.
 - Download interactive H5P videos (with the `videos` option)
 
@@ -33,7 +34,8 @@ ambiguous situations.
 ### Fixed
 - Unknown size of videos in the KIT ILIAS
 - Download progress showing "/ 100 bytes" and not advancing for files of unknown size
-- `ilias-web` command failing with "Missing value" for `login_type`. It now has a `--login-type` option.
+- `ilias-web` command failing without a config file, because `login_type`
+  could not be set
 - `kit-ipd` crawler putting files into the folder of a heading from a previous section
 - "Didn't find identity" warning for embedded videos
 - File sizes in bytes or GB are removed from the names of files in content pages
