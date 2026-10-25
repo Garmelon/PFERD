@@ -123,7 +123,7 @@ _DIRECTORY_PAGES: set[IliasElementType] = {
 }
 
 _VIDEO_ELEMENTS: set[IliasElementType] = {
-    IliasElementType.INTERACTIVE_VIDEO,
+    IliasElementType.INTERACTIVE_VIDEO_PLAYER,
     IliasElementType.MEDIACAST_VIDEO,
     IliasElementType.MEDIACAST_VIDEO_FOLDER,
     IliasElementType.OPENCAST_VIDEO,
@@ -497,7 +497,7 @@ instance's greatest bottleneck.
             return await self._handle_opencast_video(element, element_path)
         elif element.type == IliasElementType.MEDIACAST_VIDEO:
             return await self._handle_file(element, element_path)
-        elif element.type == IliasElementType.INTERACTIVE_VIDEO:
+        elif element.type == IliasElementType.INTERACTIVE_VIDEO_PLAYER:
             return await self._handle_interactive_video(element, element_path)
         elif element.type == IliasElementType.MOB_VIDEO:
             return await self._handle_file(element, element_path, is_video=True)
@@ -776,17 +776,26 @@ instance's greatest bottleneck.
         element: IliasPageElement,
         element_path: PurePath,
     ) -> Optional[Coroutine[Any, Any, None]]:
+        maybe_cl = await self.crawl(element_path)
+        if not maybe_cl:
+            return None
+        self._ensure_not_seen(element, element_path)
+
+        return self._crawl_interactive_video(element, maybe_cl)
+
+    @_iorepeat(3, "crawling interactive video")
+    @anoncritical
+    async def _crawl_interactive_video(self, element: IliasPageElement, cl: CrawlToken) -> None:
+        async with cl:
+            page = IliasPage(await self._get_page(element.url), element)
+
         # One video (plus subtitles) per object, stored next to its siblings instead of in a folder
-        page = IliasPage(await self._get_page(element.url), element)
         handles = []
         for child in page.get_child_elements():
-            if handle := await self._handle_file(child, element_path.parent / child.name, is_video=True):
+            if handle := await self._handle_file(child, cl.path.parent / child.name, is_video=True):
                 handles.append(handle)
 
-        async def download_all() -> None:
-            await asyncio.gather(*handles)
-
-        return download_all() if handles else None
+        await self.gather(handles)
 
     async def _handle_kit_media_portal_video(
         self, element: IliasPageElement, element_path: PurePath

@@ -109,7 +109,7 @@ class IliasElementType(Enum):
     FORUM_THREAD = "forum_thread"
     INFO_TAB = "info_tab"
     INDIVIDUAL_ASSESSMENT = "individual_assessment"
-    INTERACTIVE_VIDEO = "interactive_video"  # InteractiveVideo plugin (xvid)
+    INTERACTIVE_VIDEO_PLAYER = "interactive_video_player"  # InteractiveVideo plugin (xvid)
     LEARNING_MODULE = "learning_module"
     LEARNING_MODULE_HTML = "learning_module_html"
     LITERATURE_LIST = "literature_list"
@@ -190,7 +190,7 @@ class IliasElementType(Enum):
                 return TypeMatcher.never()
             case IliasElementType.INFO_TAB:
                 return TypeMatcher.never()
-            case IliasElementType.INTERACTIVE_VIDEO:
+            case IliasElementType.INTERACTIVE_VIDEO_PLAYER:
                 return TypeMatcher.any(
                     TypeMatcher.path("/xvid/"),
                     TypeMatcher.query("cmdclass=ilobjinteractivevideogui"),
@@ -411,7 +411,7 @@ class IliasPage:
         if self._is_video_player():
             log.explain("Page is a video player, extracting URL")
             return self._player_to_video()
-        if self._page_type == IliasElementType.INTERACTIVE_VIDEO:
+        if self._page_type == IliasElementType.INTERACTIVE_VIDEO_PLAYER:
             log.explain("Page is an interactive video, extracting URL")
             return self._find_interactive_videos()
         if self._is_opencast_video_listing():
