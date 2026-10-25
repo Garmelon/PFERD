@@ -741,7 +741,8 @@ class IliasPage:
 
         for link in links:
             url = self._abs_url_from_link(link)
-            name = re.sub(r"\([\d,.]+ [MK]B\)", "", link.get_text()).strip().replace("\t", "")
+            # The link text ends with the file size, like "(6 B)" or "(1,5 MB)"
+            name = re.sub(r"\([\d,.]+ [KMGT]?B\)", "", link.get_text()).strip().replace("\t", "")
             name = sanitize_path_name(name)
 
             if "file_id" not in url:
