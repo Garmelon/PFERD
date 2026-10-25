@@ -1,9 +1,12 @@
+import base64
+import binascii
 import json
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from enum import Enum
+from pathlib import PurePath
 from typing import Literal, Optional, cast
 from urllib.parse import urljoin, urlparse
 
@@ -106,6 +109,7 @@ class IliasElementType(Enum):
     FOLDER = "folder"
     FORUM = "forum"
     FORUM_THREAD = "forum_thread"
+    H5P_VIDEO = "h5p_video"
     INFO_TAB = "info_tab"
     INDIVIDUAL_ASSESSMENT = "individual_assessment"
     LEARNING_MODULE = "learning_module"
@@ -185,6 +189,8 @@ class IliasElementType(Enum):
                     TypeMatcher.img_src("_frm.svg"),
                 )
             case IliasElementType.FORUM_THREAD:
+                return TypeMatcher.never()
+            case IliasElementType.H5P_VIDEO:
                 return TypeMatcher.never()
             case IliasElementType.INFO_TAB:
                 return TypeMatcher.never()
@@ -281,6 +287,7 @@ class IliasPageElement:
             r"fold/(?P<id>\d+)",  # folder
             r"frm/(?P<id>\d+)",  # forum
             r"grp/(?P<id>\d+)",  # group
+            r"h5p/content/(?P<id>\d+)",  # h5p content
             r"lm/(?P<id>\d+)",  # learning module
             r"mcst/(?P<id>\d+)",  # mediacast
             r"pg/(?P<id>(\d|_)+)",  # page?
@@ -1001,6 +1008,7 @@ class IliasPage:
         result += self._find_cards()
         result += self._find_mediacast_videos()
         result += self._find_mob_videos()
+        result += self._find_h5p_videos()
 
         return result
 
@@ -1070,6 +1078,100 @@ class IliasPage:
             )
 
         return videos
+
+    def _find_h5p_videos(self) -> list[IliasPageElement]:
+        """
+        Finds interactive videos of the H5P plugin. The page initializes each of them with a call like
+        il.H5P.initContent('<element id>', <content id>, `<base64 json>`, `<base64 json parameters>`, ...).
+        The parameters list the video files, which are stored in the H5P content directory.
+        """
+        videos: list[IliasPageElement] = []
+        seen_content_ids: set[str] = set()
+        content_url: Optional[str] = None
+
+        regex = re.compile(
+            r"il\.H5P\.initContent\(\s*'(?P<element>[^']+)',\s*(?P<content_id>\d+),"
+            r"\s*`(?P<content>[A-Za-z0-9+/=]*)`,\s*`(?P<parameters>[A-Za-z0-9+/=]*)`"
+        )
+        for script in cast(list[Tag], self._soup.find_all("script")):
+            for match in regex.finditer(script.text):
+                content_id = match.group("content_id")
+                # Every content is initialized twice
+                if content_id in seen_content_ids:
+                    continue
+                seen_content_ids.add(content_id)
+
+                try:
+                    content = json.loads(base64.b64decode(match.group("content")))
+                    parameters = json.loads(base64.b64decode(match.group("parameters")))
+                except (binascii.Error, ValueError) as e:
+                    _unexpected_html_warning()
+                    log.warn_contd(f"Could not decode H5P content {content_id}: {e}")
+                    continue
+
+                library = str(content.get("library", ""))
+                if not library.startswith("H5P.InteractiveVideo "):
+                    log.explain(f"Ignoring H5P content {content_id} of type {library!r}")
+                    continue
+
+                files = parameters.get("interactiveVideo", {}).get("video", {}).get("files") or []
+                # WebM is usually smaller than the alternatives
+                file = next((f for f in files if f.get("mime") == "video/webm"), files[0] if files else None)
+                if file is None:
+                    log.explain(f"H5P video {content_id} has no files")
+                    continue
+                path = str(file["path"])
+                if urlparse(path).scheme:
+                    log.explain(f"Found external H5P video at {path}, ignoring")
+                    continue
+
+                if content_url is None:
+                    content_url = self._find_h5p_content_url()
+                if content_url is None:
+                    _unexpected_html_warning()
+                    log.warn_contd("Found H5P videos, but not the H5P content directory")
+                    return videos
+
+                title = content.get("metadata", {}).get("title") or content.get("title") or content_id
+                name = sanitize_path_name(title) + PurePath(path).suffix
+                if element := self._soup.find(id=match.group("element")):
+                    name = "/".join([*IliasPage._find_upwards_folder_hierarchy(element), name])
+
+                log.explain(f"Found H5P video {name!r}")
+                videos.append(
+                    IliasPageElement.create_new(
+                        typ=IliasElementType.H5P_VIDEO,
+                        url=f"{content_url}/content/{content_id}/{path}",
+                        name=name,
+                        skip_sanitize=True,
+                    )
+                )
+
+        return videos
+
+    def _find_h5p_content_url(self) -> Optional[str]:
+        """
+        The H5P plugin configures itself with a "H5PIntegration" object, which a data URL script defines
+        as JSON.parse(... atob(`<base64 json>`) ...).
+        """
+        for script in cast(list[Tag], self._soup.find_all("script")):
+            text = script.text
+            src = cast(str, script.get("src", ""))
+            if (data := src.removeprefix("data:application/javascript;base64,")) != src:
+                try:
+                    text = base64.b64decode(data).decode()
+                except (binascii.Error, UnicodeDecodeError):
+                    continue
+            if "H5PIntegration" not in text:
+                continue
+            if match := re.search(r"atob\(`(?P<integration>[A-Za-z0-9+/=]+)`\)", text):
+                try:
+                    integration = json.loads(base64.b64decode(match.group("integration")))
+                except (binascii.Error, ValueError):
+                    continue
+                if url := integration.get("url"):
+                    return str(url).rstrip("/")
+        return None
 
     def _find_mob_video_url_title(self, video_element: Tag, figure: Tag) -> tuple[Optional[str], str]:
         url = None

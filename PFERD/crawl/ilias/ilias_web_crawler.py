@@ -123,6 +123,7 @@ _DIRECTORY_PAGES: set[IliasElementType] = {
 }
 
 _VIDEO_ELEMENTS: set[IliasElementType] = {
+    IliasElementType.H5P_VIDEO,
     IliasElementType.MEDIACAST_VIDEO,
     IliasElementType.MEDIACAST_VIDEO_FOLDER,
     IliasElementType.MOB_VIDEO,
@@ -498,6 +499,8 @@ instance's greatest bottleneck.
         elif element.type == IliasElementType.MEDIACAST_VIDEO:
             return await self._handle_file(element, element_path)
         elif element.type == IliasElementType.MOB_VIDEO:
+            return await self._handle_file(element, element_path, is_video=True)
+        elif element.type == IliasElementType.H5P_VIDEO:
             return await self._handle_file(element, element_path, is_video=True)
         elif element.type == IliasElementType.KIT_MEDIA_PORTAL_VIDEO_PLAYER:
             return await self._handle_kit_media_portal_video(element, element_path)
