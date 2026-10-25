@@ -44,7 +44,7 @@ def update_version(version):
     with open("pyproject.toml") as f:
         text = f.read()
 
-    text = re.sub(r'version = ".*"', f'version = "{version}"', text)
+    text = re.sub(r'^version = "[^"]*"$', f'version = "{version}"', text, flags=re.MULTILINE)
 
     with open("pyproject.toml", "w") as f:
         f.write(text)
