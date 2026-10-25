@@ -24,7 +24,7 @@ ambiguous situations.
 
 ### Added
 - Support for the InteractiveVideo plugin (`xvid`), including subtitles. Videos
-  are only downloaded if `videos` is enabled.
+  and subtitles are only downloaded if `videos` is enabled.
 
 ## 3.10.1 - 2026-10-31
 
