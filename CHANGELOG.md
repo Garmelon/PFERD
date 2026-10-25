@@ -23,6 +23,7 @@ ambiguous situations.
 ## Unreleased
 
 ### Fixed
+- Files in nested accordions are placed in a folder for each accordion, not only the innermost one
 - Exit with status 1 if a crawler failed, for example because of invalid credentials
 - Learning modules in ILIAS 10
 - Item groups without a title no longer become a folder named "Leerer Titel"

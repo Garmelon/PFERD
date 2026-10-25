@@ -1125,11 +1125,6 @@ class IliasPage:
         """
         found_titles = []
 
-        if None == "hey":
-            pass
-
-        outer_accordion_content: Optional[Tag] = None
-
         parents: list[Tag] = list(tag.parents)
         for parent in parents:
             if not parent.get("class"):
@@ -1156,23 +1151,19 @@ class IliasPage:
                     if "sr-only" not in heading.get_attribute_list("class"):
                         found_titles.append(heading.get_text().strip())
 
-            # And this for real accordions
+            # And this for real accordions, which may be nested
             if "il_VAccordionContentDef" in cast(str, parent.get("class")):
-                outer_accordion_content = parent
-                break
-
-        if outer_accordion_content:
-            accordion_tag = cast(Tag, outer_accordion_content.parent)
-            head_tag = cast(
-                Tag,
-                accordion_tag.find(
-                    attrs={
-                        "class": lambda x: x is not None
-                        and ("ilc_va_ihead_VAccordIHead" in x or "ilc_va_ihead_AccordIHead" in x)
-                    }
-                ),
-            )
-            found_titles.append(head_tag.get_text().strip())
+                accordion_tag = cast(Tag, parent.parent)
+                head_tag = cast(
+                    Tag,
+                    accordion_tag.find(
+                        attrs={
+                            "class": lambda x: x is not None
+                            and ("ilc_va_ihead_VAccordIHead" in x or "ilc_va_ihead_AccordIHead" in x)
+                        }
+                    ),
+                )
+                found_titles.append(head_tag.get_text().strip())
 
         return [sanitize_path_name(x) for x in reversed(found_titles)]
 
