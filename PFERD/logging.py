@@ -31,7 +31,6 @@ class ProgressBar:
 
     def set_total(self, total: float) -> None:
         self._progress.update(self._taskid, total=total)
-        self._progress.start_task(self._taskid)
 
 
 class Log:
@@ -253,11 +252,7 @@ directly or as a GitHub issue: https://github.com/Garmelon/PFERD/issues/new
         description: str,
         total: Optional[float],
     ) -> Iterator[ProgressBar]:
-        if total is None:
-            # Indeterminate progress bar
-            taskid = progress.add_task(description, start=False)
-        else:
-            taskid = progress.add_task(description, total=total)
+        taskid = progress.add_task(description, total=total)
         self._update_live()
 
         try:
