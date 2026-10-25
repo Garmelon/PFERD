@@ -2,5 +2,6 @@
 
 set -e
 
-uv run pyright .
+uv run pyrefly check
+uv run pyrefly check --config tests/pyrefly.toml
 uv run ruff check

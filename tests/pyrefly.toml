@@ -1,0 +1,4 @@
+extends = "../pyproject.toml"
+project-includes = ["**/*.py"]
+# The test suite uses a Docker-based ILIAS stack with POSIX file locks.
+python-platform = "linux"

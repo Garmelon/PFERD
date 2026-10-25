@@ -55,12 +55,16 @@ ignore = [
 [dependency-groups]
 dev = [
     "pyinstaller>=6.16.0",
-    "pyright>=1.1.406",
+    "pyrefly>=1.4.0",
     "pytest>=9.1.1",
     "pytest-xdist>=3.8.0",
     "ruff>=0.14.1",
     "syrupy>=6.1.1",
 ]
+
+[tool.pyrefly]
+project-includes = ["PFERD", "pferd.py"]
+python-version = "3.11"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
