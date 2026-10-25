@@ -1,6 +1,8 @@
 import dataclasses
+import html
 import re
 from enum import Enum
+from pathlib import PurePath
 from typing import Optional, cast
 
 import bs4
@@ -248,12 +250,31 @@ def learning_module_template(body: bs4.Tag, name: str, prev: Optional[str], next
     else:
         right = "<span></span>"
 
-    if top_nav := body.select_one(".ilc_page_tnav_TopNavigation"):
+    top_nav = body.select_one(".ilc_page_tnav_TopNavigation")
+    bot_nav = body.select_one(".ilc_page_bnav_BottomNavigation")
+    if top_nav is None and bot_nav is None and (prev or next):
+        # ILIAS 10 shows the navigation outside the page content, so add our own, named after the files
+        left = (
+            f'<a href="{html.escape(prev)}">← {html.escape(PurePath(prev).stem)}</a>'
+            if prev
+            else "<span></span>"
+        )
+        right = (
+            f'<a href="{html.escape(next)}">{html.escape(PurePath(next).stem)} →</a>'
+            if next
+            else "<span></span>"
+        )
+        top_nav = bs4.Tag(name="div")
+        body.insert(0, top_nav)
+        bot_nav = bs4.Tag(name="div")
+        body.append(bot_nav)
+
+    if top_nav:
         top_nav.replace_with(
             soupify(nav_template.replace("{{left}}", left).replace("{{right}}", right).encode())
         )
 
-    if bot_nav := body.select_one(".ilc_page_bnav_BottomNavigation"):
+    if bot_nav:
         bot_nav.replace_with(
             soupify(nav_template.replace("{{left}}", left).replace("{{right}}", right).encode())
         )

@@ -22,6 +22,9 @@ ambiguous situations.
 
 ## Unreleased
 
+### Fixed
+- Learning modules in ILIAS 10
+
 ## 3.9.4 - 2026-08-31
 
 ### Fixed

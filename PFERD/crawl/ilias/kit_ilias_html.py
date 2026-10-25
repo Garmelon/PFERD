@@ -4,7 +4,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from enum import Enum
-from typing import Optional, cast
+from typing import Literal, Optional, cast
 from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup, Tag
@@ -488,19 +488,24 @@ class IliasPage:
         )
 
     def _find_learning_module_next(self) -> Optional[str]:
-        for link in self._soup.select("a.ilc_page_rnavlink_RightNavigationLink"):
-            url = self._abs_url_from_link(link)
-            if "baseClass=ilLMPresentationGUI" not in url:
-                continue
-            return url
-        return None
+        return self._find_learning_module_navigation("a.ilc_page_rnavlink_RightNavigationLink", "right")
 
     def _find_learning_module_prev(self) -> Optional[str]:
-        for link in self._soup.select("a.ilc_page_lnavlink_LeftNavigationLink"):
-            url = self._abs_url_from_link(link)
-            if "baseClass=ilLMPresentationGUI" not in url:
-                continue
-            return url
+        return self._find_learning_module_navigation("a.ilc_page_lnavlink_LeftNavigationLink", "left")
+
+    def _find_learning_module_navigation(
+        self, link_selector: str, direction: Literal["left", "right"]
+    ) -> Optional[str]:
+        urls = [self._abs_url_from_link(link) for link in self._soup.select(link_selector)]
+        # ILIAS 10 navigates with chevron buttons in the toolbar
+        for icon in self._soup.select(
+            f"button[data-action]:not([disabled]) > span.glyphicon-chevron-{direction}"
+        ):
+            urls.append(self._abs_url_from_relative(cast(str, cast(Tag, icon.parent).attrs["data-action"])))
+
+        for url in urls:
+            if "baseclass=illmpresentationgui" in url.lower():
+                return url
         return None
 
     def get_forum_export_url(self) -> Optional[str]:
@@ -579,7 +584,8 @@ class IliasPage:
 
     def _is_learning_module_page(self) -> bool:
         if link := self.get_permalink():
-            return "target=pg_" in link
+            # ILIAS 10 permalinks look like goto.php/pg/3_156
+            return "target=pg_" in link or "/goto.php/pg/" in link
         return False
 
     def _contains_collapsed_future_meetings(self) -> bool:

@@ -971,15 +971,23 @@ instance's greatest bottleneck.
             return elements
 
         next_element_url: Optional[str] = start_url
+        visited_urls: set[str] = set()
         counter = 0
         while next_element_url:
+            if next_element_url in visited_urls:
+                log.explain(f"Already visited {next_element_url}, stopping")
+                break
+            visited_urls.add(next_element_url)
             log.explain_topic(f"Parsing HTML page for {fmt_path(path)} ({dir}-{counter})")
             log.explain(f"URL: {next_element_url}")
             soup = await self._get_page(next_element_url)
             page = IliasPage(soup, parent_element)
-            if next := page.get_learning_module_data():
-                elements.append(next)
-                next_element_url = next.previous_url if dir == "left" else next.next_url
+            next = page.get_learning_module_data()
+            if not next:
+                log.explain("Not a learning module page, stopping")
+                break
+            elements.append(next)
+            next_element_url = next.previous_url if dir == "left" else next.next_url
             counter += 1
 
         return elements
