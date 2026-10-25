@@ -30,6 +30,12 @@ GROUP.add_argument(
     metavar="CLIENT_ID",
     help="The client id of the ilias instance",
 )
+GROUP.add_argument(
+    "--login-type",
+    choices=["local", "shibboleth"],
+    default="local",
+    help="How to log in to the ilias instance (default: local)",
+)
 
 configure_common_group_args(GROUP)
 
@@ -46,6 +52,7 @@ def load(args: argparse.Namespace, parser: configparser.ConfigParser) -> None:
         section["base_url"] = args.base_url
     if args.client_id is not None:
         section["client_id"] = args.client_id
+    section["login_type"] = args.login_type
 
     load_common(section, args, parser)
 

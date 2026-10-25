@@ -26,6 +26,7 @@ ambiguous situations.
 - Embedded videos in ILIAS pages are only downloaded with the `videos` option, like all other videos
 
 ### Fixed
+- `ilias-web` command failing with "Missing value" for `login_type`. It now has a `--login-type` option.
 - `kit-ipd` crawler putting files into the folder of a heading from a previous section
 - "Didn't find identity" warning for embedded videos
 - File sizes in bytes or GB are removed from the names of files in content pages
