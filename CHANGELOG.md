@@ -24,6 +24,7 @@ ambiguous situations.
 
 ### Fixed
 - Learning modules in ILIAS 10
+- Item groups without a title no longer become a folder named "Leerer Titel"
 
 ## 3.9.4 - 2026-08-31
 

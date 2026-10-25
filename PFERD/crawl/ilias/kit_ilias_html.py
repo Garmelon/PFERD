@@ -1151,10 +1151,10 @@ class IliasPage:
                     continue
                 prev = cast(Tag, parent.find_previous_sibling("div"))
                 if "ilContainerBlockHeader" in cast(str, prev.get("class")):
-                    if prev.find("h3"):
-                        found_titles.append(cast(Tag, prev.find("h3")).get_text().strip())
-                    else:
-                        found_titles.append(cast(Tag, prev.find("h2")).get_text().strip())
+                    heading = cast(Tag, prev.find("h3") or prev.find("h2"))
+                    # Groups without a title have a heading like "Leerer Titel" only for screen readers
+                    if "sr-only" not in heading.get_attribute_list("class"):
+                        found_titles.append(heading.get_text().strip())
 
             # And this for real accordions
             if "il_VAccordionContentDef" in cast(str, parent.get("class")):
