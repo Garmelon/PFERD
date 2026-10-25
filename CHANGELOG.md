@@ -23,6 +23,7 @@ ambiguous situations.
 ## Unreleased
 
 ### Changed
+- `kit-ipd` crawler accepts `http://` targets
 - Embedded videos in ILIAS pages are only downloaded with the `videos` option, like all other videos
 
 ### Fixed

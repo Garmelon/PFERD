@@ -26,7 +26,7 @@ class KitIpdCrawlerSection(HttpCrawlerSection):
         if not target:
             self.missing_value("target")
 
-        if not target.startswith("https://"):
+        if not target.startswith(("https://", "http://")):
             self.invalid_value("target", target, "Should be a URL")
 
         return target
