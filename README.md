@@ -61,7 +61,8 @@ $ pferd kit-ilias-web <url> <output_directory>
 
 PFERD supports other ILIAS instances as well, using the `ilias-web` crawler (see
 the [config section on `ilias-web`](CONFIG.md#the-ilias-web-crawler) for more
-detail on the `base-url`, `client-id` and `login-type` parameters):
+detail on the `base-url`, `client-id` and `login-type` parameters). Without
+`--client-id`, shibboleth login is used. Use `--login-type` to choose explicitly:
 
 ```
 $ pferd ilias-web \
@@ -69,9 +70,6 @@ $ pferd ilias-web \
     --client-id My_University desktop \
     <output_directory>
 ```
-
-Without `--client-id`, shibboleth login is used. Use `--login-type` to choose
-explicitly.
 
 However, the CLI only lets you download a single thing at a time, and the
 resulting command can grow long quite quickly. Because of this, PFERD can also

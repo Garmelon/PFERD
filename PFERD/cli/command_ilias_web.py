@@ -3,7 +3,7 @@ import configparser
 
 from ..logging import log
 from .common_ilias_args import configure_common_group_args, load_common
-from .parser import CRAWLER_PARSER, SUBPARSERS, load_crawler
+from .parser import CRAWLER_PARSER, SUBPARSERS, ParserLoadError, load_crawler
 
 COMMAND_NAME = "ilias-web"
 
@@ -54,6 +54,8 @@ def load(args: argparse.Namespace, parser: configparser.ConfigParser) -> None:
     login_type = args.login_type
     if login_type is None:
         login_type = "local" if args.client_id is not None else "shibboleth"
+    if login_type == "local" and args.client_id is None:
+        raise ParserLoadError("--login-type local requires --client-id")
     section["login_type"] = login_type
     if args.client_id is not None:
         section["client_id"] = args.client_id
