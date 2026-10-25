@@ -1,5 +1,6 @@
 import asyncio
 import getpass
+import re
 import sys
 import threading
 from abc import ABC, abstractmethod
@@ -10,7 +11,9 @@ from types import TracebackType
 from typing import Any, Generic, Optional, TypeVar
 from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
 
+import aiohttp
 import bs4
+from aiohttp import hdrs
 
 T = TypeVar("T")
 
@@ -90,6 +93,20 @@ def url_set_query_params(url: str, params: dict[str, str]) -> str:
         result = url_set_query_param(result, key, val)
 
     return result
+
+
+def is_whole_file(resp: aiohttp.ClientResponse) -> bool:
+    """
+    Whether the response to a request for "bytes=0-" contains the whole file. Servers ignoring the
+    range answer with 200, but some send only a part of the file in their 206.
+    """
+    if resp.status == 200:
+        return True
+    if resp.status == 206:
+        match = re.fullmatch(r"bytes 0-(\d+)/(\d+)", resp.headers.get(hdrs.CONTENT_RANGE, ""))
+        return match is not None and int(match.group(1)) + 1 == int(match.group(2))
+    # Errors (like 416 for empty files) are left to a normal request
+    return False
 
 
 def str_path(path: PurePath) -> str:

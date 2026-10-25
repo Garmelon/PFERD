@@ -26,6 +26,7 @@ ambiguous situations.
 - Embedded videos in ILIAS pages are only downloaded with the `videos` option, like all other videos
 
 ### Fixed
+- Unknown size of videos in the KIT ILIAS
 - Download progress showing "/ 100 bytes" and not advancing for files of unknown size
 - `ilias-web` command failing with "Missing value" for `login_type`. It now has a `--login-type` option.
 - `kit-ipd` crawler putting files into the folder of a heading from a previous section

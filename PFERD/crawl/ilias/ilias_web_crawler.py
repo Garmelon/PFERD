@@ -15,7 +15,7 @@ from ...auth import Authenticator
 from ...config import Config
 from ...logging import ProgressBar, log
 from ...output_dir import FileSink, Redownload
-from ...utils import fmt_path, sanitize_path_name, soupify, url_set_query_param
+from ...utils import fmt_path, is_whole_file, sanitize_path_name, soupify, url_set_query_param
 from .. import kit_media_portal
 from ..crawler import CrawlError, CrawlToken, CrawlWarning, DownloadToken, anoncritical
 from ..http_crawler import HttpCrawler, HttpCrawlerSection
@@ -833,27 +833,35 @@ instance's greatest bottleneck.
             return await fetch_follow_redirects(next_url)
 
         async def fetch_follow_redirects(file_url: str) -> bool:
+            # Some servers (like the KIT ILIAS) drop the content length of files, but keep the
+            # content range. Request the whole file as a range to learn its size.
+            async with self.session.get(file_url, headers={hdrs.RANGE: "bytes=0-"}) as resp:
+                if is_whole_file(resp):
+                    return await stream_response(resp)
             async with self.session.get(file_url) as resp:
-                # We wanted a video but got HTML => Forbidden, auth expired. Logging in won't really
-                # solve that depending on the setup, but it is better than nothing.
-                if is_video and "html" in resp.content_type:
-                    return False
+                return await stream_response(resp)
 
-                # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Range
-                if content_range := resp.headers.get(hdrs.CONTENT_RANGE, default=None):
-                    parts = content_range.split("/")
-                    if len(parts) == 2 and parts[1].isdigit():
-                        bar.set_total(int(parts[1]))
+        async def stream_response(resp: aiohttp.ClientResponse) -> bool:
+            # We wanted a video but got HTML => Forbidden, auth expired. Logging in won't really
+            # solve that depending on the setup, but it is better than nothing.
+            if is_video and "html" in resp.content_type:
+                return False
 
-                # Prefer the content length header
-                if resp.content_length:
-                    bar.set_total(resp.content_length)
+            # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Range
+            if content_range := resp.headers.get(hdrs.CONTENT_RANGE, default=None):
+                parts = content_range.split("/")
+                if len(parts) == 2 and parts[1].isdigit():
+                    bar.set_total(int(parts[1]))
 
-                async for data in resp.content.iter_chunked(1024):
-                    sink.file.write(data)
-                    bar.advance(len(data))
+            # Prefer the content length header
+            if resp.content_length:
+                bar.set_total(resp.content_length)
 
-                sink.done()
+            async for data in resp.content.iter_chunked(1024):
+                sink.file.write(data)
+                bar.advance(len(data))
+
+            sink.done()
             return True
 
         auth_id = await self._current_auth_id()
