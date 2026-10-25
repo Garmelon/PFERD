@@ -125,6 +125,7 @@ _DIRECTORY_PAGES: set[IliasElementType] = {
 _VIDEO_ELEMENTS: set[IliasElementType] = {
     IliasElementType.MEDIACAST_VIDEO,
     IliasElementType.MEDIACAST_VIDEO_FOLDER,
+    IliasElementType.MOB_VIDEO,
     IliasElementType.OPENCAST_VIDEO,
     IliasElementType.OPENCAST_VIDEO_FOLDER,
     IliasElementType.OPENCAST_VIDEO_FOLDER_MAYBE_PAGINATED,

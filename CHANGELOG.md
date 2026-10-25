@@ -22,6 +22,9 @@ ambiguous situations.
 
 ## Unreleased
 
+### Changed
+- Embedded videos in ILIAS pages are only downloaded with the `videos` option, like all other videos
+
 ### Fixed
 - "Didn't find identity" warning for embedded videos
 - File sizes in bytes or GB are removed from the names of files in content pages
