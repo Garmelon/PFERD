@@ -75,12 +75,12 @@ class ShibbolethLogin:
                 }
                 soup, page_url = await _post(sess, url, data)
 
-                if self._tfa_required(soup):
-                    soup = await self._authenticate_tfa(sess, soup, shib_url)
-
                 if soup.find("input", {"name": user_field}):
                     log.warn(f"Shibboleth login failed: {_login_error(soup)}")
                     self._auth.invalidate_credentials()
+            elif self._tfa_required(soup):
+                # Also asks for a new token if the previous one was wrong
+                soup, page_url = await self._authenticate_tfa(sess, soup, shib_url)
             elif any(name.startswith("shib_idp_ls_") for name in inputs):
                 # Equivalent: Being redirected via JS automatically by the
                 # Shibboleth IdP's local storage check
@@ -101,7 +101,7 @@ class ShibbolethLogin:
 
     async def _authenticate_tfa(
         self, session: aiohttp.ClientSession, soup: BeautifulSoup, shib_url: yarl.URL
-    ) -> BeautifulSoup:
+    ) -> tuple[BeautifulSoup, str]:
         if not self._tfa_auth:
             self._tfa_auth = TfaAuthenticator("ilias-anon-tfa")
 
@@ -121,8 +121,7 @@ class ShibbolethLogin:
         }
         if csrf_token_input := form.find("input", {"name": "csrf_token"}):
             data["csrf_token"] = csrf_token_input["value"]  # type: ignore
-        soup, _ = await _post(session, url, data)
-        return soup
+        return await _post(session, url, data)
 
     @staticmethod
     def _login_successful(soup: BeautifulSoup) -> bool:
