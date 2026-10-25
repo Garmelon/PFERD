@@ -185,16 +185,20 @@ class HttpCrawler(Crawler):
         """
 
         def find_associated_headings(tag: Tag, level: int) -> PurePath:
-            if level == 0 or (level == 1 and drop_h1):
+            if level == 0:
                 return PurePath()
 
-            level_heading = tag.find_previous(name=f"h{level}")
+            # The closest heading of at most this level. A heading of a lower level that comes after a
+            # heading of this level starts a new section, which the deeper heading does not belong to.
+            heading = tag.find_previous(name=[f"h{i}" for i in range(1, level + 1)])
+            if heading is None:
+                return PurePath()
+            heading_level = int(heading.name[1])
+            if heading_level == 1 and drop_h1:
+                return PurePath()
 
-            if level_heading is None:
-                return find_associated_headings(tag, level - 1)
-
-            folder_name = sanitize_path_name(level_heading.get_text().strip())
-            return find_associated_headings(level_heading, level - 1) / folder_name
+            folder_name = sanitize_path_name(heading.get_text().strip())
+            return find_associated_headings(heading, heading_level - 1) / folder_name
 
         # start at level <h3> because paragraph-level headings are usually too granular for folder names
         return find_associated_headings(file_link, 3)
