@@ -23,6 +23,7 @@ ambiguous situations.
 ## Unreleased
 
 ### Fixed
+- "Didn't find identity" warning for embedded videos
 - File sizes in bytes or GB are removed from the names of files in content pages
 - Files in nested accordions are placed in a folder for each accordion, not only the innermost one
 - Exit with status 1 if a crawler failed, for example because of invalid credentials

@@ -292,6 +292,7 @@ class IliasPageElement:
             r"ref_id=(?P<id>\d+)",
             r"target=[a-z]+_(?P<id>\d+)",
             r"mm_(?P<id>\d+)",
+            r"deliver\.php/(?P<id>[A-Za-z0-9_-]+)/",  # media delivered with an access token
         ]
 
         for regex in regexes:
