@@ -4,6 +4,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from enum import Enum
+from pathlib import PurePosixPath
 from typing import Optional, cast
 from urllib.parse import urljoin, urlparse
 
@@ -108,6 +109,7 @@ class IliasElementType(Enum):
     FORUM_THREAD = "forum_thread"
     INFO_TAB = "info_tab"
     INDIVIDUAL_ASSESSMENT = "individual_assessment"
+    INTERACTIVE_VIDEO_PLAYER = "interactive_video_player"  # InteractiveVideo plugin (xvid)
     LEARNING_MODULE = "learning_module"
     LEARNING_MODULE_HTML = "learning_module_html"
     LITERATURE_LIST = "literature_list"
@@ -188,6 +190,12 @@ class IliasElementType(Enum):
                 return TypeMatcher.never()
             case IliasElementType.INFO_TAB:
                 return TypeMatcher.never()
+            case IliasElementType.INTERACTIVE_VIDEO_PLAYER:
+                return TypeMatcher.any(
+                    TypeMatcher.path("/xvid/"),
+                    TypeMatcher.query("cmdclass=ilobjinteractivevideogui"),
+                    TypeMatcher.img_src("icon_xvid"),
+                )
             case IliasElementType.INDIVIDUAL_ASSESSMENT:
                 return TypeMatcher.any(
                     TypeMatcher.path("/iass/"),
@@ -292,6 +300,7 @@ class IliasPageElement:
             r"ref_id=(?P<id>\d+)",
             r"target=[a-z]+_(?P<id>\d+)",
             r"mm_(?P<id>\d+)",
+            r"xvid_(?P<id>\d+)",  # interactive video subtitles
         ]
 
         for regex in regexes:
@@ -402,6 +411,9 @@ class IliasPage:
         if self._is_video_player():
             log.explain("Page is a video player, extracting URL")
             return self._player_to_video()
+        if self._page_type == IliasElementType.INTERACTIVE_VIDEO_PLAYER:
+            log.explain("Page is an interactive video, extracting URL")
+            return self._find_interactive_videos()
         if self._is_opencast_video_listing():
             log.explain("Page is an opencast video listing, searching for elements")
             return self._find_opencast_video_entries_no_paging()
@@ -1060,6 +1072,45 @@ class IliasPage:
                     typ=IliasElementType.MOB_VIDEO, url=url, name=sanitize_path_name(title), mtime=None
                 )
             )
+
+        return videos
+
+    def _find_interactive_videos(self) -> list[IliasPageElement]:
+        # Media object and simple URL sources render <video><source src=...>, YouTube and
+        # third party sources render their own player. The source type is not always video/mp4.
+        source = self._soup.select_one("video.ilInteractiveVideo source[src]")
+        if source is None or not source.get("src"):
+            log.explain("No <video> source found, probably YouTube or a third party player. Ignoring")
+            return []
+
+        url = self._abs_url_from_relative(cast(str, source.get("src")))
+        if urlparse(url).hostname != urlparse(self._page_url).hostname:
+            log.explain(f"Found external video at {url}, ignoring")
+            return []
+
+        # Named after the object title, like opencast videos
+        suffix = PurePosixPath(urlparse(url).path).suffix or ".mp4"
+        videos = [IliasPageElement.create_new(IliasElementType.MOB_VIDEO, url, self._source_name + suffix)]
+
+        # Subtitles (always .vtt) are only listed in the player config as a single line:
+        # tracks: [[{"label": "..", "src": "./data/<client>/xvid/xvid_<id>/subtitles/..", "srclang": ".."}]],
+        if match := re.search(r"^\s*tracks:\s*(\[.*\]),\s*$", str(self._soup), re.MULTILINE):
+            try:
+                tracks = json.loads(match.group(1))[0]
+            except (ValueError, IndexError) as e:
+                log.warn(f"Could not parse subtitles of {self._source_name!r}, skipping them: {e}")
+                tracks = []
+            for track in tracks:
+                track_url = self._abs_url_from_relative(track["src"])
+                if urlparse(track_url).hostname != urlparse(self._page_url).hostname:
+                    log.explain(f"Found external subtitle at {track_url}, ignoring")
+                    continue
+                lang = f".{track['srclang']}" if track.get("srclang") else ""
+                videos.append(
+                    IliasPageElement.create_new(
+                        IliasElementType.MOB_VIDEO, track_url, f"{self._source_name}{lang}.vtt"
+                    )
+                )
 
         return videos
 
