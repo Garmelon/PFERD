@@ -1095,13 +1095,20 @@ class IliasPage:
         # Subtitles (always .vtt) are only listed in the player config as a single line:
         # tracks: [[{"label": "..", "src": "./data/<client>/xvid/xvid_<id>/subtitles/..", "srclang": ".."}]],
         if match := re.search(r"^\s*tracks:\s*(\[.*\]),\s*$", str(self._soup), re.MULTILINE):
-            for track in json.loads(match.group(1))[0]:
+            try:
+                tracks = json.loads(match.group(1))[0]
+            except (ValueError, IndexError) as e:
+                log.warn(f"Could not parse subtitles of {self._source_name!r}, skipping them: {e}")
+                tracks = []
+            for track in tracks:
+                track_url = self._abs_url_from_relative(track["src"])
+                if urlparse(track_url).hostname != urlparse(self._page_url).hostname:
+                    log.explain(f"Found external subtitle at {track_url}, ignoring")
+                    continue
                 lang = f".{track['srclang']}" if track.get("srclang") else ""
                 videos.append(
                     IliasPageElement.create_new(
-                        IliasElementType.MOB_VIDEO,
-                        self._abs_url_from_relative(track["src"]),
-                        f"{self._source_name}{lang}.vtt",
+                        IliasElementType.MOB_VIDEO, track_url, f"{self._source_name}{lang}.vtt"
                     )
                 )
 
