@@ -22,6 +22,8 @@ ambiguous situations.
 
 ## Unreleased
 
+## 3.10.0 - 2026-10-25
+
 ### Added
 - `--login-type` option for the `ilias-web` command
 - Tell the user about new PFERD releases. Disable with the `check_for_updates` option or the `PFERD_NO_UPDATE_CHECK` environment variable.
