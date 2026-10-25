@@ -9,3 +9,6 @@ __pycache__/
 /pferd.spec
 /build/
 /dist/
+
+# Pages dumped from the KIT ILIAS as reference for the e2e fixtures. They contain personal data.
+/tests/e2e/kit-samples/

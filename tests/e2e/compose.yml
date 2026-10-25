@@ -1,0 +1,30 @@
+# Based on the example from https://hub.docker.com/r/srsolutions/ilias/
+services:
+  ilias:
+    image: srsolutions/ilias:10.12-php8.3-apache
+    ports:
+      - "${ILIAS_PORT:-8080}:80"
+    links:
+      - mysql
+    volumes:
+      - ./seed:/seed:ro
+    environment:
+      - ILIAS_AUTO_SETUP=1
+      - ILIAS_DB_USER=root
+      - ILIAS_DB_PASSWORD=example
+      - ILIAS_HTTP_PATH=http://localhost:${ILIAS_PORT:-8080}
+      - ILIAS_ROOT_PASSWORD=homer
+    healthcheck:
+      # login.php answers with a redirect once the setup is done and apache is up
+      test: ["CMD", "curl", "-fs", "-o", "/dev/null", "http://localhost/login.php"]
+      interval: 2s
+      start_period: 5m
+      retries: 150
+  mysql:
+    image: mariadb
+    command: |
+      --character-set-server=utf8
+      --collation-server=utf8_general_ci
+    environment:
+      - MYSQL_ROOT_PASSWORD=example
+      - MYSQL_DATABASE=ilias

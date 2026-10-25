@@ -56,5 +56,16 @@ ignore = [
 dev = [
     "pyinstaller>=6.16.0",
     "pyright>=1.1.406",
+    "pytest>=9.1.1",
+    "pytest-xdist>=3.8.0",
     "ruff>=0.14.1",
+    "syrupy>=6.1.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# The e2e tests mostly wait for ILIAS, so run them in parallel. Only tested with up to 8 workers.
+addopts = ["-n", "auto", "--maxprocesses", "8"]
+markers = [
+    "e2e: end-to-end tests against a local ILIAS instance in docker (deselect with '-m \"not e2e\"')",
 ]
