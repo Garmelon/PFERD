@@ -20,8 +20,8 @@ class SimpleAuthenticator(Authenticator):
         self._username = section.username()
         self._password = section.password()
 
-        self._username_fixed = self.username is not None
-        self._password_fixed = self.password is not None
+        self._username_fixed = self._username is not None
+        self._password_fixed = self._password is not None
 
     async def credentials(self) -> tuple[str, str]:
         if self._username is not None and self._password is not None:

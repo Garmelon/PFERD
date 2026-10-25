@@ -32,6 +32,9 @@ ambiguous situations.
 - Embedded videos in ILIAS pages are only downloaded with the `videos` option, like all other videos
 
 ### Fixed
+- Local ILIAS login returning as if authentication succeeded after recoverable credential failures
+- Simple authenticator not asking again for typed-in credentials after a failed
+  login
 - Unknown size of videos in the KIT ILIAS
 - Download progress showing "/ 100 bytes" and not advancing for files of unknown size
 - `ilias-web` command failing without a config file, because `login_type`
