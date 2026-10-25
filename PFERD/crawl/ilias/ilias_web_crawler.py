@@ -1160,29 +1160,34 @@ instance's greatest bottleneck.
         if self._login_type == "shibboleth":
             await self._shibboleth_login.login(self.session)
         else:
-            params = {
-                "client_id": self._client_id,
-                "cmd": "force_login",
-            }
-            async with self.session.get(urljoin(self._base_url, "/login.php"), params=params) as request:
-                login_page = soupify(await request.read())
+            while True:
+                params = {
+                    "client_id": self._client_id,
+                    "cmd": "force_login",
+                }
+                async with self.session.get(urljoin(self._base_url, "/login.php"), params=params) as request:
+                    login_page = soupify(await request.read())
 
-            login_form = login_page.find("form", attrs={"name": "login_form"})
-            if login_form is None:
-                raise CrawlError("Could not find the login form! Specified client id might be invalid.")
+                login_form = login_page.find("form", attrs={"name": "login_form"})
+                if login_form is None:
+                    raise CrawlError("Could not find the login form! Specified client id might be invalid.")
 
-            login_url = cast(Optional[str], login_form.attrs.get("action"))
-            if login_url is None:
-                raise CrawlError("Could not find the action URL in the login form!")
+                login_url = cast(Optional[str], login_form.attrs.get("action"))
+                if login_url is None:
+                    raise CrawlError("Could not find the action URL in the login form!")
 
-            username, password = await self._auth.credentials()
+                username, password = await self._auth.credentials()
 
-            login_form_data = aiohttp.FormData()
-            login_form_data.add_field("login_form/input_3/input_4", username)
-            login_form_data.add_field("login_form/input_3/input_5", password)
+                login_form_data = aiohttp.FormData()
+                login_form_data.add_field("login_form/input_3/input_4", username)
+                login_form_data.add_field("login_form/input_3/input_5", password)
 
-            # do the actual login
-            async with self.session.post(urljoin(self._base_url, login_url), data=login_form_data) as request:
-                soup = IliasSoup(soupify(await request.read()), str(request.url))
-                if not IliasPage.is_logged_in(soup):
-                    self._auth.invalidate_credentials()
+                # do the actual login
+                async with self.session.post(
+                    urljoin(self._base_url, login_url), data=login_form_data
+                ) as request:
+                    soup = IliasSoup(soupify(await request.read()), str(request.url))
+                    if IliasPage.is_logged_in(soup):
+                        return
+
+                self._auth.invalidate_credentials()
