@@ -1,4 +1,8 @@
+import os
+
 import pytest
+
+from PFERD import update_check
 
 from .e2e import stack
 
@@ -12,6 +16,8 @@ def _is_xdist_worker(config: pytest.Config) -> bool:
 
 
 def pytest_configure(config: pytest.Config) -> None:
+    # Tests should not ask GitHub for updates, also not in the PFERD processes they start
+    os.environ[update_check.DISABLE_ENV_VAR] = "1"
     if not _is_xdist_worker(config):
         stack.create_state_dir()
 

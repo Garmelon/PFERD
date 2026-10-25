@@ -229,6 +229,11 @@ PARSER.add_argument(
     action=BooleanOptionalAction,
     help="print messages in status and report when PFERD did not delete a local only file",
 )
+PARSER.add_argument(
+    "--check-for-updates",
+    action=BooleanOptionalAction,
+    help="tell you about new PFERD releases, checking at most once a day",
+)
 
 
 def load_default_section(
@@ -249,6 +254,8 @@ def load_default_section(
         section["share_cookies"] = "yes" if args.share_cookies else "no"
     if args.show_not_deleted is not None:
         section["show_not_deleted"] = "yes" if args.show_not_deleted else "no"
+    if args.check_for_updates is not None:
+        section["check_for_updates"] = "yes" if args.check_for_updates else "no"
 
 
 SUBPARSERS = PARSER.add_subparsers(title="crawlers")

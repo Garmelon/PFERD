@@ -23,6 +23,7 @@ ambiguous situations.
 ## Unreleased
 
 ### Added
+- Tell the user about new PFERD releases. Disable with the `check_for_updates` option or the `PFERD_NO_UPDATE_CHECK` environment variable.
 - Download interactive H5P videos (with the `videos` option)
 
 ### Changed

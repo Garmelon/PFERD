@@ -1,8 +1,11 @@
+import asyncio
 from pathlib import Path, PurePath
 from typing import Optional
 
 from rich.markup import escape
+from rich.panel import Panel
 
+from . import __version__, update_check
 from .auth import AUTHENTICATORS, Authenticator, AuthError, AuthSection
 from .config import Config, ConfigOptionError
 from .crawl import CRAWLERS, Crawler, CrawlError, CrawlerSection, KitIliasWebCrawler
@@ -27,6 +30,7 @@ class Pferd:
         self._crawlers: dict[str, Crawler] = {}
         # Whether any crawler was aborted by an error
         self.failed = False
+        self._newest_release: Optional[update_check.Release] = None
 
     def _find_config_crawlers(self, config: Config) -> list[str]:
         crawl_sections = []
@@ -148,6 +152,11 @@ class Pferd:
 
         log.print("")
 
+        update_check_task = None
+        if self._config.default_section.check_for_updates() and not update_check.disabled_by_env():
+            # Runs alongside the crawlers
+            update_check_task = asyncio.create_task(update_check.newest_release())
+
         for name in self._crawlers_to_run:
             crawler = self._crawlers[name]
 
@@ -161,6 +170,28 @@ class Pferd:
             except Exception:
                 self.failed = True
                 log.unexpected_exception()
+
+        if update_check_task is not None:
+            self._newest_release = await update_check_task
+
+    def print_update_notice(self) -> None:
+        release = self._newest_release
+        if release is None or not update_check.is_newer(release.version):
+            return
+
+        lines = [f"You are using {escape(__version__)}. [link={release.url}]{escape(release.url)}[/link]"]
+        if release.notes:
+            lines += ["", escape(release.notes)]
+        log.print("")
+        log.print(
+            Panel(
+                "\n".join(lines),
+                title=f"[bold bright_yellow]PFERD {escape(release.version)} is available[/]",
+                title_align="left",
+                border_style="bright_yellow",
+                expand=False,
+            )
+        )
 
     def print_report(self) -> None:
         for name in self._crawlers_to_run:

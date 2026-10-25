@@ -88,6 +88,9 @@ class DefaultSection(Section):
     def share_cookies(self) -> bool:
         return self.s.getboolean("share_cookies", fallback=True)
 
+    def check_for_updates(self) -> bool:
+        return self.s.getboolean("check_for_updates", fallback=True)
+
 
 class Config:
     @staticmethod

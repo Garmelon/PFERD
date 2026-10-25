@@ -32,6 +32,12 @@ default values for the other sections.
 - `share_cookies`: Whether crawlers should share cookies where applicable. For
   example, some crawlers share cookies if they crawl the same website using the
   same account. (Default: `yes`)
+- `check_for_updates`: Whether PFERD should tell you about new releases after
+  running. It asks GitHub at most once a day and remembers the answer in
+  `$XDG_CACHE_HOME/PFERD` (usually `~/.cache/PFERD`), or in
+  `%LOCALAPPDATA%\PFERD` on Windows. Setting the environment variable
+  `PFERD_NO_UPDATE_CHECK` to any non-empty value disables the check regardless
+  of this option. (Default: `yes`)
 
 ## The `crawl:*` sections
 
