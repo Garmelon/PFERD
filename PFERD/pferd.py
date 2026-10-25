@@ -25,6 +25,8 @@ class Pferd:
 
         self._authenticators: dict[str, Authenticator] = {}
         self._crawlers: dict[str, Crawler] = {}
+        # Whether any crawler was aborted by an error
+        self.failed = False
 
     def _find_config_crawlers(self, config: Config) -> list[str]:
         crawl_sections = []
@@ -154,8 +156,10 @@ class Pferd:
             try:
                 await crawler.run()
             except (CrawlError, AuthError) as e:
+                self.failed = True
                 log.error(str(e))
             except Exception:
+                self.failed = True
                 log.unexpected_exception()
 
     def print_report(self) -> None:
