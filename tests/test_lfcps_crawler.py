@@ -94,4 +94,3 @@ def test_dead_link_is_warning(tmp_path: Path) -> None:
     assert report["encountered_errors"] == []
     assert len(report["encountered_warnings"]) == 1
     assert "Ex2.pdf" in report["encountered_warnings"][0]
-
