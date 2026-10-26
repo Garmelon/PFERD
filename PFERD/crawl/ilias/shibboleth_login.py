@@ -67,10 +67,16 @@ class ShibbolethLogin:
                 # https://idp.scc.kit.edu/idp/profile/SAML2/Redirect/SSO or
                 # https://mylogin.ub.uni-freiburg.de/authn/login (Uni Freiburg)
                 username, password = await self._auth.credentials()
-                soup, page_url = await _post(sess, url, _login_data(user_field, inputs, username, password))
+                data = _login_data(user_field, inputs, username, password)
+                soup, page_url = await _post(sess, url, data)
 
                 if soup.find("input", {"name": user_field}):
-                    log.warn(f"Shibboleth login failed: {_login_error(soup)}")
+                    # A new required field on the form looks like wrong credentials, so name it
+                    unsent = ", ".join(sorted(inputs.keys() - data.keys()))
+                    log.warn(
+                        f"Shibboleth login failed: {_login_error(soup)}"
+                        + (f" (form fields not sent: {unsent})" if unsent else "")
+                    )
                     self._auth.invalidate_credentials()
             elif self._tfa_required(soup):
                 # Also asks for a new token if the previous one was wrong
@@ -153,22 +159,12 @@ _LOGIN_FORMS = {
     ),
 }
 
-# Fields of the Shibboleth IdP's local storage pages (client-storage/read.vm and write.vm)
-_LOCAL_STORAGE_FIELDS = {
-    "csrf_token",
-    "_eventId_proceed",
-    "shib_idp_ls_supported",
-    *(
-        f"shib_idp_ls_{kind}.{key}"
-        for kind in ("exception", "success", "value")
-        for key in ("shib_idp_session_ss", "shib_idp_persistent_ss")
-    ),
-}
-
 
 def _is_local_storage_page(inputs: dict[str, str]) -> bool:
-    # Only known fields, so we never confirm some other IdP prompt
-    return inputs.keys() <= _LOCAL_STORAGE_FIELDS and any(name.startswith("shib_idp_ls_") for name in inputs)
+    # Fields of the Shibboleth IdP's local storage pages (client-storage/read.vm and write.vm).
+    # Only these, so we never confirm some other IdP prompt.
+    ls_fields = [name for name in inputs if name.startswith("shib_idp_ls_")]
+    return bool(ls_fields) and inputs.keys() - ls_fields <= {"csrf_token", "_eventId_proceed"}
 
 
 def _login_data(user_field: str, inputs: dict[str, str], username: str, password: str) -> dict[str, str]:
@@ -182,7 +178,7 @@ def _login_data(user_field: str, inputs: dict[str, str], username: str, password
 
 
 def _form_inputs(form: Tag) -> dict[str, str]:
-    # Named inputs of a form as the browser would send them
+    # Named inputs of a form with their values, without unchecked checkboxes and radios
     data = {}
     for input in form.find_all("input"):
         if not isinstance(input, Tag) or not (name := input.get("name")):
