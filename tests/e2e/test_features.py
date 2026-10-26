@@ -34,9 +34,12 @@ def test_file_dates_become_mtimes(
     run = run_pferd(ilias.course(course), tmp_path, user=student)
 
     for path, timestamp in ilias.seed[dates].items():
-        # ILIAS shows the date in its timezone with minute precision and PFERD interprets it as local time
+        # ILIAS shows the date in its timezone with minute precision and PFERD interprets it as local time,
+        # which run_pferd sets to the ILIAS timezone. The test process may run in another timezone.
         expected = datetime.fromtimestamp(timestamp, ILIAS_TIMEZONE).replace(tzinfo=None, second=0)
-        actual = datetime.fromtimestamp((run.output / path).stat().st_mtime)
+        actual = datetime.fromtimestamp((run.output / path).stat().st_mtime, ILIAS_TIMEZONE).replace(
+            tzinfo=None
+        )
         assert actual == expected, path
 
 
