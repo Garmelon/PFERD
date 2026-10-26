@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import Any, Optional, cast
 from urllib.parse import urljoin
 
@@ -59,21 +60,14 @@ class ShibbolethLogin:
                 raise CrawlError(f"Unexpected Shibboleth page without login form at {page_url!r}")
             url = urljoin(page_url, cast(Optional[str], form.get("action")) or page_url)
             inputs = _form_inputs(form)
-            user_field = next((name for name in _LOGIN_FIELDS if name in inputs), None)
+            user_field = next((name for name in _LOGIN_FORMS if name in inputs), None)
 
             if user_field:
                 # Equivalent: Enter credentials in
                 # https://idp.scc.kit.edu/idp/profile/SAML2/Redirect/SSO or
                 # https://mylogin.ub.uni-freiburg.de/authn/login (Uni Freiburg)
                 username, password = await self._auth.credentials()
-                data = {
-                    "_eventId_proceed": "",
-                    "fudis_web_authn_assertion_input": "",
-                    **inputs,  # csrf_token, LoginForm[context], ...
-                    user_field: username,
-                    _LOGIN_FIELDS[user_field]: password,
-                }
-                soup, page_url = await _post(sess, url, data)
+                soup, page_url = await _post(sess, url, _login_data(user_field, inputs, username, password))
 
                 if soup.find("input", {"name": user_field}):
                     log.warn(f"Shibboleth login failed: {_login_error(soup)}")
@@ -81,7 +75,7 @@ class ShibbolethLogin:
             elif self._tfa_required(soup):
                 # Also asks for a new token if the previous one was wrong
                 soup, page_url = await self._authenticate_tfa(sess, soup, shib_url)
-            elif any(name.startswith("shib_idp_ls_") for name in inputs):
+            elif _is_local_storage_page(inputs):
                 # Equivalent: Being redirected via JS automatically by the
                 # Shibboleth IdP's local storage check
                 soup, page_url = await _post(sess, url, inputs)
@@ -134,15 +128,61 @@ class ShibbolethLogin:
         return soup.find(id="fudiscr-form") is not None
 
 
-# Username field -> password field of the known IdP login forms
-_LOGIN_FIELDS = {
-    "j_username": "j_password",  # Shibboleth IdP default login page (KIT and others)
-    "LoginForm[username]": "LoginForm[password]",  # Uni Freiburg
+@dataclass(frozen=True)
+class _LoginForm:
+    password_field: str
+    # Submit button we click, with its value
+    submit_fields: dict[str, str]
+    # Sent with the form's value, if the form has them
+    copied_fields: tuple[str, ...] = ()
+
+
+# Known login forms, by their username field. Only these fields are sent.
+_LOGIN_FORMS = {
+    # Shibboleth IdP default login page (KIT and others)
+    "j_username": _LoginForm(
+        password_field="j_password",
+        submit_fields={"_eventId_proceed": ""},
+        copied_fields=("csrf_token", "fudis_web_authn_assertion_input"),  # The latter only at KIT
+    ),
+    # Uni Freiburg
+    "LoginForm[username]": _LoginForm(
+        password_field="LoginForm[password]",
+        submit_fields={"yt0": "Login"},
+        copied_fields=("LoginForm[context]",),
+    ),
+}
+
+# Fields of the Shibboleth IdP's local storage pages (client-storage/read.vm and write.vm)
+_LOCAL_STORAGE_FIELDS = {
+    "csrf_token",
+    "_eventId_proceed",
+    "shib_idp_ls_supported",
+    *(
+        f"shib_idp_ls_{kind}.{key}"
+        for kind in ("exception", "success", "value")
+        for key in ("shib_idp_session_ss", "shib_idp_persistent_ss")
+    ),
 }
 
 
+def _is_local_storage_page(inputs: dict[str, str]) -> bool:
+    # Only known fields, so we never confirm some other IdP prompt
+    return inputs.keys() <= _LOCAL_STORAGE_FIELDS and any(name.startswith("shib_idp_ls_") for name in inputs)
+
+
+def _login_data(user_field: str, inputs: dict[str, str], username: str, password: str) -> dict[str, str]:
+    form = _LOGIN_FORMS[user_field]
+    return {
+        **form.submit_fields,
+        **{name: inputs[name] for name in form.copied_fields if name in inputs},
+        user_field: username,
+        form.password_field: password,
+    }
+
+
 def _form_inputs(form: Tag) -> dict[str, str]:
-    # Send every named input back as-is (csrf token, local storage fields, ...)
+    # Named inputs of a form as the browser would send them
     data = {}
     for input in form.find_all("input"):
         if not isinstance(input, Tag) or not (name := input.get("name")):
