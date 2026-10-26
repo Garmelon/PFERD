@@ -11,6 +11,7 @@ from . import command_local
 from . import command_ilias_web
 from . import command_kit_ilias_web
 from . import command_kit_ipd
+from . import command_lfcps
 from .parser import PARSER, ParserLoadError, load_default_section
 
 __all__ = [
@@ -18,6 +19,7 @@ __all__ = [
     "command_ilias_web",
     "command_kit_ilias_web",
     "command_kit_ipd",
+    "command_lfcps",
     "PARSER",
     "ParserLoadError",
     "load_default_section",

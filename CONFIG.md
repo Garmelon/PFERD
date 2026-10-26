@@ -175,6 +175,21 @@ requests is likely a good idea.
   files from KIT-IPD pages. (Default: `^.*?[^/]+\.(pdf|zip|c|cpp|java)$`)
 - `auth`: Name of auth section to use for basic authentication. (Optional)
 
+### The `lfcps` crawler
+
+This crawler crawls the schedule page of the Logical Foundations of
+Cyber-Physical Systems course (and other courses on https://lfcps.org/course/).
+Slides, code and exercise sheets from the schedule table are sorted into the
+folders `Slides`, `Code` and `Exercises`. Other files located next to the
+schedule page (e.g. the syllabus) are put into the root folder.
+
+- `target`: URL to the schedule page. (Default:
+  `https://lfcps.org/course/lfcps-schedule.html`)
+- `link_regex`: A regex that is matched against the absolute URL of links. If it
+  matches, the given link is downloaded as a file. (Default:
+  `^.*?[^/]+\.(pdf|kyx|zip)$`)
+- `auth`: Name of auth section to use for basic authentication. (Optional)
+
 ### The `ilias-web` crawler
 
 This crawler crawls a generic ILIAS instance.
