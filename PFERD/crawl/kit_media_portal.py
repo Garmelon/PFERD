@@ -1,7 +1,7 @@
+from dataclasses import dataclass
 from typing import cast
 
 import aiohttp
-from attr import dataclass
 from bs4 import BeautifulSoup, Tag
 from yarl import URL
 
