@@ -98,6 +98,9 @@ class IliasWebCrawlerSection(HttpCrawlerSection):
 
         self.invalid_value("target", target, "Should be <course id | desktop | kit ilias URL>")
 
+    def container_block(self) -> Optional[str]:
+        return self.s.get("container_block")
+
     def links(self) -> Links:
         type_str: Optional[str] = self.s.get("links")
 
@@ -214,6 +217,7 @@ instance's greatest bottleneck.
             self._shibboleth_login = ShibbolethLogin(self._base_url, self._auth, self._tfa_auth)
 
         self._target = section.target()
+        self._container_block = section.container_block()
         self._link_file_redirect_delay = section.link_redirect_delay()
         self._links = section.links()
         self._videos = section.videos()
@@ -323,10 +327,11 @@ instance's greatest bottleneck.
                         next_stage_url = None
 
                 page = cast(IliasPage, page)
-                found_elements.extend(page.get_child_elements())
-                if current_element is None and (info_tab := page.get_info_tab()):
+                container_block = self._container_block if current_element is None else None
+                found_elements.extend(page.get_child_elements(container_block))
+                if current_element is None and container_block is None and (info_tab := page.get_info_tab()):
                     found_elements.append(info_tab)
-                if description_string := page.get_description():
+                if description_string := page.get_description(container_block):
                     found_description = description_string
 
             return found_elements, found_description, page.get_next_page_element()

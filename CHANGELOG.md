@@ -22,6 +22,10 @@ ambiguous situations.
 
 ## Unreleased
 
+### Added
+- `container_block` / `--container-block` to filter the starting content page
+  for `ilias-web` and `kit-ilias-web` crawls.
+
 ## 3.10.0 - 2026-10-25
 
 ### Added

@@ -403,30 +403,50 @@ class IliasPage:
             return "goto.php/root/" in permalink
         return False
 
-    def get_child_elements(self) -> list[IliasPageElement]:
+    def get_container_block(self, title: str) -> Tag:
+        title = " ".join(title.split())
+        if not title:
+            raise CrawlError("Container block title must not be blank")
+
+        matches: list[Tag] = []
+        for heading in self._soup.select(
+            "div.ilContainerBlock > div.ilContainerBlockHeader > h2.ilHeader.ilContainerBlockHeader"
+        ):
+            if " ".join(heading.get_text().split()) != title:
+                continue
+            matches.append(cast(Tag, cast(Tag, heading.parent).parent))
+
+        if not matches:
+            raise CrawlError(f"Container block {title!r} not found")
+        if len(matches) != 1:
+            raise CrawlError(f"Container block {title!r} is ambiguous: multiple matching headers")
+        return matches[0]
+
+    def get_child_elements(self, container_block: Optional[str] = None) -> list[IliasPageElement]:
         """
         Return all child page elements you can find here.
         """
-        if self._is_video_player():
+        root = self.get_container_block(container_block) if container_block is not None else self._soup
+        if self._is_video_player() and container_block is None:
             log.explain("Page is a video player, extracting URL")
             return self._player_to_video()
         if self._is_opencast_video_listing():
             log.explain("Page is an opencast video listing, searching for elements")
-            return self._find_opencast_video_entries_no_paging()
+            return self._find_opencast_video_entries_no_paging(root)
         if self._is_exercise_file():
             log.explain("Page is an exercise, searching for elements")
-            return self._find_exercise_entries()
+            return self._find_exercise_entries(root)
         if self._is_personal_desktop():
             log.explain("Page is the personal desktop, searching for elements")
-            return self._find_personal_desktop_entries()
+            return self._find_personal_desktop_entries(root)
         if self._is_content_page():
             log.explain("Page is a content page, searching for elements")
-            return self._find_copa_entries()
+            return self._find_copa_entries(root)
         if self._is_info_tab():
             log.explain("Page is info tab, searching for elements")
-            return self._find_info_tab_entries()
+            return self._find_info_tab_entries(root)
         log.explain("Page is a normal folder, searching for elements")
-        return self._find_normal_entries()
+        return self._find_normal_entries(root)
 
     def get_info_tab(self) -> Optional[IliasPageElement]:
         tab: Optional[Tag] = self._soup.find(
@@ -438,7 +458,7 @@ class IliasPage:
             )
         return None
 
-    def get_description(self) -> Optional[BeautifulSoup]:
+    def get_description(self, container_block: Optional[str] = None) -> Optional[BeautifulSoup]:
         def is_interesting_class(name: str | None) -> bool:
             return name in [
                 "ilCOPageSection",
@@ -448,7 +468,8 @@ class IliasPage:
                 "ilc_media_cont_MediaContainer",
             ]
 
-        paragraphs: list[Tag] = cast(list[Tag], self._soup.find_all(class_=is_interesting_class))
+        root = self.get_container_block(container_block) if container_block is not None else self._soup
+        paragraphs: list[Tag] = cast(list[Tag], root.find_all(class_=is_interesting_class))
         if not paragraphs:
             return None
 
@@ -457,7 +478,8 @@ class IliasPage:
         # somewhat gracefully.
         raw_html = ""
         for p in paragraphs:
-            if p.find_parent(class_=is_interesting_class):
+            parent = p.find_parent(class_=is_interesting_class)
+            if parent is not None and (container_block is None or any(p is root for p in parent.parents)):
                 continue
             if "ilc_media_cont_MediaContainer" in p["class"] and (video := p.select_one("video")):
                 # We have an embedded video which should be downloaded by _find_mob_videos
@@ -711,10 +733,11 @@ class IliasPage:
 
         return None
 
-    def _find_personal_desktop_entries(self) -> list[IliasPageElement]:
+    def _find_personal_desktop_entries(self, root: Tag) -> list[IliasPageElement]:
         items: list[IliasPageElement] = []
 
-        titles: list[Tag] = self._soup.select("#block_dash_fav_0 .il-item-title")
+        selector = "#block_dash_fav_0 .il-item-title" if root is self._soup else ".il-item-title"
+        titles: list[Tag] = root.select(selector)
         for title in titles:
             link = title.find("a")
 
@@ -743,9 +766,9 @@ class IliasPage:
 
         return items
 
-    def _find_copa_entries(self) -> list[IliasPageElement]:
+    def _find_copa_entries(self, root: Tag) -> list[IliasPageElement]:
         items: list[IliasPageElement] = []
-        links: list[Tag] = cast(list[Tag], self._soup.find_all(class_="ilc_flist_a_FileListItemLink"))
+        links: list[Tag] = cast(list[Tag], root.find_all(class_="ilc_flist_a_FileListItemLink"))
 
         for link in links:
             url = self._abs_url_from_link(link)
@@ -762,9 +785,9 @@ class IliasPage:
 
         return items
 
-    def _find_info_tab_entries(self) -> list[IliasPageElement]:
+    def _find_info_tab_entries(self, root: Tag) -> list[IliasPageElement]:
         items = []
-        links: list[Tag] = self._soup.select("a.il_ContainerItemCommand")
+        links: list[Tag] = root.select("a.il_ContainerItemCommand")
 
         for link in links:
             log.explain(f"Found info tab link: {self._abs_url_from_link(link)}")
@@ -788,16 +811,16 @@ class IliasPage:
         log.explain("Set pagination to 10, retrying folder as a new entry")
         return IliasPageElement.create_new(IliasElementType.OPENCAST_VIDEO_FOLDER, url, "")
 
-    def _find_opencast_video_entries_no_paging(self) -> list[IliasPageElement]:
+    def _find_opencast_video_entries_no_paging(self, root: Tag) -> list[IliasPageElement]:
         """
         Crawls the "second stage" video page. This page contains the actual video urls.
         """
         # Video start links are marked with an "Abspielen" link
         video_links = cast(
-            list[Tag], self._soup.find_all(name="a", attrs={"href": re.compile(r".+cmd=streamVideo.+", re.I)})
+            list[Tag], root.find_all(name="a", attrs={"href": re.compile(r".+cmd=streamVideo.+", re.I)})
         )
         # For kit-library videos
-        video_links += cast(list[Tag], self._soup.select(".c-entity__primary-identifier > a"))
+        video_links += cast(list[Tag], root.select(".c-entity__primary-identifier > a"))
 
         results: list[IliasPageElement] = []
 
@@ -839,21 +862,21 @@ class IliasPage:
             IliasElementType.OPENCAST_VIDEO_PLAYER, video_url, video_name, modification_time
         )
 
-    def _find_exercise_entries(self) -> list[IliasPageElement]:
+    def _find_exercise_entries(self, root: Tag) -> list[IliasPageElement]:
         if "cmdClass=ilAssignmentPresentationGUI".lower() in self._page_url.lower():
             log.explain("Found details page (judged by URL)")
-            return self._find_exercise_entries_detail_page()
+            return self._find_exercise_entries_detail_page(root)
         if "cmdClass=ilExSubmissionFileGUI".lower() in self._page_url.lower():
             log.explain("Found files page (judged by URL)")
-            return self._find_exercise_entries_files_page()
+            return self._find_exercise_entries_files_page(root)
 
         log.explain("Found no recognized URL pattern. This is an exercise root page")
-        return self._find_exercise_entries_root_page()
+        return self._find_exercise_entries_root_page(root)
 
-    def _find_exercise_entries_detail_page(self) -> list[IliasPageElement]:
+    def _find_exercise_entries_detail_page(self, root: Tag) -> list[IliasPageElement]:
         results: list[IliasPageElement] = []
 
-        if link := self._soup.select_one("#tab_submission > a"):
+        if link := root.select_one("#tab_submission > a"):
             results.append(
                 IliasPageElement.create_new(
                     IliasElementType.EXERCISE_FILES, self._abs_url_from_link(link), "Submission"
@@ -865,7 +888,7 @@ class IliasPage:
         # Find all download links in the container (this will contain all the *feedback* files)
         download_links = cast(
             list[Tag],
-            self._soup.find_all(
+            root.find_all(
                 name="a",
                 # download links contain the given command class
                 attrs={"href": lambda x: x is not None and "cmd=download" in x},
@@ -893,13 +916,13 @@ class IliasPage:
 
         return results
 
-    def _find_exercise_entries_files_page(self) -> list[IliasPageElement]:
+    def _find_exercise_entries_files_page(self, root: Tag) -> list[IliasPageElement]:
         results: list[IliasPageElement] = []
 
         # Find all download links in the container
         download_links = cast(
             list[Tag],
-            self._soup.find_all(
+            root.find_all(
                 name="a",
                 # download links contain the given command class
                 attrs={"href": lambda x: x is not None and "cmd=download" in x},
@@ -928,10 +951,10 @@ class IliasPage:
 
         return results
 
-    def _find_exercise_entries_root_page(self) -> list[IliasPageElement]:
+    def _find_exercise_entries_root_page(self, root: Tag) -> list[IliasPageElement]:
         results: list[IliasPageElement] = []
 
-        content_tab = self._soup.find(id="ilContentContainer")
+        content_tab = root.find(id="ilContentContainer") if root is self._soup else root
         if not content_tab:
             log.warn("Could not find content tab in exercise overview page")
             _unexpected_html_warning()
@@ -960,16 +983,16 @@ class IliasPage:
 
         return results
 
-    def _find_normal_entries(self) -> list[IliasPageElement]:
+    def _find_normal_entries(self, root: Tag) -> list[IliasPageElement]:
         result: list[IliasPageElement] = []
 
         links: list[Tag] = []
         # Fetch all links and throw them to the general interpreter
         if self._is_course_overview_page():
             log.explain("Page is a course overview page, adjusting link selector")
-            links.extend(self._soup.select(".il-item-title > a"))
+            links.extend(root.select(".il-item-title > a"))
         else:
-            links.extend(self._soup.select("a.il_ContainerItemTitle"))
+            links.extend(root.select("a.il_ContainerItemTitle"))
 
         for link in links:
             abs_url = self._abs_url_from_link(link)
@@ -1005,19 +1028,38 @@ class IliasPage:
                 )
             )
 
-        result += self._find_cards()
-        result += self._find_mediacast_videos()
-        result += self._find_mob_videos()
-        result += self._find_h5p_videos()
+        result += self._find_cards(root)
+        result += self._find_mediacast_videos(root)
+        result += self._find_mob_videos(root)
+        result += self._find_h5p_videos(root)
 
         return result
 
-    def _find_mediacast_videos(self) -> list[IliasPageElement]:
+    def _find_mediacast_videos(self, root: Tag) -> list[IliasPageElement]:
         videos: list[IliasPageElement] = []
 
         regex = re.compile(r"il\.VideoPlaylist\.init.+?\[(.+?)], ")
         for script in cast(list[Tag], self._soup.find_all("script")):
             for match in regex.finditer(script.text):
+                if root is not self._soup:
+                    targets = re.match(
+                        r"il\.VideoPlaylist\.init\s*\(\s*(?:['\"]#?([^'\"]*)['\"]|[^,]*)"
+                        r"(?:\s*,\s*['\"]#?([^'\"]*)['\"])?",
+                        match.group(),
+                    )
+                    elements = (
+                        [self._soup.find(id=target) for target in targets.groups() if target]
+                        if targets
+                        else []
+                    )
+                    elements = [element for element in elements if element is not None]
+                    if elements:
+                        if not any(
+                            element is root or any(p is root for p in element.parents) for element in elements
+                        ):
+                            continue
+                    elif not any(p is root for p in script.parents):
+                        continue
                 try:
                     playlist = json.loads("[" + match.group(1) + "]")
                 except json.JSONDecodeError:
@@ -1051,11 +1093,11 @@ class IliasPage:
 
         return videos
 
-    def _find_mob_videos(self) -> list[IliasPageElement]:
+    def _find_mob_videos(self, root: Tag) -> list[IliasPageElement]:
         videos: list[IliasPageElement] = []
 
         selector = "figure.ilc_media_cont_MediaContainerHighlighted,figure.ilc_media_cont_MediaContainer"
-        for figure in self._soup.select(selector):
+        for figure in root.select(selector):
             video_element = figure.select_one("video")
             if not video_element:
                 continue
@@ -1079,7 +1121,7 @@ class IliasPage:
 
         return videos
 
-    def _find_h5p_videos(self) -> list[IliasPageElement]:
+    def _find_h5p_videos(self, root: Tag) -> list[IliasPageElement]:
         """
         Finds interactive videos of the H5P plugin. The page initializes each of them with a call like
         il.H5P.initContent('<element id>', <content id>, `<base64 json>`, `<base64 json parameters>`, ...).
@@ -1095,6 +1137,11 @@ class IliasPage:
         )
         for script in cast(list[Tag], self._soup.find_all("script")):
             for match in regex.finditer(script.text):
+                element = self._soup.find(id=match.group("element"))
+                if root is not self._soup and (
+                    element is None or not any(p is root for p in element.parents)
+                ):
+                    continue
                 content_id = match.group("content_id")
                 # Every content is initialized twice
                 if content_id in seen_content_ids:
@@ -1134,7 +1181,7 @@ class IliasPage:
 
                 title = content.get("metadata", {}).get("title") or content.get("title") or content_id
                 name = sanitize_path_name(title) + PurePath(path).suffix
-                if element := self._soup.find(id=match.group("element")):
+                if element:
                     name = "/".join([*IliasPage._find_upwards_folder_hierarchy(element), name])
 
                 log.explain(f"Found H5P video {name!r}")
@@ -1317,10 +1364,10 @@ class IliasPage:
             IliasElementType.FILE, url, full_path, modification_date, skip_sanitize=True
         )
 
-    def _find_cards(self) -> list[IliasPageElement]:
+    def _find_cards(self, root: Tag) -> list[IliasPageElement]:
         result: list[IliasPageElement] = []
 
-        card_titles: list[Tag] = self._soup.select(".card-title a")
+        card_titles: list[Tag] = root.select(".card-title a")
 
         for title in card_titles:
             url = self._abs_url_from_link(title)
@@ -1334,7 +1381,7 @@ class IliasPage:
 
             result.append(IliasPageElement.create_new(typ, url, name))
 
-        card_button_tiles: list[Tag] = self._soup.select(".card-title button")
+        card_button_tiles: list[Tag] = root.select(".card-title button")
 
         for button in card_button_tiles:
             signal_regex = re.compile("#" + str(button["id"]) + r"[\s\S]*?\.trigger\('(.+?)'")

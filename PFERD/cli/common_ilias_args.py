@@ -61,6 +61,12 @@ def configure_common_group_args(group: argparse._ArgumentGroup) -> None:
         help="crawl and download forum posts",
     )
     group.add_argument(
+        "--container-block",
+        type=str,
+        metavar="TITLE",
+        help="crawl only the named container block on the target's content page",
+    )
+    group.add_argument(
         "--dump-pages",
         type=Path,
         metavar="PATH",
@@ -92,6 +98,8 @@ def load_common(
         section["videos"] = "yes" if args.videos else "no"
     if args.forums is not None:
         section["forums"] = "yes" if args.forums else "no"
+    if args.container_block is not None:
+        section["container_block"] = args.container_block
     if args.dump_pages is not None:
         section["dump_pages"] = str(args.dump_pages)
     if args.http_timeout is not None:

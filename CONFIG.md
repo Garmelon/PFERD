@@ -246,6 +246,8 @@ If the values work, feel free to submit a PR and add them to the table above.
   redirect. (Default: `-1`)
 - `videos`: Whether to download videos. (Default: `no`)
 - `forums`: Whether to download forum threads. (Default: `no`)
+- `container_block`: Restrict the starting target to a named container block.
+  See [ILIAS container block filter](#ilias-container-block-filter). (Optional)
 - `http_timeout`: The timeout (in seconds) for all HTTP requests. (Default:
   `20.0`)
 
@@ -283,8 +285,34 @@ script once per day should be fine.
   redirect. (Default: `-1`)
 - `videos`: Whether to download videos. (Default: `no`)
 - `forums`: Whether to download forum threads. (Default: `no`)
+- `container_block`: Restrict the starting target to a named container block.
+  See [ILIAS container block filter](#ilias-container-block-filter). (Optional)
 - `http_timeout`: The timeout (in seconds) for all HTTP requests. (Default:
   `20.0`)
+
+### ILIAS container block filter
+
+For `ilias-web` and `kit-ilias-web`, set for example:
+
+```ini
+container_block = Vorlesungen
+```
+
+Or use `pferd kit-ilias-web --container-block Vorlesungen COURSE_ID OUTPUT`.
+On the starting target's final content page, this selects the enclosing
+`div.ilContainerBlock` whose direct `div.ilContainerBlockHeader` has a direct
+`h2.ilHeader.ilContainerBlockHeader` with the specified title. The title must
+match exactly and case-sensitively after whitespace normalization. A blank title,
+no match, or multiple matches is an error; PFERD does not fall back to the whole
+page. Without the option, crawling is unchanged.
+
+The filter applies only to the starting target: child folders are crawled
+normally and existing virtual folder names are retained. The root info tab is
+excluded, and the root description is limited to the selected block.
+
+Changing the filter on an existing output can remove now-excluded files under
+the normal conflict policy. Use a separate output directory or set
+`on_conflict = no-delete` to keep them.
 
 ## Authenticator types
 
