@@ -798,6 +798,8 @@ class IliasPage:
         )
         # For kit-library videos
         video_links += cast(list[Tag], self._soup.select(".c-entity__primary-identifier > a"))
+        # Opencast title links match both selectors, so deduplicate them
+        video_links = list({id(link): link for link in video_links}.values())
 
         results: list[IliasPageElement] = []
 

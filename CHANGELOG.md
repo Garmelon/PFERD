@@ -22,6 +22,9 @@ ambiguous situations.
 
 ## Unreleased
 
+### Fixed
+- "Found second path to element" warning for every video in KIT ILIAS Opencast listings
+
 ## 3.10.0 - 2026-10-25
 
 ### Added
