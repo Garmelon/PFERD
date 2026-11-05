@@ -1,4 +1,6 @@
+from dataclasses import dataclass
 from typing import Any, Optional, cast
+from urllib.parse import urljoin
 
 import aiohttp
 import yarl
@@ -43,37 +45,48 @@ class ShibbolethLogin:
             soup: BeautifulSoup = soupify(await response.read())
 
         # Attempt to login using credentials, if necessary
+        page_url = str(shib_url)
         while not self._login_successful(soup):
-            # Searching the form here so that this fails before asking for
-            # credentials rather than after asking.
-            form = cast(Tag, soup.find("form", {"method": "post"}))
-            action = cast(str, form["action"])
-
-            # Equivalent: Enter credentials in
-            # https://idp.scc.kit.edu/idp/profile/SAML2/Redirect/SSO
-            url = str(shib_url.origin()) + action
-            username, password = await self._auth.credentials()
-            data = {
-                "_eventId_proceed": "",
-                "j_username": username,
-                "j_password": password,
-                "fudis_web_authn_assertion_input": "",
-            }
-            if csrf_token_input := form.find("input", {"name": "csrf_token"}):
-                data["csrf_token"] = csrf_token_input["value"]  # type: ignore
-            soup = await _post(sess, url, data)
-
             if soup.find(id="attributeRelease"):
                 raise CrawlError(
                     "ILIAS Shibboleth entitlements changed! "
                     "Please log in once in your browser and review them"
                 )
 
-            if self._tfa_required(soup):
-                soup = await self._authenticate_tfa(sess, soup, shib_url)
+            # Searching the form here so that this fails before asking for
+            # credentials rather than after asking.
+            form = soup.find("form", {"method": "post"})
+            if not isinstance(form, Tag):
+                raise CrawlError(f"Unexpected Shibboleth page without login form at {page_url!r}")
+            url = urljoin(page_url, cast(Optional[str], form.get("action")) or page_url)
+            inputs = _form_inputs(form)
+            user_field = next((name for name in _LOGIN_FORMS if name in inputs), None)
 
-            if not self._login_successful(soup):
-                self._auth.invalidate_credentials()
+            if user_field:
+                # Equivalent: Enter credentials in
+                # https://idp.scc.kit.edu/idp/profile/SAML2/Redirect/SSO or
+                # https://mylogin.ub.uni-freiburg.de/authn/login (Uni Freiburg)
+                username, password = await self._auth.credentials()
+                data = _login_data(user_field, inputs, username, password)
+                soup, page_url = await _post(sess, url, data)
+
+                if soup.find("input", {"name": user_field}):
+                    # A new required field on the form looks like wrong credentials, so name it
+                    unsent = ", ".join(sorted(inputs.keys() - data.keys()))
+                    log.warn(
+                        f"Shibboleth login failed: {_login_error(soup)}"
+                        + (f" (form fields not sent: {unsent})" if unsent else "")
+                    )
+                    self._auth.invalidate_credentials()
+            elif self._tfa_required(soup):
+                # Also asks for a new token if the previous one was wrong
+                soup, page_url = await self._authenticate_tfa(sess, soup, shib_url)
+            elif _is_local_storage_page(inputs):
+                # Equivalent: Being redirected via JS automatically by the
+                # Shibboleth IdP's local storage check
+                soup, page_url = await _post(sess, url, inputs)
+            else:
+                raise CrawlError(f"Unexpected Shibboleth page at {page_url!r} (inputs: {', '.join(inputs)})")
 
         # Equivalent: Being redirected via JS automatically
         # (or clicking "Continue" if you have JS disabled)
@@ -88,7 +101,7 @@ class ShibbolethLogin:
 
     async def _authenticate_tfa(
         self, session: aiohttp.ClientSession, soup: BeautifulSoup, shib_url: yarl.URL
-    ) -> BeautifulSoup:
+    ) -> tuple[BeautifulSoup, str]:
         if not self._tfa_auth:
             self._tfa_auth = TfaAuthenticator("ilias-anon-tfa")
 
@@ -102,7 +115,6 @@ class ShibbolethLogin:
         # Equivalent: Enter token in
         # https://idp.scc.kit.edu/idp/profile/SAML2/Redirect/SSO
         url = str(shib_url.origin()) + action
-        username, password = await self._auth.credentials()
         data = {
             "_eventId_proceed": "",
             "fudis_otp_input": tfa_token,
@@ -122,6 +134,69 @@ class ShibbolethLogin:
         return soup.find(id="fudiscr-form") is not None
 
 
-async def _post(session: aiohttp.ClientSession, url: str, data: Any) -> BeautifulSoup:
+@dataclass(frozen=True)
+class _LoginForm:
+    password_field: str
+    # Submit button we click, with its value
+    submit_fields: dict[str, str]
+    # Sent with the form's value, if the form has them
+    copied_fields: tuple[str, ...] = ()
+
+
+# Known login forms, by their username field. Only these fields are sent.
+_LOGIN_FORMS = {
+    # Shibboleth IdP default login page (KIT and others)
+    "j_username": _LoginForm(
+        password_field="j_password",
+        submit_fields={"_eventId_proceed": ""},
+        copied_fields=("csrf_token", "fudis_web_authn_assertion_input"),  # The latter only at KIT
+    ),
+    # Uni Freiburg
+    "LoginForm[username]": _LoginForm(
+        password_field="LoginForm[password]",
+        submit_fields={"yt0": "Login"},
+        copied_fields=("LoginForm[context]",),
+    ),
+}
+
+
+def _is_local_storage_page(inputs: dict[str, str]) -> bool:
+    # Fields of the Shibboleth IdP's local storage pages (client-storage/read.vm and write.vm).
+    # Only these, so we never confirm some other IdP prompt.
+    ls_fields = [name for name in inputs if name.startswith("shib_idp_ls_")]
+    return bool(ls_fields) and inputs.keys() - ls_fields <= {"csrf_token", "_eventId_proceed"}
+
+
+def _login_data(user_field: str, inputs: dict[str, str], username: str, password: str) -> dict[str, str]:
+    form = _LOGIN_FORMS[user_field]
+    return {
+        **form.submit_fields,
+        **{name: inputs[name] for name in form.copied_fields if name in inputs},
+        user_field: username,
+        form.password_field: password,
+    }
+
+
+def _form_inputs(form: Tag) -> dict[str, str]:
+    # Named inputs of a form with their values, without unchecked checkboxes and radios
+    data = {}
+    for input in form.find_all("input"):
+        if not isinstance(input, Tag) or not (name := input.get("name")):
+            continue
+        if input.get("type") in ("checkbox", "radio") and not input.has_attr("checked"):
+            continue  # Browsers don't send these either
+        data[str(name)] = str(input.get("value", ""))
+    return data
+
+
+def _login_error(soup: BeautifulSoup) -> str:
+    # Error elements of the Shibboleth IdP default login page, Uni Freiburg and KIT
+    error = soup.select_one('.output--error, .errorMessage, .KIT_section[style*="color: red"]')
+    if error and (text := error.get_text(" ", strip=True)):
+        return text
+    return "Login form returned, credentials were likely rejected"
+
+
+async def _post(session: aiohttp.ClientSession, url: str, data: Any) -> tuple[BeautifulSoup, str]:
     async with session.post(url, data=data) as response:
-        return soupify(await response.read())
+        return soupify(await response.read()), str(response.url)
