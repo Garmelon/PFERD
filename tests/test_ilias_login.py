@@ -1,6 +1,6 @@
 import asyncio
 import configparser
-from pathlib import Path
+from pathlib import Path, PurePath
 from unittest.mock import AsyncMock, MagicMock
 
 import aiohttp
@@ -11,6 +11,7 @@ from PFERD.auth.simple import SimpleAuthenticator, SimpleAuthSection
 from PFERD.config import Config
 from PFERD.crawl.crawler import CrawlError
 from PFERD.crawl.ilias.ilias_web_crawler import IliasWebCrawler, IliasWebCrawlerSection
+from PFERD.crawl.ilias.kit_ilias_html import IliasElementType, IliasPageElement
 
 LOGIN_FORM = '<form name="login_form" action="submit.php?attempt={attempt}"></form>'
 LOGGED_IN = '<div class="il-maincontrols-metabar"></div>'
@@ -28,12 +29,15 @@ class RetryAuthenticator(Authenticator):
         self.invalidations += 1
 
 
-def crawler(tmp_path: Path, auth: Authenticator) -> IliasWebCrawler:
+def crawler(
+    tmp_path: Path, auth: Authenticator, base_url: str = "https://ilias.example", **options: str
+) -> IliasWebCrawler:
     parser = configparser.ConfigParser()
     parser["DEFAULT"] = {"working_dir": str(tmp_path)}
     parser["crawl:test"] = {
+        **options,
         "type": "ilias-web",
-        "base_url": "https://ilias.example",
+        "base_url": base_url,
         "login_type": "local",
         "client_id": "test",
         "target": "desktop",
@@ -110,3 +114,28 @@ def test_local_login_rejects_invalid_form(tmp_path: Path, html: str) -> None:
 
     assert auth.invalidations == 0
     session.post.assert_not_called()
+
+
+@pytest.mark.parametrize("base_url", ["https://ilias.example/ilias", "https://ilias.example/ilias/"])
+def test_local_login_respects_base_url_path(tmp_path: Path, base_url: str) -> None:
+    auth = RetryAuthenticator()
+    auth.invalidations = 1  # Return the correct password on the first attempt
+    instance = crawler(tmp_path, auth, base_url=base_url)
+    session = MagicMock(spec=aiohttp.ClientSession)
+    session.get.return_value = response(LOGIN_FORM.format(attempt=1))
+    session.post.return_value = response(LOGGED_IN)
+    instance.session = session
+
+    asyncio.run(instance._authenticate())
+
+    assert session.get.call_args.args[0] == "https://ilias.example/ilias/login.php"
+    assert session.post.call_args.args[0] == "https://ilias.example/ilias/submit.php?attempt=1"
+
+
+def test_ignored_links_are_not_resolved(tmp_path: Path) -> None:
+    instance = crawler(tmp_path, RetryAuthenticator(), links="ignore")
+    instance.session = MagicMock(spec=aiohttp.ClientSession)
+    element = IliasPageElement(IliasElementType.LINK, "https://ilias.example/goto.php/webr/1", "Link")
+
+    assert asyncio.run(instance._handle_link(element, PurePath("Link"))) is None
+    instance.session.get.assert_not_called()

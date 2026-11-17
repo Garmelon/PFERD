@@ -1558,7 +1558,7 @@ class IliasPage:
 
     @staticmethod
     def get_file_download_url(base_url: str, file_id: str):
-        return urljoin(base_url, f"goto.php/file/{file_id}/download")
+        return urljoin(base_url + "/", f"goto.php/file/{file_id}/download")
 
 
 def _unexpected_html_warning() -> None:

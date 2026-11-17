@@ -56,7 +56,8 @@ class IliasWebCrawlerSection(HttpCrawlerSection):
         if not base_url:
             self.missing_value("base_url")
 
-        return base_url
+        # Relative paths are joined onto base_url + "/", so a trailing slash must not be doubled
+        return base_url.rstrip("/")
 
     def login(self) -> Literal["shibboleth"] | LoginTypeLocal:
         login_type = self.s.get("login_type")
@@ -251,7 +252,8 @@ instance's greatest bottleneck.
 
     async def _crawl_desktop(self) -> None:
         await self._crawl_url(
-            urljoin(self._base_url, "/ilias.php?baseClass=ilDashboardGUI&cmd=show"), crawl_nested_courses=True
+            urljoin(self._base_url + "/", "ilias.php?baseClass=ilDashboardGUI&cmd=show"),
+            crawl_nested_courses=True,
         )
 
     async def _crawl_url(
@@ -542,13 +544,6 @@ instance's greatest bottleneck.
         log.explain_topic(f"Decision: Crawl Link {fmt_path(element_path)}")
         log.explain(f"Links type is {self._links}")
 
-        export_url = url_set_query_param(element.url, "cmd", "exportHTML")
-        resolved = await self._resolve_link_target(export_url)
-        if resolved == "none":
-            links = [LinkData(element.name, "", element.description or "")]
-        else:
-            links = self._parse_link_content(element, cast(BeautifulSoup, resolved))
-
         maybe_extension = self._links.extension()
 
         if not maybe_extension:
@@ -556,6 +551,13 @@ instance's greatest bottleneck.
             return None
         else:
             log.explain("Answer: Yes")
+
+        export_url = url_set_query_param(element.url, "cmd", "exportHTML")
+        resolved = await self._resolve_link_target(export_url)
+        if resolved == "none":
+            links = [LinkData(element.name, "", element.description or "")]
+        else:
+            links = self._parse_link_content(element, cast(BeautifulSoup, resolved))
 
         if len(links) <= 1 or self._links.collection_as_one():
             element_path = element_path.with_name(element_path.name + maybe_extension)
@@ -1165,7 +1167,9 @@ instance's greatest bottleneck.
                     "client_id": self._client_id,
                     "cmd": "force_login",
                 }
-                async with self.session.get(urljoin(self._base_url, "/login.php"), params=params) as request:
+                async with self.session.get(
+                    urljoin(self._base_url + "/", "login.php"), params=params
+                ) as request:
                     login_page = soupify(await request.read())
 
                 login_form = login_page.find("form", attrs={"name": "login_form"})
@@ -1184,7 +1188,7 @@ instance's greatest bottleneck.
 
                 # do the actual login
                 async with self.session.post(
-                    urljoin(self._base_url, login_url), data=login_form_data
+                    urljoin(self._base_url + "/", login_url), data=login_form_data
                 ) as request:
                     soup = IliasSoup(soupify(await request.read()), str(request.url))
                     if IliasPage.is_logged_in(soup):

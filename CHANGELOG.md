@@ -22,6 +22,10 @@ ambiguous situations.
 
 ## Unreleased
 
+### Fixed
+- `ilias-web` crawler with a `base_url` that has a path (e. g. `https://www.ilias.uni-koeln.de/ilias`): login, dashboard and file download URLs no longer drop the path
+- `ilias-web` crawler with `links = ignore`: links are no longer resolved, so a link that cannot be resolved no longer aborts the crawl
+
 ## 3.10.1 - 2026-10-31
 
 ### Fixed
